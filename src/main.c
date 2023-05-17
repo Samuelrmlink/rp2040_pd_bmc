@@ -40,6 +40,9 @@ int main() {
 
     sleep_ms(3000);
  
-    while(true)
-        printf("%08x\n", pio_sm_get_blocking(pio, sm_rx));
+    while(true) {
+	if(!pio_sm_is_rx_fifo_empty(pio, sm_rx)) {
+            printf("%08x\n", pio_sm_get(pio, sm_rx));
+	}
+    }
 }
