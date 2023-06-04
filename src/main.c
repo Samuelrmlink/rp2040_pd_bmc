@@ -8,6 +8,7 @@
 
 #include "pico/stdlib.h"
 #include "hardware/pio.h"
+#include "hardware/timer.h"
 #include "bmc.pio.h"
 
 //Define pins (to be used by PIO for BMC TX/RX)
@@ -42,7 +43,7 @@ int main() {
  
     while(true) {
 	if(!pio_sm_is_rx_fifo_empty(pio, sm_rx)) {
-            printf("%08x\n", pio_sm_get(pio, sm_rx));
+            printf("%16d - %08x\n", time_us_32(), pio_sm_get(pio, sm_rx));
 	}
     }
 }
