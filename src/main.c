@@ -51,7 +51,7 @@ bool fetch_u32_word(uint32_t *input_buffer, uint16_t *input_bitoffset, uint32_t 
 	}						// Otherwise - transfer as many as needed by output buffer.
 
 	*output_buffer |= ((input_buffer[input_wordoffset] >> bitoffset)	// Offset pre-processing buffer
-				& 0xFFFFFFFF << bits_to_transfer)		// Mask input bit offset
+				& 0xFFFFFFFF << (32 - bits_to_transfer))	// Mask input bit offset
 				<< (32 - *output_bitoffset);			// Shift to output bit offset
 	*output_bitoffset -= bits_to_transfer;
 	*input_bitoffset += bits_to_transfer;
