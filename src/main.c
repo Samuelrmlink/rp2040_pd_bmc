@@ -16,7 +16,7 @@
 //Define pins (to be used by PIO for BMC TX/RX)
 const uint pin_tx = 7;
 const uint pin_rx = 6;
-uint8_t buf1_count;
+uint16_t buf1_count;
 
 void dma_setup(PIO pio, uint sm, uint dma_chan, uint32_t *capture_buf, size_t capture_size_words) {
     dma_channel_config c = dma_channel_get_default_config(dma_chan);
@@ -32,19 +32,32 @@ void dma_setup(PIO pio, uint sm, uint dma_chan, uint32_t *capture_buf, size_t ca
     );
 }
 
-bool fetch_u32_word(uint32_t *input_buffer, uint8_t *input_offset, uint64_t *output_buffer, uint8_t *output_offset) {
-    bool operation = false;
-    while(*output_offset >= 32) {		//Return false if output buffer has insufficient space
-	//printf("inputbuf: %X\n", input_buffer[*input_offset]);
-	if(!input_buffer[*input_offset])	//....or input buffer is empty
-	    break;
-	//printf("Need to feed process_buf");
-	*output_buffer |= input_buffer[*input_offset] << (64 - *output_offset);
-	*output_offset -= 32;
-	*input_offset++;
-	operation |= true;
+bool fetch_u32_word(uint32_t *input_buffer, uint16_t *input_bitoffset, uint32_t *output_buffer, uint8_t *output_bitoffset) {
+    uint8_t input_wordoffset, bitoffset;				// Basically - all of this logic 
+    if(!*input_bitoffset) {						// ensures that the bitwise 
+        input_wordoffset = 0;						// logic below does not attempt 
+	bitoffset = 0;							// to divide by zero.
+    } else {								//
+        input_wordoffset = (*input_bitoffset / 32);			//
+	bitoffset = (*input_bitoffset % 32);				//
+    }									//
+
+    if(*output_bitoffset 						// Ensure output buffer has sufficient space 
+		    && input_buffer[input_wordoffset]) {		// and input buffer is not empty
+
+	uint8_t bits_to_transfer = *output_bitoffset;
+	if((32 - bitoffset) < *output_bitoffset) {	// If more output bits are needed then input bits are available..
+		bits_to_transfer = (32 - bitoffset);	// ..transfer as many as available. (Without introducing extra zeros)
+	}						// Otherwise - transfer as many as needed by output buffer.
+
+	*output_buffer |= ((input_buffer[input_wordoffset] >> bitoffset)	// Offset pre-processing buffer
+				& 0xFFFFFFFF << bits_to_transfer)		// Mask input bit offset
+				<< (32 - *output_bitoffset);			// Shift to output bit offset
+	*output_bitoffset -= bits_to_transfer;
+	*input_bitoffset += bits_to_transfer;
+	return true;
     }
-    return operation;				//Returns true if output buffer refilled; false otherwise
+    return false;					//Returns true if output buffer refilled; false otherwise
 }
 
 int main() {
@@ -61,8 +74,8 @@ int main() {
         buf1[i]=0x00000000;
     }
     //Define processing buffer
-    uint64_t procbuf = 0x1230000000004338;
-    uint8_t proc_freed_offset = 64;
+    uint32_t procbuf = 0x00004338;
+    uint8_t proc_freed_offset = 32;
 
     /* Initialize TX FIFO
     uint offset_tx = pio_add_program(pio, &differential_manchester_tx_program);
@@ -86,8 +99,10 @@ int main() {
  
     while(true) {
 	//printf("buf0: 0x%X\nbuf1: 0x%X\nbuf2: 0x%X\nbuf3: 0x%X\n", buf1[0], buf1[1], buf1[2], buf1[3]);
-	if(fetch_u32_word(buf1, &buf1_count, &procbuf, &proc_freed_offset))
-	    printf("procbuf: 0x%X-%X\nOffset: %d\n", (uint32_t)(procbuf >> 32), (uint32_t)procbuf, proc_freed_offset);
+	if(fetch_u32_word(buf1, &buf1_count, &procbuf, &proc_freed_offset)) {
+	    printf("procbuf: 0x%X\nOffset: %d\n", procbuf, proc_freed_offset);
+	    printf("buf0: 0x%X\nbuf1: 0x%X\nbuf2: 0x%X\nbuf3: 0x%X\n", buf1[0], buf1[1], buf1[2], buf1[3]);
+	}
 	sleep_ms(2000);
 	/*
 	if(!pio_sm_is_rx_fifo_empty(pio, sm_rx)) {
