@@ -74,7 +74,7 @@ int main() {
         buf1[i]=0x00000000;
     }
     //Define processing buffer
-    uint32_t procbuf = 0x00004338;
+    uint32_t procbuf = 0x00000000;
     uint8_t proc_freed_offset = 32;
 
     /* Initialize TX FIFO
