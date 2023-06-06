@@ -65,19 +65,14 @@ bool bmc_eliminate_preamble(uint32_t *process_buffer, uint8_t *freed_bits_procbu
         return false;
     switch(*process_buffer) {
         case (0xAAAAAAAA) :
-		//No shifting needed
+		//No single shift needed
 		break;
 	case (0x55555555) :
-		//Need to shift
+		//Need to shift 1 bit
 		*process_buffer >>= 1;
 		*freed_bits_procbuf++;
 		break;
-	default :
-		*process_buffer >>= 4;
-    		*freed_bits_procbuf += 4;
-		return false;
     }
-
     while(((*process_buffer & 0b11) == 0b10) && (*freed_bits_procbuf != 32)) {
         *process_buffer >>= 2;
 	*freed_bits_procbuf += 2;
@@ -167,6 +162,7 @@ uint8_t bmc_4b5b_decode(uint32_t *process_buffer, uint8_t *freed_bits_procbuf) {
     }
     *process_buffer >>= 5;
     *freed_bits_procbuf += 5;
+    return ret;
 }
 uint8_t bmc_kcode_retrieve(uint32_t *process_buffer, uint8_t *freed_bits_procbuf) {
     int ret = bmc_4b5b_decode(process_buffer, freed_bits_procbuf);
@@ -177,33 +173,32 @@ uint8_t bmc_kcode_retrieve(uint32_t *process_buffer, uint8_t *freed_bits_procbuf
     }
 }
 void bmc_print_type(uint16_t pd_frame_type) {
-    if(!(pd_frame_type & 0b10000)) {
-	printf("Error - not a frame type.\n");
-	return;
-    }
-    switch (pd_frame_type & 0b1111) {
-	    case (0x1000) :
+    switch (pd_frame_type & 0xFFF) {
+	    case (0x200) :
 		printf("SOP\n");
 		break;
-	    case (0x2200) :
+	    case (0x480) :
 		printf("SOP_prime\n");
 		break;
-	    case (0x2020) :
+	    case (0x410) :
 		printf("SOP_double_prime\n");
 		break;
-	    case (0x2440) :
+	    case (0x520) :
 		printf("SOP_prime_debug\n");
 		break;
-	    case (0x1240) :
+	    case (0x2A0) :
 		printf("SOP_double_prime_debug\n");
 		break;
-	    case (0x4333) :
+	    case (0x8DB) :
 		printf("Hard Reset\n");
 		break;
-	    case (0x2303) :
+	    case (0x4C3) :
 		printf("Cable Reset\n");
 		break;
+	    default :
+		printf("Error - not a frame type: 0x%X\n", pd_frame_type);
     }
+    return;
 }
 
 int main() {
@@ -257,7 +252,7 @@ int main() {
     while(true) {
 	//printf("buf0: 0x%X\nbuf1: 0x%X\nbuf2: 0x%X\nbuf3: 0x%X\n", buf1[0], buf1[1], buf1[2], buf1[3]);
 	//printf("Debugproc: 0x%X\nDebugoffset: %d\n", procbuf, proc_freed_offset);
-	//fetch_u32_word(buf1, &buf1_count, &procbuf, &proc_freed_offset);
+	fetch_u32_word(buf1, &buf1_count, &procbuf, &proc_freed_offset);
 	switch(proc_state) {
 		case (0) ://Preamble stage
 		    if(bmc_eliminate_preamble(&procbuf, &proc_freed_offset)) {
@@ -270,25 +265,25 @@ int main() {
 		    proc_state++;
 		    break;
 		case (2) ://Ordered Set 2
-		    pd_frame_type = bmc_kcode_retrieve(&procbuf, &proc_freed_offset) << 3;
+		    pd_frame_type |= bmc_kcode_retrieve(&procbuf, &proc_freed_offset) << 3;
 		    proc_state++;
 		    break;
 		case (3) ://Ordered Set 3
-		    pd_frame_type = bmc_kcode_retrieve(&procbuf, &proc_freed_offset) << 6;
+		    pd_frame_type |= bmc_kcode_retrieve(&procbuf, &proc_freed_offset) << 6;
 		    proc_state++;
 		    break;
 		case (4) ://Ordered Set 4
-		    pd_frame_type = bmc_kcode_retrieve(&procbuf, &proc_freed_offset) << 9;
+		    pd_frame_type |= bmc_kcode_retrieve(&procbuf, &proc_freed_offset) << 9;
 		    bmc_print_type(pd_frame_type);
 		    proc_state++;
 		    break;
 	}
+	/*
 	if(bmc_eliminate_preamble(&procbuf, &proc_freed_offset)) {
 	    
 	    printf("procbuf: 0x%X\nOffset: %d\n", procbuf, proc_freed_offset);
 	}
 	sleep_ms(2000);
-	/*
 	if(!pio_sm_is_rx_fifo_empty(pio, sm_rx)) {
             printf("%16d - %08x\n", time_us_32(), pio_sm_get(pio, sm_rx));
 	}
