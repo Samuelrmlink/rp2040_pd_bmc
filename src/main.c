@@ -200,7 +200,51 @@ void bmc_print_type(uint16_t pd_frame_type) {
     }
     return;
 }
-
+uint16_t pd_uint16_pull(uint32_t *process_buffer, uint8_t *freed_bits_procbuf, bool eop_received) {
+    uint8_t tmp;
+    uint16_t ret = 0;
+    for(i=0;i<4;i++) {
+	tmp = bmc_4b5b_decode(process_buffer, freed_bits_procbuf);
+	//TODO - add error detection logic
+	if(tmp == 0x17) {	//EOP
+	    eop_received = true;
+	    return ret;
+	} else { 
+	    ret |= (tmp & 0xF) << i;
+	}
+    }
+    return ret;
+}
+uint32_t pd_uint32_pull(uint32_t *process_buffer, uint8_t *freed_bits_procbuf, bool eop_received) {
+    uint8_t tmp;
+    uint32_t ret = 0;
+    for(i=0;i<8;i++) {
+	tmp = bmc_4b5b_decode(process_buffer, freed_bits_procbuf);
+	//TODO - add error detection logic
+	if(tmp == 0x17) {	//EOP
+	    eop_received = true;
+	    return ret;
+	} else { 
+	    ret |= (tmp & 0xF) << i;
+	}
+    }
+    return ret;
+}
+uint8_t pd_burst_pull(uint32_t *process_buffer, uint8_t *freed_bits_procbuf, bool eop_received, uint8_t *data_buf, uint8_t max_bytes) {//Returns # of received bytes (excluding EOP)
+    uint8_t tmp;
+    uint32_t ret = 0;
+    for(i=0;i<(max_bytes*2-1);i++) {
+	tmp = bmc_4b5b_decode(process_buffer, freed_bits_procbuf);
+	//TODO - add error detection logic
+	if(tmp == 0x17) {	//EOP
+	    eop_received = true;
+	    return i;
+	} else { 
+	    data_buf[i] = (tmp & 0xF) << (i & 0x1);
+	}
+    }
+    return ret;
+}
 int main() {
     // Initialize IO & PIO
     stdio_init_all();
