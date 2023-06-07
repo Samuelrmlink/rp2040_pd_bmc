@@ -216,7 +216,7 @@ uint16_t pd_uint16_pull(uint32_t *process_buffer, uint8_t *freed_bits_procbuf, i
 	    *error_status = 1;
 	    return ret;
 	} else {
-	    ret |= ((tmp & 0xF) << i);
+	    ret |= ((tmp & 0xF) << i * 4);
 	}
     }
     printf("ret: %X\n", ret);
@@ -232,7 +232,7 @@ uint32_t pd_uint32_pull(uint32_t *process_buffer, uint8_t *freed_bits_procbuf, i
 	    *error_status = 1;
 	    return ret;
 	} else { 
-	    ret |= (tmp & 0xF) << i;
+	    ret |= (tmp & 0xF) << i * 4;
 	}
     }
     return ret;
