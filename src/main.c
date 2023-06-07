@@ -12,6 +12,7 @@
 #include "hardware/irq.h"
 #include "hardware/timer.h"
 #include "bmc.pio.h"
+#include "pdb_msg.h"
 
 //Define pins (to be used by PIO for BMC TX/RX)
 const uint pin_tx = 7;
@@ -50,8 +51,9 @@ bool fetch_u32_word(uint32_t *input_buffer, uint16_t *input_bitoffset, uint32_t 
 		bits_to_transfer = (32 - bitoffset);	// ..transfer as many as available. (Without introducing extra zeros)
 	}						// Otherwise - transfer as many as needed by output buffer.
 
+	//printf("FETCHDBG: Input wOffset: %u Input bOffset: %u Input: 0x%X\n", input_wordoffset, bitoffset, input_buffer[input_wordoffset]);
 	*output_buffer |= ((input_buffer[input_wordoffset] >> bitoffset)	// Offset pre-processing buffer
-				& 0xFFFFFFFF << (32 - bits_to_transfer))	// Mask input bit offset
+				& 0xFFFFFFFF >> (32 - bits_to_transfer))	// Mask input bit offset
 				<< (32 - *output_bitoffset);			// Shift to output bit offset
 	*output_bitoffset -= bits_to_transfer;
 	*input_bitoffset += bits_to_transfer;
@@ -86,10 +88,13 @@ bool bmc_eliminate_preamble(uint32_t *process_buffer, uint8_t *freed_bits_procbu
     return false;				//Otherwise return false
 }
 uint8_t bmc_4b5b_decode(uint32_t *process_buffer, uint8_t *freed_bits_procbuf) {
-    //Outputs bits (5..0)
+    //Outputs bits (6..0)
 	//bit 4 indicates K-code output
 	//bit 5 indicates an error (invalid symbol)
+	//bit 6 indicates an error (empty buffer)
     uint8_t ret;
+    if(*freed_bits_procbuf > 32 - 5)
+	return 0x40;			//Return - empty buffer
     switch(*process_buffer & 0b11111) {
 	case (0b11110) :// 0x0
 	    ret = 0x0;
@@ -172,7 +177,7 @@ uint8_t bmc_kcode_retrieve(uint32_t *process_buffer, uint8_t *freed_bits_procbuf
 	printf("bmc_kcode_retrieve - Error: Invalid Symbol : 0x%X\n", ret);
     }
 }
-void bmc_print_type(uint16_t pd_frame_type) {
+bool bmc_print_type(uint16_t pd_frame_type) {
     switch (pd_frame_type & 0xFFF) {
 	    case (0x200) :
 		printf("SOP\n");
@@ -197,17 +202,34 @@ void bmc_print_type(uint16_t pd_frame_type) {
 		break;
 	    default :
 		printf("Error - not a frame type: 0x%X\n", pd_frame_type);
+		return false;
     }
-    return;
+    return true;
 }
-uint16_t pd_uint16_pull(uint32_t *process_buffer, uint8_t *freed_bits_procbuf, bool eop_received) {
+uint16_t pd_uint16_pull(uint32_t *process_buffer, uint8_t *freed_bits_procbuf, int8_t *error_status) {
     uint8_t tmp;
     uint16_t ret = 0;
-    for(i=0;i<4;i++) {
+    for(int i=0;i<4;i++) {
 	tmp = bmc_4b5b_decode(process_buffer, freed_bits_procbuf);
 	//TODO - add error detection logic
 	if(tmp == 0x17) {	//EOP
-	    eop_received = true;
+	    *error_status = 1;
+	    return ret;
+	} else {
+	    ret |= ((tmp & 0xF) << i);
+	}
+    }
+    printf("ret: %X\n", ret);
+    return ret;
+}
+uint32_t pd_uint32_pull(uint32_t *process_buffer, uint8_t *freed_bits_procbuf, int8_t *error_status) {
+    uint8_t tmp;
+    uint32_t ret = 0;
+    for(int i=0;i<8;i++) {
+	tmp = bmc_4b5b_decode(process_buffer, freed_bits_procbuf);
+	//TODO - add error detection logic
+	if(tmp == 0x17) {	//EOP
+	    *error_status = 1;
 	    return ret;
 	} else { 
 	    ret |= (tmp & 0xF) << i;
@@ -215,29 +237,14 @@ uint16_t pd_uint16_pull(uint32_t *process_buffer, uint8_t *freed_bits_procbuf, b
     }
     return ret;
 }
-uint32_t pd_uint32_pull(uint32_t *process_buffer, uint8_t *freed_bits_procbuf, bool eop_received) {
+uint8_t pd_burst_pull(uint32_t *process_buffer, uint8_t *freed_bits_procbuf, int8_t *error_status, uint8_t *data_buf, uint8_t max_bytes) {//Returns # of received bytes (excluding EOP)
     uint8_t tmp;
     uint32_t ret = 0;
-    for(i=0;i<8;i++) {
+    for(int i=0;i<(max_bytes*2-1);i++) {
 	tmp = bmc_4b5b_decode(process_buffer, freed_bits_procbuf);
 	//TODO - add error detection logic
 	if(tmp == 0x17) {	//EOP
-	    eop_received = true;
-	    return ret;
-	} else { 
-	    ret |= (tmp & 0xF) << i;
-	}
-    }
-    return ret;
-}
-uint8_t pd_burst_pull(uint32_t *process_buffer, uint8_t *freed_bits_procbuf, bool eop_received, uint8_t *data_buf, uint8_t max_bytes) {//Returns # of received bytes (excluding EOP)
-    uint8_t tmp;
-    uint32_t ret = 0;
-    for(i=0;i<(max_bytes*2-1);i++) {
-	tmp = bmc_4b5b_decode(process_buffer, freed_bits_procbuf);
-	//TODO - add error detection logic
-	if(tmp == 0x17) {	//EOP
-	    eop_received = true;
+	    *error_status = 1;
 	    return i;
 	} else { 
 	    data_buf[i] = (tmp & 0xF) << (i & 0x1);
@@ -272,6 +279,8 @@ int main() {
 				// 7 = EOP received - parse data
 
     uint16_t pd_frame_type;
+    int8_t bmc_err_status; //1 = EOP, negative val = error
+    pd_msg lastmsg;
 
     /* Initialize TX FIFO
     uint offset_tx = pio_add_program(pio, &differential_manchester_tx_program);
@@ -321,7 +330,14 @@ int main() {
 		    bmc_print_type(pd_frame_type);
 		    proc_state++;
 		    break;
+		case (5) ://Data acquisition stage
+		    //lastmsg.hdr = pd_uint16_pull(&procbuf, &proc_freed_offset, &bmc_err_status);
+		    //printf("Header: %X\n", lastmsg.hdr);
+		    //printf("bufff: %X\ndecode1:%X\ndecode2:%X\n", procbuf, bmc_4b5b_decode(&procbuf, &proc_freed_offset), bmc_4b5b_decode(&procbuf, &proc_freed_offset));
+		    printf("Header: %X\nProc_Freed:%u\n", pd_uint16_pull(&procbuf, &proc_freed_offset, &bmc_err_status), proc_freed_offset);
+		    break;
 	}
+	sleep_ms(1000);
 	/*
 	if(bmc_eliminate_preamble(&procbuf, &proc_freed_offset)) {
 	    
