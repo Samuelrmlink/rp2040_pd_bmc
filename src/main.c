@@ -369,6 +369,7 @@ int main() {
 		case (6) ://Data stall stage - TODO
 		    break;
 		case (7) ://EOP received - TODO
+		    break;
 	}
 	sleep_ms(100);
 	/*
