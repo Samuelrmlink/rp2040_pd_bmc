@@ -63,7 +63,8 @@ static inline void differential_manchester_tx_program_init(PIO pio, uint sm, uin
 
 public start:
 initial_high:           ; Find rising edge at start of bit period
-    wait 1 pin, 0  [11] ; Delay to eye of second half-period (i.e 3/4 of way
+    wait 1 pin, 0  [10] ; Delay to eye of second half-period (i.e 3/4 of way
+    irq nowait 0
     jmp pin high_0      ; through bit) and branch on RX pin high/low.
 high_1:
     in x, 1             ; Second transition detected (a `1` data symbol)
@@ -74,7 +75,8 @@ high_0:
 
 .wrap_target
 initial_low:            ; Find falling edge at start of bit period
-    wait 0 pin, 0 [11]  ; Delay to eye of second half-period
+    wait 0 pin, 0 [10]  ; Delay to eye of second half-period
+    irq nowait 0
     jmp pin low_1
 low_0:
     in y, 1             ; Line still low, no centre transition (data is `0`)
