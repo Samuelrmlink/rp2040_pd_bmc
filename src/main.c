@@ -9,7 +9,6 @@
 
 #include "pico/stdlib.h"
 #include "hardware/pio.h"
-#include "hardware/dma.h"
 #include "hardware/irq.h"
 #include "hardware/timer.h"
 #include "bmc.pio.h"
@@ -34,42 +33,9 @@ void bmc_rx_cb() {
 	buf1_input_count++;
     }
     if(pio_interrupt_get(pio, 0)) {
-	//printf("PIO_0 IRQ - need to clear.\n");
 	pio_interrupt_clear(pio, 0);
     } 
 }
-
-
-
-
-/*
-#define DMA_CHANNEL 0
-#define DMA_CHANNEL_MASK (1u << DMA_CHANNEL)
-
-void __isr dma_handler() {
-    if(dma_hw->ints0 & DMA_CHANNEL_MASK) {
-	dma_hw->ints0 = DMA_CHANNEL_MASK; //Clear IRQ
-    }
-}
-
-void dma_setup(PIO pio, uint sm, uint dma_chan, uint32_t *capture_buf, size_t capture_size_words) {
-    //dma_claim_mask(DMA_CHANNEL_MASK);
-    dma_channel_config c = dma_channel_get_default_config(dma_chan);
-    channel_config_set_read_increment(&c, false);
-    channel_config_set_write_increment(&c, true);
-    channel_config_set_dreq(&c, pio_get_dreq(pio, sm, false));
-    channel_config_set_ring(&c, true, 8);
-    dma_channel_configure(dma_chan, &c, 
-	    capture_buf,
-	    &pio->rxf[sm],
-	    capture_size_words,
-	    true
-    );
-    //irq_set_exclusive_handler(DMA_IRQ_0, dma_handler);
-    //dma_channel_set_irq0_enabled(DMA_CHANNEL, true);
-    //irq_set_enabled(DMA_IRQ_0, true);
-}
-*/
 
 bool fetch_u32_word(uint32_t *input_buffer, uint16_t *input_bitoffset, uint32_t *output_buffer, uint8_t *output_bitoffset) {
     uint8_t input_wordoffset, bitoffset;				// Basically - all of this logic 
@@ -297,12 +263,6 @@ uint8_t pd_burst_pull(uint32_t *process_buffer, uint8_t *freed_bits_procbuf, int
 int main() {
     // Initialize IO & PIO
     stdio_init_all();
-    /*
-    PIO pio = pio0;
-    //Define DMA channel 
-    uint dma_chan = 0;
-    //uint32_t buf1[256];
-    */
     buf1 = malloc(256 * 4);
     if(buf1 == NULL) 
 	    printf("Error - buf1 is a NULL pointer.");
@@ -344,56 +304,12 @@ int main() {
     pio_set_irq0_source_enabled(pio, pis_interrupt0, true);
     irq_set_exclusive_handler(PIO0_IRQ_0, bmc_rx_cb);
     irq_set_enabled(PIO0_IRQ_0, true);
-
-    /* Initialize DMA for bmc rx */
-    //dma_setup(pio, SM_RX, dma_chan, buf1, 255);
-
+ 
+    // Debug message
     sleep_ms(13000);
-    printf("ptr: %X\nval: %X\n", buf1, *buf1);
-    /*
-    dma_hw->ch[dma_chan].transfer_count = 2;
-    dma_hw->multi_channel_trigger = (1u << dma_chan);
-    sleep_ms(1);
-    dma_hw->multi_channel_trigger = (1u << dma_chan);
-    sleep_ms(1);
-    dma_hw->multi_channel_trigger = (1u << dma_chan);
-    sleep_ms(1);
-    dma_hw->multi_channel_trigger = (1u << dma_chan);
-    sleep_ms(1);
-    dma_hw->multi_channel_trigger = (1u << dma_chan);
-    sleep_ms(1);
-    dma_hw->multi_channel_trigger = (1u << dma_chan);
-    sleep_ms(1);
-    dma_hw->multi_channel_trigger = (1u << dma_chan);
-    sleep_ms(1);
-    dma_hw->multi_channel_trigger = (1u << dma_chan);
-    sleep_ms(1);
-    dma_hw->multi_channel_trigger = (1u << dma_chan);
-    sleep_ms(1);
-    dma_hw->multi_channel_trigger = (1u << dma_chan);
-    sleep_ms(1);
-    dma_hw->multi_channel_trigger = (1u << dma_chan);
-    sleep_ms(1);
-    dma_hw->multi_channel_trigger = (1u << dma_chan);
-    sleep_ms(1);
-    dma_hw->multi_channel_trigger = (1u << dma_chan);
-    sleep_ms(1);
-    dma_hw->multi_channel_trigger = (1u << dma_chan);
-    sleep_ms(1);
-    dma_hw->multi_channel_trigger = (1u << dma_chan);
-    sleep_ms(1);
-    dma_hw->multi_channel_trigger = (1u << dma_chan);
-    sleep_ms(1);
-    dma_hw->multi_channel_trigger = (1u << dma_chan);
-    sleep_ms(100);
-    */
     debug_u32_word(buf1, 255);//255
-    //printf("Ctrl Trig: %X\n", dma_hw->ch[dma_chan].ctrl_trig);
-    //printf("Intr: %X\nInts0: %X\n", dma_hw->intr, dma_hw->ints0);
-    //printf("Transfer Count: %u\n", dma_hw->ch[dma_chan].transfer_count);
+
     while(true) {
-	//printf("buf0: 0x%X\nbuf1: 0x%X\nbuf2: 0x%X\nbuf3: 0x%X\n", buf1[0], buf1[1], buf1[2], buf1[3]);
-	//printf("Debugproc: 0x%X\nDebugoffset: %d\n", procbuf, proc_freed_offset);
 	fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);
 	switch(proc_state) {
 		case (0) ://Preamble stage
@@ -422,7 +338,6 @@ int main() {
 		case (5) ://Data acquisition stage
 		    lastmsg.hdr = pd_uint16_pull(&procbuf, &proc_freed_offset, &bmc_err_status);
 		    printf("Header: %X\n", lastmsg.hdr);
-		    //printf("Header: %X\nProc_Freed:%u\n", pd_uint16_pull(&procbuf, &proc_freed_offset, &bmc_err_status), proc_freed_offset);
 		    break;
 	}
 	sleep_ms(100);
