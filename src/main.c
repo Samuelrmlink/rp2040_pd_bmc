@@ -240,7 +240,7 @@ uint32_t pd_uint32_pull(uint32_t *process_buffer, uint8_t *freed_bits_procbuf, i
 	    *error_status = 1;
 	    return ret;
 	} else { 
-	    ret |= (tmp & 0xF) << i * 4;
+	    ret |= ((tmp & 0xF) << i * 4);
 	}
     }
     return ret;
@@ -337,8 +337,38 @@ int main() {
 		    break;
 		case (5) ://Data acquisition stage
 		    lastmsg.hdr = pd_uint16_pull(&procbuf, &proc_freed_offset, &bmc_err_status);
-		    printf("Header: %X\n", lastmsg.hdr);
+		    fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);//TODO - remove these
+		    fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);
+		    if(proc_freed_offset) {
+			proc_state = 6;//Stalled
+			break;
+		    }
+		    printf("Header: %4X\n", lastmsg.hdr);
+		    // Retrieve each Object value (if available)
+		    for(uint i=0;i < ((lastmsg.hdr >> 12) & 0b111);i++) { //TODO: Implement NumDataObjects macro
+		        fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);//TODO - remove these
+		        fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);
+		        lastmsg.obj[i] = pd_uint16_pull(&procbuf, &proc_freed_offset, &bmc_err_status);
+		        fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);
+		        fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);
+		        lastmsg.obj[i] |= pd_uint16_pull(&procbuf, &proc_freed_offset, &bmc_err_status) << 16;
+		        printf("Obj%u: %8X\n", i, lastmsg.obj[i]);
+		    }
+		    // Retrieve CRC (we don't currently do anything with it - TODO)
+		    fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);//TODO - remove these
+		    fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);
+		    pd_uint16_pull(&procbuf, &proc_freed_offset, &bmc_err_status);
+		    fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);
+		    fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);
+		    pd_uint16_pull(&procbuf, &proc_freed_offset, &bmc_err_status);// << 16;
+		    // Attempt to retrieve EOP - TODO
+		    //
+		    //
+		    proc_state++;
 		    break;
+		case (6) ://Data stall stage - TODO
+		    break;
+		case (7) ://EOP received - TODO
 	}
 	sleep_ms(100);
 	/*
