@@ -15,19 +15,23 @@
 #include "bmc.pio.h"
 #include "pdb_msg.h"
 
+#define SM_TX 0
+#define SM_RX 1
+
 //Define pins (to be used by PIO for BMC TX/RX)
 const uint pin_tx = 7;
 const uint pin_rx = 6;
-uint16_t buf1_input_count = 0;
-uint16_t buf1_proc_count
+uint8_t buf1_input_count = 0;
+uint16_t buf1_output_count;
 
 uint32_t *buf1;
 PIO pio = pio0;
 
 void bmc_rx_cb() {
-    uint sm_rx = 1;
-    if(!pio_sm_is_rx_fifo_empty(pio, sm_rx)) {
-            printf("%16d - %08x\n", time_us_32(), pio_sm_get(pio, sm_rx));
+    if(!pio_sm_is_rx_fifo_empty(pio, SM_RX)) {
+        //printf("%16d - %08x\n", time_us_32(), pio_sm_get(pio, SM_RX));
+	buf1[buf1_input_count] = pio_sm_get(pio, SM_RX);
+	buf1_input_count++;
     }
     if(pio_interrupt_get(pio, 0)) {
 	//printf("PIO_0 IRQ - need to clear.\n");
@@ -293,13 +297,12 @@ uint8_t pd_burst_pull(uint32_t *process_buffer, uint8_t *freed_bits_procbuf, int
 int main() {
     // Initialize IO & PIO
     stdio_init_all();
-    /*PIO pio = pio0;*/
-    //Define PIO state machines
-    uint sm_tx = 0;
-    uint sm_rx = 1;
+    /*
+    PIO pio = pio0;
     //Define DMA channel 
     uint dma_chan = 0;
     //uint32_t buf1[256];
+    */
     buf1 = malloc(256 * 4);
     if(buf1 == NULL) 
 	    printf("Error - buf1 is a NULL pointer.");
@@ -326,29 +329,27 @@ int main() {
     /* Initialize TX FIFO
     uint offset_tx = pio_add_program(pio, &differential_manchester_tx_program);
     printf("Transmit program loaded at %d\n", offset_tx);
-    pio_sm_set_enabled(pio, sm_tx, false);
-    pio_sm_put_blocking(pio, sm_tx, 0);
-    pio_sm_put_blocking(pio, sm_tx, 0x0ff0a55a);
-    pio_sm_put_blocking(pio, sm_tx, 0x12345678);
-    pio_sm_set_enabled(pio, sm_tx, true);
-    differential_manchester_tx_program_init(pio, sm_tx, offset_tx, pin_tx, 125.f / (5.3333)); */
+    pio_sm_set_enabled(pio, SM_TX, false);
+    pio_sm_put_blocking(pio, SM_TX, 0);
+    pio_sm_put_blocking(pio, SM_TX, 0x0ff0a55a);
+    pio_sm_put_blocking(pio, SM_TX, 0x12345678);
+    pio_sm_set_enabled(pio, SM_TX, true);
+    differential_manchester_tx_program_init(pio, SM_TX, offset_tx, pin_tx, 125.f / (5.3333)); */
     
     /* Initialize RX FIFO */
     uint offset_rx = pio_add_program(pio, &differential_manchester_rx_program);
     printf("Receive program loaded at %d\n", offset_rx);
-    differential_manchester_rx_program_init(pio, sm_rx, offset_rx, pin_rx, 125.f / (5.3333));
+    differential_manchester_rx_program_init(pio, SM_RX, offset_rx, pin_rx, 125.f / (5.3333));
 
     pio_set_irq0_source_enabled(pio, pis_interrupt0, true);
     irq_set_exclusive_handler(PIO0_IRQ_0, bmc_rx_cb);
     irq_set_enabled(PIO0_IRQ_0, true);
 
     /* Initialize DMA for bmc rx */
-    //dma_setup(pio, sm_rx, dma_chan, buf1, 255);
+    //dma_setup(pio, SM_RX, dma_chan, buf1, 255);
 
-/*
     sleep_ms(13000);
     printf("ptr: %X\nval: %X\n", buf1, *buf1);
-*/
     /*
     dma_hw->ch[dma_chan].transfer_count = 2;
     dma_hw->multi_channel_trigger = (1u << dma_chan);
@@ -386,17 +387,14 @@ int main() {
     dma_hw->multi_channel_trigger = (1u << dma_chan);
     sleep_ms(100);
     */
-/*
     debug_u32_word(buf1, 255);//255
-    printf("Ctrl Trig: %X\n", dma_hw->ch[dma_chan].ctrl_trig);
-    printf("Intr: %X\nInts0: %X\n", dma_hw->intr, dma_hw->ints0);
-    printf("Transfer Count: %u\n", dma_hw->ch[dma_chan].transfer_count);
-*/
+    //printf("Ctrl Trig: %X\n", dma_hw->ch[dma_chan].ctrl_trig);
+    //printf("Intr: %X\nInts0: %X\n", dma_hw->intr, dma_hw->ints0);
+    //printf("Transfer Count: %u\n", dma_hw->ch[dma_chan].transfer_count);
     while(true) {
-/*
 	//printf("buf0: 0x%X\nbuf1: 0x%X\nbuf2: 0x%X\nbuf3: 0x%X\n", buf1[0], buf1[1], buf1[2], buf1[3]);
 	//printf("Debugproc: 0x%X\nDebugoffset: %d\n", procbuf, proc_freed_offset);
-	fetch_u32_word(buf1, &buf1_proc_count, &procbuf, &proc_freed_offset);
+	fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);
 	switch(proc_state) {
 		case (0) ://Preamble stage
 		    if(bmc_eliminate_preamble(&procbuf, &proc_freed_offset)) {
@@ -428,15 +426,14 @@ int main() {
 		    break;
 	}
 	sleep_ms(100);
-*/
 	/*
 	if(bmc_eliminate_preamble(&procbuf, &proc_freed_offset)) {
 	    
 	    printf("procbuf: 0x%X\nOffset: %d\n", procbuf, proc_freed_offset);
 	}
 	sleep_ms(2000);
-	if(!pio_sm_is_rx_fifo_empty(pio, sm_rx)) {
-            printf("%16d - %08x\n", time_us_32(), pio_sm_get(pio, sm_rx));
+	if(!pio_sm_is_rx_fifo_empty(pio, SM_RX)) {
+            printf("%16d - %08x\n", time_us_32(), pio_sm_get(pio, SM_RX));
 	}
 	*/
     }
