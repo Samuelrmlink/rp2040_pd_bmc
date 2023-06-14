@@ -220,16 +220,30 @@ uint16_t pd_uint16_pull(uint32_t *process_buffer, uint8_t *freed_bits_procbuf, i
     uint16_t ret = 0;
     for(int i=0;i<4;i++) {
 	tmp = bmc_4b5b_decode(process_buffer, freed_bits_procbuf);
-	//TODO - add error detection logic
-	if(tmp == 0x17) {	//EOP
-	    *error_status = 1;
-	    return ret;
-	} else {
-	    ret |= ((tmp & 0xF) << i * 4);
+	switch (tmp & 0xF0) {
+	    case (0x10) :// K-Code symbol
+		*error_status = 1 << 0;
+		printf("Error: pd_uint16_pull: Unexpected K-Code symbol received. - 0x%X\n", tmp);
+		return ret;
+		break;
+	    case (0x20) :// Invalid Symbol
+		*error_status = 1 << 1;
+		printf("Error: pd_uint16_pull: Invalid 4b5b symbol received. - 0x%X\n", tmp);
+		return ret;
+		break;
+	    case (0x40) :// Empty Buffer
+		*error_status = 1 << 2;
+		printf("Error: pd_uint16_pull: Empty 4b5b process buffer. - 0x%X\n", tmp);
+		return ret;
+		break;
+	    default :	 // Hex data (no error)
+		ret |= ((tmp & 0xF) << i * 4);
+		break;
 	}
     }
     return ret;
 }
+/*
 uint32_t pd_uint32_pull(uint32_t *process_buffer, uint8_t *freed_bits_procbuf, int8_t *error_status) {
     uint8_t tmp;
     uint32_t ret = 0;
@@ -245,6 +259,7 @@ uint32_t pd_uint32_pull(uint32_t *process_buffer, uint8_t *freed_bits_procbuf, i
     }
     return ret;
 }
+*/
 uint8_t pd_burst_pull(uint32_t *process_buffer, uint8_t *freed_bits_procbuf, int8_t *error_status, uint8_t *data_buf, uint8_t max_bytes) {//Returns # of received bytes (excluding EOP)
     uint8_t tmp;
     uint32_t ret = 0;
