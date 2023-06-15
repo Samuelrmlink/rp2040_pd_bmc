@@ -22,6 +22,7 @@ const uint pin_tx = 7;
 const uint pin_rx = 6;
 uint8_t buf1_input_count = 0;
 uint16_t buf1_output_count;
+bool buf1_rollover = false; // Indicates when inputbuf has rolled over (reset once the outputbuf also rolls over)
 
 uint32_t *buf1;
 PIO pio = pio0;
@@ -29,8 +30,14 @@ PIO pio = pio0;
 void bmc_rx_cb() {
     if(!pio_sm_is_rx_fifo_empty(pio, SM_RX)) {
         //printf("%16d - %08x\n", time_us_32(), pio_sm_get(pio, SM_RX));
-	buf1[buf1_input_count] = pio_sm_get(pio, SM_RX);
-	buf1_input_count++;
+	if(buf1_rollover && (buf1_input_count == (buf1_output_count / 32))) {
+	    printf("Error: bmc_rx_cb: Buffer overflow!\n");	// Rejects input if overflowing.
+	} else {						// TODO - add centralized error aggregation/handling
+	    buf1[buf1_input_count] = pio_sm_get(pio, SM_RX);
+	    if(buf1_input_count == 255)		//Set rollover (flag for output buffer logic)
+		buf1_rollover = true;
+	    buf1_input_count++;
+	}
     }
     if(pio_interrupt_get(pio, 0)) {
 	pio_interrupt_clear(pio, 0);
@@ -38,14 +45,9 @@ void bmc_rx_cb() {
 }
 
 bool fetch_u32_word(uint32_t *input_buffer, uint16_t *input_bitoffset, uint32_t *output_buffer, uint8_t *output_bitoffset) {
-    uint8_t input_wordoffset, bitoffset;				// Basically - all of this logic 
-    if(!*input_bitoffset) {						// ensures that the bitwise 
-        input_wordoffset = 0;						// logic below does not attempt 
-	bitoffset = 0;							// to divide by zero.
-    } else {								//
-        input_wordoffset = (*input_bitoffset / 32);			//
-	bitoffset = (*input_bitoffset % 32);				//
-    }									//
+    uint8_t input_wordoffset, bitoffset;
+    input_wordoffset = (*input_bitoffset / 32);
+    bitoffset = (*input_bitoffset % 32);
 
     if(*output_bitoffset 						// Ensure output buffer has sufficient space 
 		    && input_buffer[input_wordoffset]) {		// and input buffer is not empty
@@ -64,6 +66,30 @@ bool fetch_u32_word(uint32_t *input_buffer, uint16_t *input_bitoffset, uint32_t 
 	return true;
     }
     return false;					// Returns true if output buffer refilled; false otherwise
+}
+//fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);
+bool bmc_data_available(uint8_t numSymbolsRequested, uint32_t *input_buffer, uint16_t *input_bitoffset, uint32_t *output_buffer, uint8_t *output_bitoffset) {
+    uint16_t num_bits_available;
+    if(buf1_rollover) { //Expect input word count offset to be 'behind' output word count offset
+	printf("bmc_data_available - rollover not implemented.\n"); //TODO
+	return false;
+    } else { //Expect input word count offset to be 'ahead' of output word count offset
+	num_bits_available = (((buf1_input_count - 1)//   # (whole) words added
+		- (*input_bitoffset / 32))	      	      // - # (whole) words consumed
+		//-------------------------------------------------------------------------
+		* 32)					      // * 32 bits/word
+		//=========================================================================
+		+ (32 - (*input_bitoffset % 32 + 1))	      // + # remainder bits (in current word of pre-procbuf)
+		+ (32 - *output_bitoffset);		      // + # remainder bits (procbuf)
+    }
+    printf("Number bits available: %u\n", num_bits_available);
+    fetch_u32_word(input_buffer, input_bitoffset, output_buffer, output_bitoffset);
+    fetch_u32_word(input_buffer, input_bitoffset, output_buffer, output_bitoffset);
+    if(num_bits_available >= (numSymbolsRequested * 5)) {
+        return true;
+    } else { 
+	return false;
+    }
 }
 bool debug_u32_word(uint32_t *input_buffer, uint8_t max_num) {
     for(int i = 0; i < (max_num + 1); i++) {
@@ -333,32 +359,28 @@ int main() {
 			proc_state++;
 		    }
 		    break;
-		case (1) ://Ordered Set 1
-		    pd_frame_type = bmc_kcode_retrieve(&procbuf, &proc_freed_offset);
-		    proc_state++;
-		    break;
-		case (2) ://Ordered Set 2
-		    pd_frame_type |= bmc_kcode_retrieve(&procbuf, &proc_freed_offset) << 3;
-		    proc_state++;
-		    break;
-		case (3) ://Ordered Set 3
-		    pd_frame_type |= bmc_kcode_retrieve(&procbuf, &proc_freed_offset) << 6;
-		    proc_state++;
-		    break;
-		case (4) ://Ordered Set 4
-		    pd_frame_type |= bmc_kcode_retrieve(&procbuf, &proc_freed_offset) << 9;
+		case (1) ://Ordered Set
+		    pd_frame_type = bmc_kcode_retrieve(&procbuf, &proc_freed_offset) | 
+				bmc_kcode_retrieve(&procbuf, &proc_freed_offset) << 3 | 
+				bmc_kcode_retrieve(&procbuf, &proc_freed_offset) << 6 | 
+				bmc_kcode_retrieve(&procbuf, &proc_freed_offset) << 9;
 		    bmc_print_type(pd_frame_type);
 		    proc_state++;
 		    break;
-		case (5) ://Data acquisition stage
-		    lastmsg.hdr = pd_uint16_pull(&procbuf, &proc_freed_offset, &bmc_err_status);
-		    fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);//TODO - remove these
-		    fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);
+		case (2) ://PD Header
+		    if(bmc_data_available(4, buf1, &buf1_output_count, &procbuf, &proc_freed_offset)) {
+		    	lastmsg.hdr = pd_uint16_pull(&procbuf, &proc_freed_offset, &bmc_err_status);
+		    }
+		    /*
+		    //fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);//TODO - remove these
+		    //fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);
 		    if(proc_freed_offset) {
 			proc_state = 6;//Stalled
 			break;
 		    }
+		    */
 		    printf("Header: %4X\n", lastmsg.hdr);
+		  /*
 		    // Retrieve each Object value (if available)
 		    for(uint i=0;i < ((lastmsg.hdr >> 12) & 0b111);i++) { //TODO: Implement NumDataObjects macro
 		        fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);//TODO - remove these
@@ -379,6 +401,7 @@ int main() {
 		    // Attempt to retrieve EOP - TODO
 		    //
 		    //
+		  */
 		    proc_state++;
 		    break;
 		case (6) ://Data stall stage - TODO
