@@ -68,7 +68,7 @@ bool fetch_u32_word(uint32_t *input_buffer, uint16_t *input_bitoffset, uint32_t 
     return false;					// Returns true if output buffer refilled; false otherwise
 }
 //fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);
-bool bmc_data_available(uint8_t numSymbolsRequested, uint32_t *input_buffer, uint16_t *input_bitoffset, uint32_t *output_buffer, uint8_t *output_bitoffset) {
+bool bmc_data_available(uint8_t num_bits_requested, uint32_t *input_buffer, uint16_t *input_bitoffset, uint32_t *output_buffer, uint8_t *output_bitoffset) {
     uint16_t num_bits_available;
     if(buf1_rollover) { //Expect input word count offset to be 'behind' output word count offset
 	printf("bmc_data_available - rollover not implemented.\n"); //TODO
@@ -82,10 +82,10 @@ bool bmc_data_available(uint8_t numSymbolsRequested, uint32_t *input_buffer, uin
 		+ (32 - (*input_bitoffset % 32 + 1))	      // + # remainder bits (in current word of pre-procbuf)
 		+ (32 - *output_bitoffset);		      // + # remainder bits (procbuf)
     }
-    printf("Number bits available: %u\n", num_bits_available);
+    //printf("Number bits available: %u\n", num_bits_available);
     fetch_u32_word(input_buffer, input_bitoffset, output_buffer, output_bitoffset);
     fetch_u32_word(input_buffer, input_bitoffset, output_buffer, output_bitoffset);
-    if(num_bits_available >= (numSymbolsRequested * 5)) {
+    if(num_bits_available >= num_bits_requested) {
         return true;
     } else { 
 	return false;
@@ -269,6 +269,56 @@ uint16_t pd_uint16_pull(uint32_t *process_buffer, uint8_t *freed_bits_procbuf, i
     }
     return ret;
 }
+uint16_t pd_bytes_to_reg(uint32_t *preproc_buf, uint16_t *preproc_offset, uint32_t *proc_buf, uint8_t *proc_offset, int8_t *error_status, uint8_t num_bytes) {
+    //Initialize temporary variables
+    uint8_t tmp;
+    uint16_t ret = 0;
+
+    //Figure out how many raw (PHY Layer - 4b5b symbols) bits we'll have to read
+    uint8_t num_bits_required;
+    if(!num_bytes) {
+	num_bits_required = 5;			// 1 symbol
+    } else {
+	num_bits_required = 10 * num_bytes;     // 2 symbols per byte
+    }
+    
+    //Check whether we have enough bits (totalled between all buffers)
+    if(bmc_data_available(num_bits_required, preproc_buf, preproc_offset, proc_buf, proc_offset)) {
+	for(int i=0;i<num_bits_required/5;i++) {
+	    tmp = bmc_4b5b_decode(proc_buf, proc_offset);
+	    fetch_u32_word(preproc_buf, preproc_offset, proc_buf, proc_offset);
+	    if(tmp & 0xF0) {
+		break;
+	    }
+	    ret |= ((tmp & 0xF) << i * 4);
+	}
+    } else {
+	*error_status = -2;
+	return ret;
+    }
+
+    //Check for EOP/errors
+    switch (tmp & 0xF0) {
+	case (0x10) :// K-Code symbol
+	    if(tmp == 0x17) {
+	    	*error_status = 1;
+	    	printf("Error: pd_bytes_to_reg: Unexpected EOP symbol received. - 0x%X\n", tmp);
+	    } else {
+		*error_status = -3;
+	    	printf("Error: pd_bytes_to_reg: Unexpected K-Code symbol received. - 0x%X\n", tmp);
+	    }
+	    break;
+	case (0x20) :// Invalid Symbol
+	    *error_status = -1;
+	    printf("Error: pd_bytes_to_reg: Invalid 4b5b symbol received. - 0x%X\n", tmp);
+	    break;
+	case (0x40) :// Empty Buffer
+	    *error_status = -2;
+	    printf("Error: pd_bytes_to_reg: Empty 4b5b process buffer. - 0x%X\n", tmp);
+	    break;
+    }
+    return ret;
+}
 /*
 uint32_t pd_uint32_pull(uint32_t *process_buffer, uint8_t *freed_bits_procbuf, int8_t *error_status) {
     uint8_t tmp;
@@ -324,8 +374,10 @@ int main() {
 				// 7 = EOP received - parse data
 
     uint16_t pd_frame_type;
+    uint16_t tmp_uint;
     int8_t bmc_err_status; //1 = EOP, negative val = error
     pd_msg lastmsg;
+    epr_pd_msg lastmsg_ext;
 
     /* Initialize TX FIFO
     uint offset_tx = pio_add_program(pio, &differential_manchester_tx_program);
@@ -368,23 +420,35 @@ int main() {
 		    proc_state++;
 		    break;
 		case (2) ://PD Header
-		    if(bmc_data_available(4, buf1, &buf1_output_count, &procbuf, &proc_freed_offset)) {
-		    	lastmsg.hdr = pd_uint16_pull(&procbuf, &proc_freed_offset, &bmc_err_status);
-		    }
 		    /*
-		    //fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);//TODO - remove these
-		    //fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);
-		    if(proc_freed_offset) {
-			proc_state = 6;//Stalled
-			break;
+		    if(bmc_data_available(20, buf1, &buf1_output_count, &procbuf, &proc_freed_offset)) {
+		    	tmp_uint = pd_uint16_pull(&procbuf, &proc_freed_offset, &bmc_err_status);
+		    } else {
+			//TODO - (if data is not available)
 		    }
 		    */
-		    printf("Header: %4X\n", lastmsg.hdr);
-		  /*
+		    tmp_uint = pd_bytes_to_reg(buf1, &buf1_output_count, &procbuf, &proc_freed_offset, &bmc_err_status, 2);
+		    //TODO - add error handler function here (change proc_state in response to error)
+		    printf("Header: %4X\n", tmp_uint);
+
+		    //Check whether PD Header is extended
+		    if(tmp_uint >> 15) {
+			lastmsg_ext.hdr = tmp_uint;
+			proc_state++;
+		    } else {
+			lastmsg.hdr = tmp_uint;
+			proc_state += 2;
+		    }
+		    break;
+		case (3) ://Extended Header (if applicable)
+		    lastmsg_ext.exthdr = pd_uint16_pull(&procbuf, &proc_freed_offset, &bmc_err_status);
+		    printf("Extended Header: %4X\n", lastmsg_ext.exthdr);
+
+		    break;
+
 		    // Retrieve each Object value (if available)
 		    for(uint i=0;i < ((lastmsg.hdr >> 12) & 0b111);i++) { //TODO: Implement NumDataObjects macro
-		        fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);//TODO - remove these
-		        fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);
+			
 		        lastmsg.obj[i] = pd_uint16_pull(&procbuf, &proc_freed_offset, &bmc_err_status);
 		        fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);
 		        fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);
@@ -401,7 +465,6 @@ int main() {
 		    // Attempt to retrieve EOP - TODO
 		    //
 		    //
-		  */
 		    proc_state++;
 		    break;
 		case (6) ://Data stall stage - TODO
