@@ -110,15 +110,25 @@ bool bmc_eliminate_preamble(uint32_t *process_buffer, uint8_t *freed_bits_procbu
 		*freed_bits_procbuf++;
 		break;
     }
+    /*
     while(((*process_buffer & 0b11) == 0b10) && (*freed_bits_procbuf != 32)) {
         *process_buffer >>= 2;
 	*freed_bits_procbuf += 2;
     }
+    */
     switch(*process_buffer & 0b11111) {		// Return true if Sync1 or Reset1 symbol is found
         case (0b11000) :// Sync1
 	case (0b00111) :// Reset1
 	    return true;
 	    break;
+    }
+    if((*process_buffer != 0xAAAAAAAA) && (*process_buffer != 0x55555555)) {
+        *process_buffer >>= 1;
+        *freed_bits_procbuf += 1;
+    }
+    while(((*process_buffer & 0b11) == 0b10) && (*freed_bits_procbuf != 32)) {
+        *process_buffer >>= 2;
+	*freed_bits_procbuf += 2;
     }
     return false;				//Otherwise return false
 }
@@ -401,16 +411,18 @@ int main() {
     irq_set_exclusive_handler(PIO0_IRQ_0, bmc_rx_cb);
     irq_set_enabled(PIO0_IRQ_0, true);
  
+    /*
     // Debug message
     sleep_ms(13000);
     debug_u32_word(buf1, 255);//255
+    */
+    bool debug = false;
 
     while(true) {
 	fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);
 	switch(proc_state) {
 		case (0) ://Preamble stage
 		    if(bmc_eliminate_preamble(&procbuf, &proc_freed_offset)) {
-			printf("Buf: 0x%X\n", procbuf);
 			proc_state++;
 		    }
 		    break;
@@ -466,10 +478,12 @@ int main() {
 		    fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);
 		    fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);
 		    pd_bytes_to_reg(buf1, &buf1_output_count, &procbuf, &proc_freed_offset, &bmc_err_status, 2);
+		    proc_state++;
 		case (6) ://EOP
 		    // Attempt to retrieve EOP - TODO
-		    if((0xFF == pd_bytes_to_reg(buf1, &buf1_output_count, &procbuf, &proc_freed_offset, &bmc_err_status, 0) == 0xFF) && !proc_state) {
+		    if(pd_bytes_to_reg(buf1, &buf1_output_count, &procbuf, &proc_freed_offset, &bmc_err_status, 0) == 0xFF) {
 			proc_state = 0;
+			printf("EOP\n");
 		    } else {
 		    //TODO - add error handler function here (change proc_state in response to error)
 		    }
@@ -477,7 +491,7 @@ int main() {
 		default ://Error handler - TODO
 		    break;
 	}
-	sleep_ms(100);
+	//sleep_ms(100);
 	/*
 	if(bmc_eliminate_preamble(&procbuf, &proc_freed_offset)) {
 	    
