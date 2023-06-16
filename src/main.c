@@ -301,8 +301,12 @@ uint16_t pd_bytes_to_reg(uint32_t *preproc_buf, uint16_t *preproc_offset, uint32
     switch (tmp & 0xF0) {
 	case (0x10) :// K-Code symbol
 	    if(tmp == 0x17) {
-	    	*error_status = 1;
-	    	printf("Error: pd_bytes_to_reg: Unexpected EOP symbol received. - 0x%X\n", tmp);
+	    	if(num_bytes) { //Only triggers error if EOP is unexpected (silence when EOP is expected)
+		    *error_status = 1;
+	    	    printf("Error: pd_bytes_to_reg: Unexpected EOP symbol received. - 0x%X\n", tmp);
+		} else {
+		    ret = 0xFF;
+		}
 	    } else {
 		*error_status = -3;
 	    	printf("Error: pd_bytes_to_reg: Unexpected K-Code symbol received. - 0x%X\n", tmp);
@@ -365,13 +369,12 @@ int main() {
     uint8_t proc_freed_offset = 32;
     //Define processing state variable
     uint8_t proc_state = 0;	// 0 = Preamble stage
-    				// 1 = Ordered Set 1
-				// 2 = Ordered Set 2
-				// 3 = Ordered Set 3
-				// 4 = Ordered Set 4 - determine frame type
-				// 5 = Data
-				// 6 = Data (Stalled) - awaiting more data
-				// 7 = EOP received - parse data
+    				// 1 = Ordered Set
+				// 2 = PD Header
+				// 3 = Extended Header
+				// 4 = Data Objects
+				// 5 = CRC
+				// 6 = EOP
 
     uint16_t pd_frame_type;
     uint16_t tmp_uint;
@@ -420,17 +423,9 @@ int main() {
 		    proc_state++;
 		    break;
 		case (2) ://PD Header
-		    /*
-		    if(bmc_data_available(20, buf1, &buf1_output_count, &procbuf, &proc_freed_offset)) {
-		    	tmp_uint = pd_uint16_pull(&procbuf, &proc_freed_offset, &bmc_err_status);
-		    } else {
-			//TODO - (if data is not available)
-		    }
-		    */
 		    tmp_uint = pd_bytes_to_reg(buf1, &buf1_output_count, &procbuf, &proc_freed_offset, &bmc_err_status, 2);
 		    //TODO - add error handler function here (change proc_state in response to error)
 		    printf("Header: %4X\n", tmp_uint);
-
 		    //Check whether PD Header is extended
 		    if(tmp_uint >> 15) {
 			lastmsg_ext.hdr = tmp_uint;
@@ -441,35 +436,45 @@ int main() {
 		    }
 		    break;
 		case (3) ://Extended Header (if applicable)
-		    lastmsg_ext.exthdr = pd_uint16_pull(&procbuf, &proc_freed_offset, &bmc_err_status);
+		    lastmsg_ext.exthdr = pd_bytes_to_reg(buf1, &buf1_output_count, &procbuf, &proc_freed_offset, &bmc_err_status, 2);
+		    //TODO - add error handler function here (change proc_state in response to error)
 		    printf("Extended Header: %4X\n", lastmsg_ext.exthdr);
-
+		    proc_state++;
 		    break;
-
+		case (4) ://Data Objects (if applicable)
+		    if(!((lastmsg.hdr >> 12) & 0b111)) { //Skip if not applicable
+			proc_state++;
+			break;
+		    }
 		    // Retrieve each Object value (if available)
 		    for(uint i=0;i < ((lastmsg.hdr >> 12) & 0b111);i++) { //TODO: Implement NumDataObjects macro
-			
-		        lastmsg.obj[i] = pd_uint16_pull(&procbuf, &proc_freed_offset, &bmc_err_status);
+		        lastmsg.obj[i] = pd_bytes_to_reg(buf1, &buf1_output_count, &procbuf, &proc_freed_offset, &bmc_err_status, 2);
+		    	//TODO - add error handler function here (change proc_state in response to error)
 		        fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);
 		        fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);
-		        lastmsg.obj[i] |= pd_uint16_pull(&procbuf, &proc_freed_offset, &bmc_err_status) << 16;
+		        lastmsg.obj[i] |= pd_bytes_to_reg(buf1, &buf1_output_count, &procbuf, &proc_freed_offset, &bmc_err_status, 2) << 16;
+		    	//TODO - add error handler function here (change proc_state in response to error)
 		        printf("Obj%u: %8X\n", i, lastmsg.obj[i]);
 		    }
+		    proc_state++;
+		    break;
+		case (5) ://CRC
 		    // Retrieve CRC (we don't currently do anything with it - TODO)
 		    fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);//TODO - remove these
 		    fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);
-		    pd_uint16_pull(&procbuf, &proc_freed_offset, &bmc_err_status);
+		    pd_bytes_to_reg(buf1, &buf1_output_count, &procbuf, &proc_freed_offset, &bmc_err_status, 2);
 		    fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);
 		    fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);
-		    pd_uint16_pull(&procbuf, &proc_freed_offset, &bmc_err_status);// << 16;
+		    pd_bytes_to_reg(buf1, &buf1_output_count, &procbuf, &proc_freed_offset, &bmc_err_status, 2);
+		case (6) ://EOP
 		    // Attempt to retrieve EOP - TODO
-		    //
-		    //
-		    proc_state++;
+		    if((0xFF == pd_bytes_to_reg(buf1, &buf1_output_count, &procbuf, &proc_freed_offset, &bmc_err_status, 0) == 0xFF) && !proc_state) {
+			proc_state = 0;
+		    } else {
+		    //TODO - add error handler function here (change proc_state in response to error)
+		    }
 		    break;
-		case (6) ://Data stall stage - TODO
-		    break;
-		case (7) ://EOP received - TODO
+		default ://Error handler - TODO
 		    break;
 	}
 	sleep_ms(100);
