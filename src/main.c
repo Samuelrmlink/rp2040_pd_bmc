@@ -279,10 +279,10 @@ uint16_t pd_uint16_pull(uint32_t *process_buffer, uint8_t *freed_bits_procbuf, i
     }
     return ret;
 }
-uint16_t pd_bytes_to_reg(uint32_t *preproc_buf, uint16_t *preproc_offset, uint32_t *proc_buf, uint8_t *proc_offset, int8_t *error_status, uint8_t num_bytes) {
+uint32_t pd_bytes_to_reg(uint32_t *preproc_buf, uint16_t *preproc_offset, uint32_t *proc_buf, uint8_t *proc_offset, int8_t *error_status, uint8_t num_bytes) {
     //Initialize temporary variables
     uint8_t tmp;
-    uint16_t ret = 0;
+    uint32_t ret = 0;
 
     //Figure out how many raw (PHY Layer - 4b5b symbols) bits we'll have to read
     uint8_t num_bits_required;
@@ -460,11 +460,7 @@ int main() {
 		    }
 		    // Retrieve each Object value (if available)
 		    for(uint i=0;i < ((lastmsg.hdr >> 12) & 0b111);i++) { //TODO: Implement NumDataObjects macro
-		        lastmsg.obj[i] = pd_bytes_to_reg(buf1, &buf1_output_count, &procbuf, &proc_freed_offset, &bmc_err_status, 2);
-		    	//TODO - add error handler function here (change proc_state in response to error)
-		        fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);
-		        fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);
-		        lastmsg.obj[i] |= pd_bytes_to_reg(buf1, &buf1_output_count, &procbuf, &proc_freed_offset, &bmc_err_status, 2) << 16;
+		        lastmsg.obj[i] = pd_bytes_to_reg(buf1, &buf1_output_count, &procbuf, &proc_freed_offset, &bmc_err_status, 4);
 		    	//TODO - add error handler function here (change proc_state in response to error)
 		        printf("Obj%u: %8X\n", i, lastmsg.obj[i]);
 		    }
@@ -472,12 +468,7 @@ int main() {
 		    break;
 		case (5) ://CRC
 		    // Retrieve CRC (we don't currently do anything with it - TODO)
-		    fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);//TODO - remove these
-		    fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);
-		    pd_bytes_to_reg(buf1, &buf1_output_count, &procbuf, &proc_freed_offset, &bmc_err_status, 2);
-		    fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);
-		    fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);
-		    pd_bytes_to_reg(buf1, &buf1_output_count, &procbuf, &proc_freed_offset, &bmc_err_status, 2);
+		    pd_bytes_to_reg(buf1, &buf1_output_count, &procbuf, &proc_freed_offset, &bmc_err_status, 4);
 		    proc_state++;
 		case (6) ://EOP
 		    // Attempt to retrieve EOP - TODO
