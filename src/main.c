@@ -27,7 +27,7 @@ bool buf1_rollover = false; // Indicates when inputbuf has rolled over (reset on
 uint32_t *buf1;
 PIO pio = pio0;
 
-void bmc_rx_cb() {
+void bmc_rx_check() {
     if(!pio_sm_is_rx_fifo_empty(pio, SM_RX)) {
         //printf("%16d - %08x\n", time_us_32(), pio_sm_get(pio, SM_RX));
 	if(buf1_rollover && (buf1_input_count == (buf1_output_count / 32))) {
@@ -39,6 +39,9 @@ void bmc_rx_cb() {
 	    buf1_input_count++;
 	}
     }
+}
+void bmc_rx_cb() {
+    bmc_rx_check();
     if(pio_interrupt_get(pio, 0)) {
 	pio_interrupt_clear(pio, 0);
     } 
@@ -333,6 +336,30 @@ uint32_t pd_bytes_to_reg(uint32_t *preproc_buf, uint16_t *preproc_offset, uint32
     }
     return ret;
 }
+bool pd_read_error_handler(int8_t *error_code, uint8_t *process_state) {
+    bool ret = true;	//Default state - true (meaning there are errors)
+    switch (*error_code) {
+	case (1) :		// Unexpected EOP
+	case (-1) :		// Invalid symbol and/or frame: 
+	    //TODO - stash away somewhere
+	    *process_state = 0;
+	    *error_code = 0;
+	    break;
+	case (-2) :		// Empty buffer (insufficient space - not necessarily empty)
+	    *error_code = 0;
+	    break;
+	case (-3) :
+	    //TODO - implement unexpected K-Code handler
+	    //Reset (for now...)
+	    *process_state = 0;
+	    *error_code = 0;
+	    break;
+	case (0) :		//No error
+	default :		//& catch-all
+	    ret = false;
+    }
+    return ret;
+}
 /*
 uint32_t pd_uint32_pull(uint32_t *process_buffer, uint8_t *freed_bits_procbuf, int8_t *error_status) {
     uint8_t tmp;
@@ -417,10 +444,21 @@ int main() {
     debug_u32_word(buf1, 255);//255
     */
     bool debug = false;
+    uint32_t us_prev = time_us_32();
+    uint32_t us_lag, us_current, us_lag_record = 0;
 
     while(true) {
+	us_current = time_us_32();
+	us_lag = us_current - us_prev;
+	us_prev = us_current;
+	if(us_lag > us_lag_record) {
+		us_lag_record = us_lag;
+		printf("us_lag_record: %u", us_lag_record);
+	}
+
+
 	fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);
-	switch(proc_state) {
+	switch(proc_state & 0xF) {
 		case (0) ://Preamble stage
 		    if(bmc_eliminate_preamble(&procbuf, &proc_freed_offset)) {
 			proc_state++;
@@ -436,22 +474,23 @@ int main() {
 		    break;
 		case (2) ://PD Header
 		    tmp_uint = pd_bytes_to_reg(buf1, &buf1_output_count, &procbuf, &proc_freed_offset, &bmc_err_status, 2);
-		    //TODO - add error handler function here (change proc_state in response to error)
-		    printf("Header: %4X\n", tmp_uint);
-		    //Check whether PD Header is extended
-		    if(tmp_uint >> 15) {
-			lastmsg_ext.hdr = tmp_uint;
+		    if(!pd_read_error_handler(&bmc_err_status, &proc_state)) {
+		    	printf("Header: %4X\n", tmp_uint);
 			proc_state++;
-		    } else {
-			lastmsg.hdr = tmp_uint;
-			proc_state += 2;
 		    }
 		    break;
 		case (3) ://Extended Header (if applicable)
-		    lastmsg_ext.exthdr = pd_bytes_to_reg(buf1, &buf1_output_count, &procbuf, &proc_freed_offset, &bmc_err_status, 2);
-		    //TODO - add error handler function here (change proc_state in response to error)
-		    printf("Extended Header: %4X\n", lastmsg_ext.exthdr);
-		    proc_state++;
+		    if(tmp_uint >> 15) {	//Extended Header
+			lastmsg_ext.hdr = tmp_uint;
+			lastmsg_ext.exthdr = pd_bytes_to_reg(buf1, &buf1_output_count, &procbuf, &proc_freed_offset, &bmc_err_status, 2);
+			if(!pd_read_error_handler(&bmc_err_status, &proc_state)) {
+			    printf("Extended Header: %4X\n", lastmsg_ext.exthdr);
+			    proc_state++;
+			}
+		    } else {			//No Extended Header
+			lastmsg.hdr = tmp_uint;
+			proc_state++;	//Manually increment [since we aren't running the pd_read_state_handler()]
+		    }
 		    break;
 		case (4) ://Data Objects (if applicable)
 		    if(!((lastmsg.hdr >> 12) & 0b111)) { //Skip if not applicable
@@ -459,17 +498,23 @@ int main() {
 			break;
 		    }
 		    // Retrieve each Object value (if available)
-		    for(uint i=0;i < ((lastmsg.hdr >> 12) & 0b111);i++) { //TODO: Implement NumDataObjects macro
+		    for(uint8_t i = proc_state >> 4;i < ((lastmsg.hdr >> 12) & 0b111);i++) { //TODO: Implement NumDataObjects macro
 		        lastmsg.obj[i] = pd_bytes_to_reg(buf1, &buf1_output_count, &procbuf, &proc_freed_offset, &bmc_err_status, 4);
-		    	//TODO - add error handler function here (change proc_state in response to error)
-		        printf("Obj%u: %8X\n", i, lastmsg.obj[i]);
+			if(!pd_read_error_handler(&bmc_err_status, &proc_state)) {
+		            printf("Obj%u: %8X\n", i, lastmsg.obj[i]);
+			    if((i + 1) == (lastmsg.hdr >> 12)) {
+				proc_state++;
+			    }
+			}
 		    }
-		    proc_state++;
+		    proc_state &= 0xF;
 		    break;
 		case (5) ://CRC
 		    // Retrieve CRC (we don't currently do anything with it - TODO)
 		    pd_bytes_to_reg(buf1, &buf1_output_count, &procbuf, &proc_freed_offset, &bmc_err_status, 4);
-		    proc_state++;
+		    if(!pd_read_error_handler(&bmc_err_status, &proc_state)) {
+		        proc_state++;
+		    }
 		case (6) ://EOP
 		    // Attempt to retrieve EOP - TODO
 		    if(pd_bytes_to_reg(buf1, &buf1_output_count, &procbuf, &proc_freed_offset, &bmc_err_status, 0) == 0xFF) {
