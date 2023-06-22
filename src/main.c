@@ -54,6 +54,7 @@ bool fetch_u32_word(uint32_t *input_buffer, uint16_t *input_bitoffset, uint32_t 
 
     if(*output_bitoffset 						// Ensure output buffer has sufficient space 
 		    && input_buffer[input_wordoffset]) {		// and input buffer is not empty
+    	//printf("Before: %u:%u, %u | %X:%X\n", (*input_bitoffset / 32), (*input_bitoffset % 32), *output_bitoffset, input_buffer[input_wordoffset], *output_buffer);
 
 	uint8_t bits_to_transfer = *output_bitoffset;
 	if((32 - bitoffset) < *output_bitoffset) {	// If more output bits are needed then input bits are available..
@@ -66,6 +67,7 @@ bool fetch_u32_word(uint32_t *input_buffer, uint16_t *input_bitoffset, uint32_t 
 				<< (32 - *output_bitoffset);			// Shift to output bit offset
 	*output_bitoffset -= bits_to_transfer;
 	*input_bitoffset += bits_to_transfer;
+    	//printf("After: %u:%u, %u | %X:%X\n", (*input_bitoffset / 32), (*input_bitoffset % 32), *output_bitoffset, input_buffer[input_wordoffset], *output_buffer);
 	return true;
     }
     return false;					// Returns true if output buffer refilled; false otherwise
@@ -99,7 +101,7 @@ bool debug_u32_word(uint32_t *input_buffer, uint8_t max_num) {
 	printf("%3d: %X\n", i, input_buffer[i]);
     }
 }
-
+/*
 bool bmc_eliminate_preamble(uint32_t *process_buffer, uint8_t *freed_bits_procbuf) {
     if(*freed_bits_procbuf)	// Don't even bother checking if process_buffer is not full
         return false;
@@ -113,12 +115,10 @@ bool bmc_eliminate_preamble(uint32_t *process_buffer, uint8_t *freed_bits_procbu
 		*freed_bits_procbuf++;
 		break;
     }
-    /*
-    while(((*process_buffer & 0b11) == 0b10) && (*freed_bits_procbuf != 32)) {
-        *process_buffer >>= 2;
-	*freed_bits_procbuf += 2;
-    }
-    */
+    //while(((*process_buffer & 0b11) == 0b10) && (*freed_bits_procbuf != 32)) {
+    //    *process_buffer >>= 2;
+    //    *freed_bits_procbuf += 2;
+    //}
     switch(*process_buffer & 0b11111) {		// Return true if Sync1 or Reset1 symbol is found
         case (0b11000) :// Sync1
 	case (0b00111) :// Reset1
@@ -134,6 +134,50 @@ bool bmc_eliminate_preamble(uint32_t *process_buffer, uint8_t *freed_bits_procbu
 	*freed_bits_procbuf += 2;
     }
     return false;				//Otherwise return false
+}
+*/
+//bool fetch_u32_word(uint32_t *input_buffer, uint16_t *input_bitoffset, uint32_t *output_buffer, uint8_t *output_bitoffset) {
+uint8_t bmc_locate_ordered_set(uint32_t *input_buffer, uint16_t *input_bitoffset, uint32_t *output_buffer, uint8_t *output_bitoffset, int8_t *bmc_err_status) {
+    uint8_t ret;
+    while(true) {
+	if(!bmc_data_available(32, input_buffer, input_bitoffset, output_buffer, output_bitoffset)) {
+	    *bmc_err_status = -2; // Empty buffer
+	    return 0;
+	}
+	switch(*output_buffer >> 12) {
+	    case (0b11001001110011100111) : // Hard Reset
+		ret = 1;
+		break;
+	    case (0b00110001111100000111) : // Cable Reset
+		ret = 2;
+		break;
+	    case (0b10001110001100011000) : // SOP
+		ret = 3;
+		break;
+	    case (0b00110001101100011000) : // SOP'
+		ret = 4;
+		break;
+	    case (0b00110110000011011000) : // SOP''
+		ret = 5;
+		break;
+	    case (0b00110110011100111000) : // SOP' Debug
+		ret = 6;
+		break;
+	    case (0b10001001101100111000) : // SOP'' Debug
+		ret = 7;
+		break;
+	    default :
+		if(*output_bitoffset < 32) {
+		    *output_buffer >>= 1;
+		    (*output_bitoffset)++;
+		}
+	}
+	if(ret) {
+	    *output_buffer = 0x00000000;
+	    *output_bitoffset = 32;
+	    return ret;
+	}
+    }
 }
 uint8_t bmc_4b5b_decode(uint32_t *process_buffer, uint8_t *freed_bits_procbuf) {
     //Outputs bits (6..0)
@@ -340,6 +384,7 @@ bool pd_read_error_handler(int8_t *error_code, uint8_t *process_state) {
     bool ret = true;	//Default state - true (meaning there are errors)
     switch (*error_code) {
 	case (1) :		// Unexpected EOP
+	    printf("EOP unexpected: %u\n", *process_state); //TODO: DEBUGG Remove!
 	case (-1) :		// Invalid symbol and/or frame: 
 	    //TODO - stash away somewhere
 	    *process_state = 0;
@@ -458,11 +503,19 @@ int main() {
 
 
 	fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);
+	uint8_t ordered_set;
 	switch(proc_state & 0xF) {
 		case (0) ://Preamble stage
+		    ordered_set = bmc_locate_ordered_set(buf1, &buf1_output_count, &procbuf, &proc_freed_offset, &bmc_err_status);
+		    if(ordered_set) {
+		    	printf("Ordered set# %u\n", ordered_set);
+		    	proc_state += 2;
+		    }
+		    /*
 		    if(bmc_eliminate_preamble(&procbuf, &proc_freed_offset)) {
 			proc_state++;
 		    }
+		    */
 		    break;
 		case (1) ://Ordered Set
 		    pd_frame_type = bmc_kcode_retrieve(&procbuf, &proc_freed_offset) | 
