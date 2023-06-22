@@ -136,48 +136,95 @@ bool bmc_eliminate_preamble(uint32_t *process_buffer, uint8_t *freed_bits_procbu
     return false;				//Otherwise return false
 }
 */
+bool bmc_eliminate_preamble_stage1(uint32_t *process_buffer, uint8_t *freed_bits_procbuf) {
+    if(*freed_bits_procbuf)
+	return false;
+    bool possible_preamble_found = false;
+    uint8_t preamble_offset = 0;
+    for(int i=0;i<=24;i++) {
+        switch((*process_buffer >> i) & (0xFF >> i)) {
+	    case (0x55) :
+	   	 preamble_offset++;
+	    case (0xAA) :
+	   	 possible_preamble_found = true;
+	    	break;
+        }
+        if(possible_preamble_found) {
+	    break;
+        }
+    }
+    if(!possible_preamble_found) {
+	preamble_offset = 32;
+    }
+    *process_buffer >>= preamble_offset;
+    *freed_bits_procbuf += preamble_offset;
+    return possible_preamble_found;
+}
+bool bmc_eliminate_preamble_stage2(uint32_t *process_buffer, uint8_t *freed_bits_procbuf) {
+    while(*freed_bits_procbuf <= 30 && (*process_buffer & 0b11) == 0b10) {
+	*freed_bits_procbuf += 2;
+	*process_buffer >>= 2;
+    }
+}
 //bool fetch_u32_word(uint32_t *input_buffer, uint16_t *input_bitoffset, uint32_t *output_buffer, uint8_t *output_bitoffset) {
-uint8_t bmc_locate_ordered_set(uint32_t *input_buffer, uint16_t *input_bitoffset, uint32_t *output_buffer, uint8_t *output_bitoffset, int8_t *bmc_err_status) {
-    uint8_t ret;
-    while(true) {
-	if(!bmc_data_available(32, input_buffer, input_bitoffset, output_buffer, output_bitoffset)) {
-	    *bmc_err_status = -2; // Empty buffer
-	    return 0;
-	}
-	switch(*output_buffer >> 12) {
+int8_t bmc_locate_ordered_set(uint32_t *process_buffer, uint8_t *freed_bits_procbuf, bool *preamble_lock) {
+    int8_t ret = 0;
+    if(!(*preamble_lock)) {
+    	*preamble_lock = bmc_eliminate_preamble_stage1(process_buffer, freed_bits_procbuf);
+    }
+    if(*preamble_lock) {
+    	//printf("Pre-Stage2: %X\n", *process_buffer);
+	bmc_eliminate_preamble_stage2(process_buffer, freed_bits_procbuf);
+    	//printf("Post-Stage2: %X\n", *process_buffer);
+    }
+    //printf("Debug123: %X, %X, %X", *freed_bits_procbuf <= 12, *preamble_lock, ((*process_buffer & 0xFFFFF) != 0xAAAAA));
+    if(*freed_bits_procbuf <= 12 && *preamble_lock && ((*process_buffer & 0xFFFFF) != 0xAAAAA)) {
+	int8_t ret = 0;
+	switch(*process_buffer & 0xFFFFF) {
 	    case (0b11001001110011100111) : // Hard Reset
+		//return 1;
 		ret = 1;
 		break;
 	    case (0b00110001111100000111) : // Cable Reset
+		//return 2;
 		ret = 2;
 		break;
 	    case (0b10001110001100011000) : // SOP
+		//return 3;
 		ret = 3;
 		break;
 	    case (0b00110001101100011000) : // SOP'
+		//return 4;
 		ret = 4;
 		break;
 	    case (0b00110110000011011000) : // SOP''
+		//return 5;
 		ret = 5;
 		break;
 	    case (0b00110110011100111000) : // SOP' Debug
+		//return 6;
 		ret = 6;
 		break;
 	    case (0b10001001101100111000) : // SOP'' Debug
+		//return 7;
 		ret = 7;
 		break;
-	    default :
-		if(*output_bitoffset < 32) {
-		    *output_buffer >>= 1;
-		    (*output_bitoffset)++;
-		}
 	}
-	if(ret) {
-	    *output_buffer = 0x00000000;
-	    *output_bitoffset = 32;
-	    return ret;
-	}
+    	if(ret) {
+        	//printf("DebugRR: %d\n", ret);
+		*process_buffer >>= 20;
+		*freed_bits_procbuf += 20;
+		*preamble_lock = false;
+        	return ret;
+    	}
     }
+    return 0;
+    /*
+    if(ret) {
+        printf("DebugRR: %d\n", ret);
+        return ret;
+    }
+    */
 }
 uint8_t bmc_4b5b_decode(uint32_t *process_buffer, uint8_t *freed_bits_procbuf) {
     //Outputs bits (6..0)
@@ -464,6 +511,8 @@ int main() {
     pd_msg lastmsg;
     epr_pd_msg lastmsg_ext;
 
+    bool preamble_lock = false;
+
     /* Initialize TX FIFO
     uint offset_tx = pio_add_program(pio, &differential_manchester_tx_program);
     printf("Transmit program loaded at %d\n", offset_tx);
@@ -488,6 +537,7 @@ int main() {
     sleep_ms(13000);
     debug_u32_word(buf1, 255);//255
     */
+
     bool debug = false;
     uint32_t us_prev = time_us_32();
     uint32_t us_lag, us_current, us_lag_record = 0;
@@ -503,13 +553,19 @@ int main() {
 
 
 	fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);
-	uint8_t ordered_set;
+	int8_t ordered_set;
 	switch(proc_state & 0xF) {
 		case (0) ://Preamble stage
-		    ordered_set = bmc_locate_ordered_set(buf1, &buf1_output_count, &procbuf, &proc_freed_offset, &bmc_err_status);
-		    if(ordered_set) {
-		    	printf("Ordered set# %u\n", ordered_set);
+		    ordered_set = bmc_locate_ordered_set(&procbuf, &proc_freed_offset, &preamble_lock);
+		    /*if(preamble_lock)
+			    printf("buf: %X - %u\n", procbuf, proc_freed_offset);
+			*/
+		    if(ordered_set > 0) {
+		    	printf("Ordered set# %d\n", ordered_set);
 		    	proc_state += 2;
+		    } else if(ordered_set < 0) {
+			//printf("Invalid ordered set. %d\n", ordered_set);
+			ordered_set = 0;
 		    }
 		    /*
 		    if(bmc_eliminate_preamble(&procbuf, &proc_freed_offset)) {
