@@ -30,15 +30,208 @@ PIO pio = pio0;
 void bmc_rx_check() {
     if(!pio_sm_is_rx_fifo_empty(pio, SM_RX)) {
         //printf("%16d - %08x\n", time_us_32(), pio_sm_get(pio, SM_RX));
-	if(buf1_rollover && (buf1_input_count == (buf1_output_count / 32))) {
-	    printf("Error: bmc_rx_cb: Buffer overflow!\n");	// Rejects input if overflowing.
-	} else {						// TODO - add centralized error aggregation/handling
-	    buf1[buf1_input_count] = pio_sm_get(pio, SM_RX);
-	    if(buf1_input_count == 255)		//Set rollover (flag for output buffer logic)
-		buf1_rollover = true;
-	    buf1_input_count++;
-	}
+	buf1[buf1_input_count] = pio_sm_get(pio, SM_RX);
+	if(buf1_input_count == 255)		//Set rollover (flag for output buffer logic)
+	    buf1_rollover = true;
+	buf1_input_count++;
     }
+}
+void bmc_fill_check() {
+    if(buf1_input_count == 255)
+	buf1_rollover = true;
+    buf1_input_count++;
+}
+void bmc_fill() { // TODO: remove this
+    buf1[buf1_input_count] = 0xDCDCDCDC;
+    bmc_fill_check();
+}
+void bmc_fill2() {
+    buf1[buf1_input_count] = 0xAAAAA800;//0
+    bmc_fill_check();
+    buf1[buf1_input_count] = 0xAAAAAAAA;//1
+    bmc_fill_check();
+    buf1[buf1_input_count] = 0x4C6C62AA;//2
+    bmc_fill_check();
+    buf1[buf1_input_count] = 0xEF253E97;//3
+    bmc_fill_check();
+    buf1[buf1_input_count] = 0x2BBDF7A5;//4
+    bmc_fill_check();
+    buf1[buf1_input_count] = 0x56577D55;//5
+    bmc_fill_check();
+    buf1[buf1_input_count] = 0x55555435;//6
+    bmc_fill_check();
+    buf1[buf1_input_count] = 0x55555555;//7
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x26363155;//8
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0xD537E4A9;//9
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x1BBEDF4B;//10
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x55555554;//11
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x55555555;//12
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0xABA63631;//13
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0xD2F292B4;//14
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0xF7BDDEFB;//15
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0xBC997BDE;//16
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0xEF7BDEF7;//17
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x7BDEF7BD;//18
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x4EF2FDEF;//19
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x94DFEF7A;//20
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x1BC9A529;//21
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0xAAAAAAAA;//22
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0xAAAAAAAA;//23
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x94931B18;//24
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x776AF7F7;//25
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0xAA0DB4AF;//26
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0xAAAAAAAA;//27
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x18AAAAAA;//28
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x7A6C98E3;//29
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0xBC99A69A;//30
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x4DA69AF4;//31
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0xA69AF7BD;//32
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x89F7BCAB;//33
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0xF7BCE57B;//34
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0xB7AA25CA;//35
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0xEA26BAD4;//36
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x269BD4D5;//37
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x33D4ECAA;//38
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x7A975969;//39
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0xAAAAAA0D;//40
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0xAAAAAAAA;//41
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x98E318AA;//42
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x6AF7F794;//43
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0xDB4AF77;//44
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0xAAAAAAAA;//45
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0xAAAAAAAA;//46
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0xA548E318;//47
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x592B894F;//48
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0xEF4F5525;//49
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x0D95373E;//50
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x55555555;//51
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x55555555;//52
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x2E4C718C;//53
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x93E52EF9;//54
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x5506AAD5;//55
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x55555555;//56
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x8C555555;//57
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0xFAB6AC71;//58
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x7DB5B4EE;//59
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0xAAAA86AF;//60
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0xAAAAAAAA;//61
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x38C62AAA;//62
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x9BFD4526;//63
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x54EBAFDB;//64
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0xAAAAAA83;//65
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0xAAAAAAAA;//66
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x3A38C62A;//67
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0xBB4F7CBB;//68
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x83753E73;//69
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0xAAAAAAAA;//70
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x2AAAAAAA;//71
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0xA52638C6;//72
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0xBAD2B53C;//73
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x55436DDD;//74
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x55555555;//75
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x63155555;//76
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x3EA4A71C;//77
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x5CDCBF6D;//78
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x555541AA;//79
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x55555555;//80
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x1C631555;//81
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x737EAD93;//82
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0xAEEEB5AE;//83
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0xAAAAAAA1;//84
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0xAAAAAAAA;//85
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0xCA8E318A;//86
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0xEF2E9F3E;//87
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x50D4AF6E;//88
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x55555555;//89
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0xC5555555;//90
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0x9CA4C718;//91
+    bmc_fill_check();
+	buf1[buf1_input_count] = 0xB96A72E7;//92
+    bmc_fill_check();
 }
 void bmc_rx_cb() {
     bmc_rx_check();
@@ -51,13 +244,46 @@ bool fetch_u32_word(uint32_t *input_buffer, uint16_t *input_bitoffset, uint32_t 
     uint8_t input_wordoffset, bitoffset;
     input_wordoffset = (*input_bitoffset / 32);
     bitoffset = (*input_bitoffset % 32);
-
+/*
+	    if((*output_buffer / 32 == 0) && buf1_rollover) {//Debugtmp - TODO remove
+		printf("norInputbuf: %X\nInputoffset: %d\nDebugouttmp: %X\nDebugoutbitoffset: %u\n", input_buffer[*input_bitoffset / 32], *input_bitoffset % 32, *output_buffer, *output_bitoffset);
+    	    }
+*/
     if(*output_bitoffset 						// Ensure output buffer has sufficient space 
 		    && input_buffer[input_wordoffset]) {		// and input buffer is not empty
 
 	uint8_t bits_to_transfer = *output_bitoffset;
 	if((32 - bitoffset) < *output_bitoffset) {	// If more output bits are needed then input bits are available..
 		bits_to_transfer = (32 - bitoffset);	// ..transfer as many as available. (Without introducing extra zeros)
+	}						// Otherwise - transfer as many as needed by output buffer.
+
+	if(*input_bitoffset + bits_to_transfer > 256 * 32) {
+	    bits_to_transfer -= *input_bitoffset + bits_to_transfer - 256 * 32;
+	}
+	*output_buffer |= ((input_buffer[input_wordoffset] >> bitoffset)	// Offset pre-processing buffer
+				& 0xFFFFFFFF >> (32 - bits_to_transfer))	// Mask input bit offset
+				<< (32 - *output_bitoffset);			// Shift to output bit offset
+	*output_bitoffset -= bits_to_transfer;
+	*input_bitoffset += bits_to_transfer;
+	return true;
+    }
+    return false;					// Returns true if output buffer refilled; false otherwise
+}
+bool fetch_buffer_bits(uint8_t num_bits, uint32_t *input_buffer, uint16_t *input_bitoffset, uint32_t *output_buffer, uint8_t *output_bitoffset) {
+    uint8_t input_wordoffset, bitoffset;
+    input_wordoffset = (*input_bitoffset / 32);
+    bitoffset = (*input_bitoffset % 32);
+/*
+	    if(*output_buffer == 0x06B595D) {//Debugtmp - TODO remove
+		printf("ffbInputbuf: %X\nInputoffset: %d\nDebugouttmp: %X\nDebugoutbitoffset: %u\n", input_buffer[*input_bitoffset / 32], *input_bitoffset % 32, *output_buffer, *output_bitoffset);
+    	    }
+*/
+    if(*output_bitoffset 						// Ensure output buffer has sufficient space 
+		    && input_buffer[input_wordoffset]) {		// and input buffer is not empty
+
+	uint8_t bits_to_transfer = *output_bitoffset;
+	if(num_bits < *output_bitoffset) {		// If more output bits are needed then input bits are available..
+		bits_to_transfer = num_bits;		// ..transfer as many as available. (Without introducing extra zeros)
 	}						// Otherwise - transfer as many as needed by output buffer.
 
 	*output_buffer |= ((input_buffer[input_wordoffset] >> bitoffset)	// Offset pre-processing buffer
@@ -71,17 +297,35 @@ bool fetch_u32_word(uint32_t *input_buffer, uint16_t *input_bitoffset, uint32_t 
 }
 bool bmc_data_available(uint8_t num_bits_requested, uint32_t *input_buffer, uint16_t *input_bitoffset, uint32_t *output_buffer, uint8_t *output_bitoffset) {
     uint16_t num_bits_available;
+    uint8_t num_words_added;
+/*
     if(buf1_rollover) { //Expect input word count offset to be 'behind' output word count offset
 	printf("bmc_data_available - rollover not implemented.\n"); //TODO
 	return false;
     } else { //Expect input word count offset to be 'ahead' of output word count offset
-	num_bits_available = (((buf1_input_count - 1)//   # (whole) words added
+*/
+    if(buf1_rollover) {
+	num_words_added = 255;
+    } else {
+	num_words_added = (buf1_input_count - 1);
+    }
+	num_bits_available = ((num_words_added		      //   # (whole) words added
 		- (*input_bitoffset / 32))	      	      // - # (whole) words consumed
 		//-------------------------------------------------------------------------
 		* 32)					      // * 32 bits/word
 		//=========================================================================
 		+ (32 - (*input_bitoffset % 32 + 1))	      // + # remainder bits (in current word of pre-procbuf)
 		+ (32 - *output_bitoffset);		      // + # remainder bits (procbuf)
+//    }
+    if(buf1_rollover && (num_bits_available < num_bits_requested)) {
+	printf("Rollover - num_bits_available: %d\nnum_bits_requested: %d\nProcessBuf: %X\nProcessOffset: %d\nInputData: %X\nInputBifoffset: %d\n", num_bits_available, num_bits_requested, *output_buffer, *output_bitoffset, *input_buffer, *input_bitoffset);
+	if(*input_bitoffset > 256 * 32 - 1) {
+	    *input_bitoffset = 0;
+	    //*output_buffer -= 8;
+	    buf1_rollover = false;
+    	}
+	//fetch_buffer_bits(num_bits_available, input_buffer, input_bitoffset, output_buffer, output_bitoffset);
+	//fetch_buffer_bits(num_bits_available, input_buffer, input_bitoffset, output_buffer, output_bitoffset);
     }
     fetch_u32_word(input_buffer, input_bitoffset, output_buffer, output_bitoffset);
     fetch_u32_word(input_buffer, input_bitoffset, output_buffer, output_bitoffset);
@@ -90,6 +334,9 @@ bool bmc_data_available(uint8_t num_bits_requested, uint32_t *input_buffer, uint
     } else { 
 	return false;
     }
+}
+bool fetch_u32_word_safe(uint32_t *input_buffer, uint16_t *input_bitoffset, uint32_t *output_buffer, uint8_t *output_bitoffset) {
+    return bmc_data_available(40, input_buffer, input_bitoffset, output_buffer, output_bitoffset);
 }
 bool debug_u32_word(uint32_t *input_buffer, uint8_t max_num) {
     for(int i = 0; i < (max_num + 1); i++) {
@@ -332,7 +579,8 @@ uint32_t pd_bytes_to_reg(uint32_t *preproc_buf, uint16_t *preproc_offset, uint32
     if(bmc_data_available(num_bits_required, preproc_buf, preproc_offset, proc_buf, proc_offset)) {
 	for(int i=0;i<num_bits_required/5;i++) {
 	    tmp = bmc_4b5b_decode(proc_buf, proc_offset);
-	    fetch_u32_word(preproc_buf, preproc_offset, proc_buf, proc_offset);
+
+	    fetch_u32_word_safe(preproc_buf, preproc_offset, proc_buf, proc_offset);
 	    if(tmp & 0xF0) {
 		break;
 	    }
@@ -349,22 +597,22 @@ uint32_t pd_bytes_to_reg(uint32_t *preproc_buf, uint16_t *preproc_offset, uint32
 	    if(tmp == 0x17) {
 	    	if(num_bytes) { //Only triggers error if EOP is unexpected (silence when EOP is expected)
 		    *error_status = 1;
-	    	    printf("Error: pd_bytes_to_reg: Unexpected EOP symbol received. - 0x%X\n", tmp);
+	    	    printf("Error: pd_bytes_to_reg: Unexpected EOP symbol received. - 0x%X : 0x%X\n", tmp, ret);
 		} else {
 		    ret = 0xFF;
 		}
 	    } else {
 		*error_status = -3;
-	    	printf("Error: pd_bytes_to_reg: Unexpected K-Code symbol received. - 0x%X\n", tmp);
+	    	printf("Error: pd_bytes_to_reg: Unexpected K-Code symbol received. - 0x%X : 0x%X\n", tmp, ret);
 	    }
 	    break;
 	case (0x20) :// Invalid Symbol
 	    *error_status = -1;
-	    printf("Error: pd_bytes_to_reg: Invalid 4b5b symbol received. - 0x%X\n", tmp);
+	    printf("Error: pd_bytes_to_reg: Invalid 4b5b symbol received. - 0x%X : 0x%X\n", tmp, ret);
 	    break;
 	case (0x40) :// Empty Buffer
 	    *error_status = -2;
-	    printf("Error: pd_bytes_to_reg: Empty 4b5b process buffer. - 0x%X\n", tmp);
+//	    printf("Error: pd_bytes_to_reg: Empty 4b5b process buffer. - 0x%X\n", tmp);
 	    break;
     }
     return ret;
@@ -457,11 +705,21 @@ int main() {
     irq_set_exclusive_handler(PIO0_IRQ_0, bmc_rx_cb);
     irq_set_enabled(PIO0_IRQ_0, true);
  
+//TODO - remove
+    buf1_input_count = 250;
+    buf1_output_count = (32 * 250);
     /*
-    // Debug message
-    sleep_ms(13000);
-    debug_u32_word(buf1, 255);//255
+    for(int i=0;i<10;i++) {
+        bmc_fill();
+    }
     */
+    bmc_fill2();
+
+
+    // Debug message
+    sleep_ms(4000);
+    debug_u32_word(buf1, 255);//255
+    /**/
 
     bool debug = false;
     uint32_t us_prev = time_us_32();
@@ -473,12 +731,13 @@ int main() {
 	us_prev = us_current;
 	if(us_lag > us_lag_record) {
 		us_lag_record = us_lag;
-		printf("us_lag_record: %u", us_lag_record);
+		printf("us_lag_record: %u\n", us_lag_record);
 	}
 
 
-	fetch_u32_word(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);
+	fetch_u32_word_safe(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);
 	int8_t ordered_set;
+	uint32_t crc32_val;
 	switch(proc_state & 0xF) {
 		case (0) ://Preamble stage
 		    ordered_set = bmc_locate_ordered_set(&procbuf, &proc_freed_offset, &preamble_lock);
@@ -537,9 +796,10 @@ int main() {
 		    break;
 		case (5) ://CRC
 		    // Retrieve CRC (we don't currently do anything with it - TODO)
-		    pd_bytes_to_reg(buf1, &buf1_output_count, &procbuf, &proc_freed_offset, &bmc_err_status, 4);
+		    crc32_val = pd_bytes_to_reg(buf1, &buf1_output_count, &procbuf, &proc_freed_offset, &bmc_err_status, 4);
 		    if(!pd_read_error_handler(&bmc_err_status, &proc_state)) {
 		        proc_state++;
+			printf("CRC32: %X\n", crc32_val);
 		    }
 		case (6) ://EOP
 		    // Attempt to retrieve EOP - TODO
