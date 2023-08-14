@@ -295,19 +295,26 @@ bool fetch_buffer_bits(uint8_t num_bits, uint32_t *input_buffer, uint16_t *input
     }
     return false;					// Returns true if output buffer refilled; false otherwise
 }
-bool bmc_data_available(uint8_t num_bits_requested, uint32_t *input_buffer, uint16_t *input_bitoffset, uint32_t *output_buffer, uint8_t *output_bitoffset) {
+bool bmc_data_available(uint8_t num_bits_requested, uint32_t *input_buffer, uint16_t *input_bitoffset, uint32_t *output_buffer, uint8_t *output_bitoffset, bool procbuf_only) {
     uint16_t num_bits_available;
     uint8_t num_words_added;
+    uint8_t additional_words;
 /*
     if(buf1_rollover) { //Expect input word count offset to be 'behind' output word count offset
 	printf("bmc_data_available - rollover not implemented.\n"); //TODO
 	return false;
     } else { //Expect input word count offset to be 'ahead' of output word count offset
 */
-    if(buf1_rollover) {
+    if(buf1_rollover && *input_bitoffset >= 256 * 32) {
+	*input_bitoffset = 0;
+	buf1_rollover = false;
+    }
+    if(buf1_rollover && !procbuf_only) {
 	num_words_added = 255;
+	additional_words = buf1_input_count;//TODO -fix
     } else {
 	num_words_added = (buf1_input_count - 1);
+	additional_words = 0;
     }
 	num_bits_available = ((num_words_added		      //   # (whole) words added
 		- (*input_bitoffset / 32))	      	      // - # (whole) words consumed
@@ -315,18 +322,20 @@ bool bmc_data_available(uint8_t num_bits_requested, uint32_t *input_buffer, uint
 		* 32)					      // * 32 bits/word
 		//=========================================================================
 		+ (32 - (*input_bitoffset % 32 + 1))	      // + # remainder bits (in current word of pre-procbuf)
-		+ (32 - *output_bitoffset);		      // + # remainder bits (procbuf)
+		+ (32 - *output_bitoffset)		      // + # remainder bits (procbuf)
+		+ (32 * additional_words);		      // + # additional 32-bit words (after rolled-over value - only used when [rollover == true])
 //    }
+    /*
     if(buf1_rollover && (num_bits_available < num_bits_requested)) {
-	printf("Rollover - num_bits_available: %d\nnum_bits_requested: %d\nProcessBuf: %X\nProcessOffset: %d\nInputData: %X\nInputBifoffset: %d\n", num_bits_available, num_bits_requested, *output_buffer, *output_bitoffset, *input_buffer, *input_bitoffset);
+	//printf("Rollover - num_bits_available: %d\nnum_bits_requested: %d\nProcessBuf: %X\nProcessOffset: %d\nInputData: %X\nInputBifoffset: %d\n", num_bits_available, num_bits_requested, *output_buffer, *output_bitoffset, *input_buffer, *input_bitoffset);
 	if(*input_bitoffset > 256 * 32 - 1) {
 	    *input_bitoffset = 0;
-	    //*output_buffer -= 8;
 	    buf1_rollover = false;
     	}
 	//fetch_buffer_bits(num_bits_available, input_buffer, input_bitoffset, output_buffer, output_bitoffset);
 	//fetch_buffer_bits(num_bits_available, input_buffer, input_bitoffset, output_buffer, output_bitoffset);
     }
+    */
     fetch_u32_word(input_buffer, input_bitoffset, output_buffer, output_bitoffset);
     fetch_u32_word(input_buffer, input_bitoffset, output_buffer, output_bitoffset);
     if(num_bits_available >= num_bits_requested) {
@@ -336,7 +345,7 @@ bool bmc_data_available(uint8_t num_bits_requested, uint32_t *input_buffer, uint
     }
 }
 bool fetch_u32_word_safe(uint32_t *input_buffer, uint16_t *input_bitoffset, uint32_t *output_buffer, uint8_t *output_bitoffset) {
-    return bmc_data_available(40, input_buffer, input_bitoffset, output_buffer, output_bitoffset);
+    return bmc_data_available(40, input_buffer, input_bitoffset, output_buffer, output_bitoffset, true);
 }
 bool debug_u32_word(uint32_t *input_buffer, uint8_t max_num) {
     for(int i = 0; i < (max_num + 1); i++) {
@@ -566,6 +575,7 @@ uint32_t pd_bytes_to_reg(uint32_t *preproc_buf, uint16_t *preproc_offset, uint32
     //Initialize temporary variables
     uint8_t tmp;
     uint32_t ret = 0;
+    bool debug = false;
 
     //Figure out how many raw (PHY Layer - 4b5b symbols) bits we'll have to read
     uint8_t num_bits_required;
@@ -576,15 +586,18 @@ uint32_t pd_bytes_to_reg(uint32_t *preproc_buf, uint16_t *preproc_offset, uint32
     }
     
     //Check whether we have enough bits (totalled between all buffers)
-    if(bmc_data_available(num_bits_required, preproc_buf, preproc_offset, proc_buf, proc_offset)) {
+    if(bmc_data_available(num_bits_required, preproc_buf, preproc_offset, proc_buf, proc_offset, false)) {
 	for(int i=0;i<num_bits_required/5;i++) {
+	    if(debug) printf("before: %X-%u  %X-%u-%u    ", *proc_buf, *proc_offset, preproc_buf[*preproc_offset / 32], *preproc_offset/32, *preproc_offset % 32);
 	    tmp = bmc_4b5b_decode(proc_buf, proc_offset);
+	    if(debug) printf("afterdecode: %X-%u\n", *proc_buf, *proc_offset);
 
 	    fetch_u32_word_safe(preproc_buf, preproc_offset, proc_buf, proc_offset);
 	    if(tmp & 0xF0) {
 		break;
 	    }
 	    ret |= ((tmp & 0xF) << i * 4);
+	    if(debug) printf("bmc_decoded: %X:%u ", tmp, i * 4);
 	}
     } else {
 	*error_status = -2;
@@ -734,7 +747,6 @@ int main() {
 		printf("us_lag_record: %u\n", us_lag_record);
 	}
 
-
 	fetch_u32_word_safe(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);
 	int8_t ordered_set;
 	uint32_t crc32_val;
@@ -801,6 +813,7 @@ int main() {
 		        proc_state++;
 			printf("CRC32: %X\n", crc32_val);
 		    }
+		    break;
 		case (6) ://EOP
 		    // Attempt to retrieve EOP - TODO
 		    if(pd_bytes_to_reg(buf1, &buf1_output_count, &procbuf, &proc_freed_offset, &bmc_err_status, 0) == 0xFF) {
