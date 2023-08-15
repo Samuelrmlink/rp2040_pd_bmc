@@ -13,6 +13,8 @@
 #include "hardware/timer.h"
 #include "bmc.pio.h"
 #include "pdb_msg.h"
+#include "crc32.h"
+#include "crc32.c"
 
 #define SM_TX 0
 #define SM_RX 1
@@ -721,12 +723,12 @@ int main() {
 //TODO - remove
     buf1_input_count = 250;
     buf1_output_count = (32 * 250);
+    bmc_fill2();
     /*
     for(int i=0;i<10;i++) {
         bmc_fill();
     }
     */
-    bmc_fill2();
 
 
     // Debug message
@@ -812,6 +814,10 @@ int main() {
 		    if(!pd_read_error_handler(&bmc_err_status, &proc_state)) {
 		        proc_state++;
 			printf("CRC32: %X\n", crc32_val);
+		    }
+		    uint8_t tmpval[2] = { lastmsg.hdr & 0xFF, lastmsg.hdr >> 8};
+		    if(!(lastmsg.hdr >> 12)) {
+		        printf("calcCRC32: %X\n", crc32_calc(&tmpval, 2));
 		    }
 		    break;
 		case (6) ://EOP
