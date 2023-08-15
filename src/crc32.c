@@ -10,3 +10,10 @@ bool crc32_isValid(uint8_t *data, int length) {
     uint32_t crc = crc32_calc(data, length);
     return (bool)(crc == crc32_residual);
 }
+uint32_t crc32_pdmsg(uint8_t *pd_data) {
+    //PD Header
+    uint16_t hdr = pd_data[0] | pd_data[1] << 8;
+    uint8_t tmpval[32] = { hdr & 0xFF, hdr >> 8 };
+
+    return crc32_calc(&tmpval, 2);
+}
