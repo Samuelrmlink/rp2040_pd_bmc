@@ -816,7 +816,7 @@ int main() {
 			printf("CRC32: %X\n", crc32_val);
 		    }
 		    uint8_t tmpval[2] = { lastmsg.hdr & 0xFF, lastmsg.hdr >> 8};
-		    if(!(lastmsg.hdr >> 12)) {
+		    if(!(lastmsg.hdr >> 12) && proc_state != 5) {
 		        printf("calcCRC32: %X\n", crc32_calc(&tmpval, 2));
 		    }
 		    break;
