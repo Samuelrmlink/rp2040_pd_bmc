@@ -813,11 +813,11 @@ int main() {
 		    crc32_val = pd_bytes_to_reg(buf1, &buf1_output_count, &procbuf, &proc_freed_offset, &bmc_err_status, 4);
 		    if(!pd_read_error_handler(&bmc_err_status, &proc_state)) {
 		        proc_state++;
-			printf("CRC32: %X\n", crc32_val);
-		    }
-		    uint8_t tmpval[2] = { lastmsg.hdr & 0xFF, lastmsg.hdr >> 8};
-		    if(!(lastmsg.hdr >> 15) && proc_state != 5) {
-		        printf("pdmsgCRC32: %X\n", crc32_pdmsg(lastmsg.bytes));
+			if(crc32_pdmsg(lastmsg.bytes) == crc32_val) {
+			    printf("CRC32 is Good!\n");
+			} else {
+			    printf("CRC32 mismatch\n");
+			}
 		    }
 		    break;
 		case (6) ://EOP
