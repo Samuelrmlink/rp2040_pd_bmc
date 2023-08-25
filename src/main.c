@@ -29,10 +29,29 @@ bool buf1_rollover = false; // Indicates when inputbuf has rolled over (reset on
 uint32_t *buf1;
 PIO pio = pio0;
 
+uint32_t us_bmc_current, us_bmc_lag, us_bmc_prev, us_bmc_lag_record = 0;
+bool print_bmc_lag = false;
+bool bmc_check_during_operation = true;
+
+uint32_t us_since_last_u32;
+
 void bmc_rx_check() {
-    if(!pio_sm_is_rx_fifo_empty(pio, SM_RX)) {
+    if(print_bmc_lag) {
+        extern uint32_t us_bmc_current, us_bmc_lag, us_bmc_prev, us_bmc_lag_record;
+        us_bmc_current = time_us_32();
+        us_bmc_lag = us_bmc_current - us_bmc_prev;
+        us_bmc_prev = us_bmc_current;
+        if(us_bmc_lag > us_bmc_lag_record) {
+	    us_bmc_lag_record = us_bmc_lag;
+	    printf("bmc_lag_record: %u\n", us_bmc_lag_record);
+    	} else if(us_bmc_lag > 100) {
+	    printf("bmc_lag: %u:%u\n", us_bmc_lag, us_bmc_lag_record);
+    	}
+    }
+    while(!pio_sm_is_rx_fifo_empty(pio, SM_RX)) {
         //printf("%16d - %08x\n", time_us_32(), pio_sm_get(pio, SM_RX));
 	buf1[buf1_input_count] = pio_sm_get(pio, SM_RX);
+	us_since_last_u32 = time_us_32();
 	if(buf1_input_count == 255)		//Set rollover (flag for output buffer logic)
 	    buf1_rollover = true;
 	buf1_input_count++;
@@ -301,6 +320,7 @@ bool bmc_data_available(uint8_t num_bits_requested, uint32_t *input_buffer, uint
     uint16_t num_bits_available;
     uint8_t num_words_added;
     uint8_t additional_words;
+    if(bmc_check_during_operation) bmc_rx_check();
 /*
     if(buf1_rollover) { //Expect input word count offset to be 'behind' output word count offset
 	printf("bmc_data_available - rollover not implemented.\n"); //TODO
@@ -719,28 +739,36 @@ int main() {
     pio_set_irq0_source_enabled(pio, pis_interrupt0, true);
     irq_set_exclusive_handler(PIO0_IRQ_0, bmc_rx_cb);
     irq_set_enabled(PIO0_IRQ_0, true);
+    bmc_check_during_operation = false;		// Override - disables this check
  
 //TODO - remove
+/*
     buf1_input_count = 250;
     buf1_output_count = (32 * 250);
     bmc_fill2();
+*/
     /*
     for(int i=0;i<10;i++) {
         bmc_fill();
     }
     */
 
-
+/*
     // Debug message
     sleep_ms(4000);
     debug_u32_word(buf1, 255);//255
-    /**/
+*/
 
     bool debug = false;
     uint32_t us_prev = time_us_32();
     uint32_t us_lag, us_current, us_lag_record = 0;
 
+    //Timing test
+
+
     while(true) {
+	while(time_us_32() < us_since_last_u32 + 100) sleep_us(150);
+	//sleep_us(1500);
 	us_current = time_us_32();
 	us_lag = us_current - us_prev;
 	us_prev = us_current;
@@ -749,6 +777,7 @@ int main() {
 		printf("us_lag_record: %u\n", us_lag_record);
 	}
 
+	if (bmc_check_during_operation) bmc_rx_check();
 	fetch_u32_word_safe(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);
 	int8_t ordered_set;
 	uint32_t crc32_val;
