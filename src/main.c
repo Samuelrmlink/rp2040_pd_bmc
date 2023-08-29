@@ -30,7 +30,7 @@ uint32_t *buf1;
 PIO pio = pio0;
 
 uint32_t us_bmc_current, us_bmc_lag, us_bmc_prev, us_bmc_lag_record = 0;
-bool print_bmc_lag = false;
+bool print_bmc_lag = true;
 bool bmc_check_during_operation = true;
 
 uint32_t us_since_last_u32;
@@ -45,15 +45,16 @@ void bmc_rx_check() {
 	    us_bmc_lag_record = us_bmc_lag;
 	    printf("bmc_lag_record: %u\n", us_bmc_lag_record);
     	} else if(us_bmc_lag > 100) {
-	    printf("bmc_lag: %u:%u\n", us_bmc_lag, us_bmc_lag_record);
+	    //printf("bmc_lag: %u:%u\n", us_bmc_lag, us_bmc_lag_record);
     	}
     }
     while(!pio_sm_is_rx_fifo_empty(pio, SM_RX)) {
         //printf("%16d - %08x\n", time_us_32(), pio_sm_get(pio, SM_RX));
 	buf1[buf1_input_count] = pio_sm_get(pio, SM_RX);
 	us_since_last_u32 = time_us_32();
-	if(buf1_input_count == 255)		//Set rollover (flag for output buffer logic)
+	if(buf1_input_count == 255) {		//Set rollover (flag for output buffer logic)
 	    buf1_rollover = true;
+	}
 	buf1_input_count++;
     }
 }
@@ -262,6 +263,7 @@ void bmc_rx_cb() {
 }
 
 bool fetch_u32_word(uint32_t *input_buffer, uint16_t *input_bitoffset, uint32_t *output_buffer, uint8_t *output_bitoffset) {
+    if(bmc_check_during_operation) bmc_rx_check();
     uint8_t input_wordoffset, bitoffset;
     input_wordoffset = (*input_bitoffset / 32);
     bitoffset = (*input_bitoffset % 32);
@@ -320,7 +322,6 @@ bool bmc_data_available(uint8_t num_bits_requested, uint32_t *input_buffer, uint
     uint16_t num_bits_available;
     uint8_t num_words_added;
     uint8_t additional_words;
-    if(bmc_check_during_operation) bmc_rx_check();
 /*
     if(buf1_rollover) { //Expect input word count offset to be 'behind' output word count offset
 	printf("bmc_data_available - rollover not implemented.\n"); //TODO
@@ -610,7 +611,7 @@ uint32_t pd_bytes_to_reg(uint32_t *preproc_buf, uint16_t *preproc_offset, uint32
     //Check whether we have enough bits (totalled between all buffers)
     if(bmc_data_available(num_bits_required, preproc_buf, preproc_offset, proc_buf, proc_offset, false)) {
 	for(int i=0;i<num_bits_required/5;i++) {
-	    if(debug) printf("before: %X-%u  %X-%u-%u    ", *proc_buf, *proc_offset, preproc_buf[*preproc_offset / 32], *preproc_offset/32, *preproc_offset % 32);
+	    if(debug) printf("before: %X-%u  %X-%u-%u r%u   ", *proc_buf, *proc_offset, preproc_buf[*preproc_offset / 32], *preproc_offset/32, *preproc_offset % 32, buf1_rollover);
 	    tmp = bmc_4b5b_decode(proc_buf, proc_offset);
 	    if(debug) printf("afterdecode: %X-%u\n", *proc_buf, *proc_offset);
 
@@ -724,12 +725,12 @@ int main() {
     /* Initialize TX FIFO
     uint offset_tx = pio_add_program(pio, &differential_manchester_tx_program);
     printf("Transmit program loaded at %d\n", offset_tx);
+    differential_manchester_tx_program_init(pio, SM_TX, offset_tx, pin_tx, 125.f / (5.3333));
     pio_sm_set_enabled(pio, SM_TX, false);
     pio_sm_put_blocking(pio, SM_TX, 0);
     pio_sm_put_blocking(pio, SM_TX, 0x0ff0a55a);
     pio_sm_put_blocking(pio, SM_TX, 0x12345678);
-    pio_sm_set_enabled(pio, SM_TX, true);
-    differential_manchester_tx_program_init(pio, SM_TX, offset_tx, pin_tx, 125.f / (5.3333)); */
+    pio_sm_set_enabled(pio, SM_TX, true);*/
     
     /* Initialize RX FIFO */
     uint offset_rx = pio_add_program(pio, &differential_manchester_rx_program);
@@ -765,9 +766,20 @@ int main() {
 
     //Timing test
 
-
     while(true) {
-	while(time_us_32() < us_since_last_u32 + 100) sleep_us(150);
+	//if(us_bmc_lag_record > 2000) us_bmc_lag_record = 0;// TODO - fix hardcoded >2000us condition hack
+	/*
+	if(us_bmc_lag_record > 2000) {
+		printf("us_bmc_lag_record: %u\n", us_bmc_lag_record);
+		us_bmc_lag_record = 0;
+	}*/
+
+	//if(time_us_32() > 20000000) debug_u32_word(buf1, 255);//Print debug info (if over 20 seconds)
+
+	while(time_us_32() < us_since_last_u32 + 150) {
+	    if (bmc_check_during_operation) bmc_rx_check();
+	    sleep_us(20);
+	}
 	//sleep_us(1500);
 	us_current = time_us_32();
 	us_lag = us_current - us_prev;
