@@ -267,11 +267,6 @@ bool fetch_u32_word(uint32_t *input_buffer, uint16_t *input_bitoffset, uint32_t 
     uint8_t input_wordoffset, bitoffset;
     input_wordoffset = (*input_bitoffset / 32);
     bitoffset = (*input_bitoffset % 32);
-/*
-	    if((*output_buffer / 32 == 0) && buf1_rollover) {//Debugtmp - TODO remove
-		printf("norInputbuf: %X\nInputoffset: %d\nDebugouttmp: %X\nDebugoutbitoffset: %u\n", input_buffer[*input_bitoffset / 32], *input_bitoffset % 32, *output_buffer, *output_bitoffset);
-    	    }
-*/
     if(*output_bitoffset 						// Ensure output buffer has sufficient space 
 		    && input_buffer[input_wordoffset]) {		// and input buffer is not empty
 
@@ -292,42 +287,11 @@ bool fetch_u32_word(uint32_t *input_buffer, uint16_t *input_bitoffset, uint32_t 
     }
     return false;					// Returns true if output buffer refilled; false otherwise
 }
-bool fetch_buffer_bits(uint8_t num_bits, uint32_t *input_buffer, uint16_t *input_bitoffset, uint32_t *output_buffer, uint8_t *output_bitoffset) {
-    uint8_t input_wordoffset, bitoffset;
-    input_wordoffset = (*input_bitoffset / 32);
-    bitoffset = (*input_bitoffset % 32);
-/*
-	    if(*output_buffer == 0x06B595D) {//Debugtmp - TODO remove
-		printf("ffbInputbuf: %X\nInputoffset: %d\nDebugouttmp: %X\nDebugoutbitoffset: %u\n", input_buffer[*input_bitoffset / 32], *input_bitoffset % 32, *output_buffer, *output_bitoffset);
-    	    }
-*/
-    if(*output_bitoffset 						// Ensure output buffer has sufficient space 
-		    && input_buffer[input_wordoffset]) {		// and input buffer is not empty
-
-	uint8_t bits_to_transfer = *output_bitoffset;
-	if(num_bits < *output_bitoffset) {		// If more output bits are needed then input bits are available..
-		bits_to_transfer = num_bits;		// ..transfer as many as available. (Without introducing extra zeros)
-	}						// Otherwise - transfer as many as needed by output buffer.
-
-	*output_buffer |= ((input_buffer[input_wordoffset] >> bitoffset)	// Offset pre-processing buffer
-				& 0xFFFFFFFF >> (32 - bits_to_transfer))	// Mask input bit offset
-				<< (32 - *output_bitoffset);			// Shift to output bit offset
-	*output_bitoffset -= bits_to_transfer;
-	*input_bitoffset += bits_to_transfer;
-	return true;
-    }
-    return false;					// Returns true if output buffer refilled; false otherwise
-}
 bool bmc_data_available(uint8_t num_bits_requested, uint32_t *input_buffer, uint16_t *input_bitoffset, uint32_t *output_buffer, uint8_t *output_bitoffset, bool procbuf_only) {
     uint16_t num_bits_available;
     uint8_t num_words_added;
     uint8_t additional_words;
-/*
-    if(buf1_rollover) { //Expect input word count offset to be 'behind' output word count offset
-	printf("bmc_data_available - rollover not implemented.\n"); //TODO
-	return false;
-    } else { //Expect input word count offset to be 'ahead' of output word count offset
-*/
+
     if(buf1_rollover && *input_bitoffset >= 256 * 32) {
 	*input_bitoffset = 0;
 	buf1_rollover = false;
@@ -347,18 +311,7 @@ bool bmc_data_available(uint8_t num_bits_requested, uint32_t *input_buffer, uint
 		+ (32 - (*input_bitoffset % 32 + 1))	      // + # remainder bits (in current word of pre-procbuf)
 		+ (32 - *output_bitoffset)		      // + # remainder bits (procbuf)
 		+ (32 * additional_words);		      // + # additional 32-bit words (after rolled-over value - only used when [rollover == true])
-//    }
-    /*
-    if(buf1_rollover && (num_bits_available < num_bits_requested)) {
-	//printf("Rollover - num_bits_available: %d\nnum_bits_requested: %d\nProcessBuf: %X\nProcessOffset: %d\nInputData: %X\nInputBifoffset: %d\n", num_bits_available, num_bits_requested, *output_buffer, *output_bitoffset, *input_buffer, *input_bitoffset);
-	if(*input_bitoffset > 256 * 32 - 1) {
-	    *input_bitoffset = 0;
-	    buf1_rollover = false;
-    	}
-	//fetch_buffer_bits(num_bits_available, input_buffer, input_bitoffset, output_buffer, output_bitoffset);
-	//fetch_buffer_bits(num_bits_available, input_buffer, input_bitoffset, output_buffer, output_bitoffset);
-    }
-    */
+
     fetch_u32_word(input_buffer, input_bitoffset, output_buffer, output_bitoffset);
     fetch_u32_word(input_buffer, input_bitoffset, output_buffer, output_bitoffset);
     if(num_bits_available >= num_bits_requested) {
@@ -566,34 +519,6 @@ bool bmc_print_type(uint16_t pd_frame_type) {
     }
     return true;
 }
-uint16_t pd_uint16_pull(uint32_t *process_buffer, uint8_t *freed_bits_procbuf, int8_t *error_status) {
-    uint8_t tmp;
-    uint16_t ret = 0;
-    for(int i=0;i<4;i++) {
-	tmp = bmc_4b5b_decode(process_buffer, freed_bits_procbuf);
-	switch (tmp & 0xF0) {
-	    case (0x10) :// K-Code symbol
-		*error_status = 1 << 0;
-		printf("Error: pd_uint16_pull: Unexpected K-Code symbol received. - 0x%X\n", tmp);
-		return ret;
-		break;
-	    case (0x20) :// Invalid Symbol
-		*error_status = 1 << 1;
-		printf("Error: pd_uint16_pull: Invalid 4b5b symbol received. - 0x%X\n", tmp);
-		return ret;
-		break;
-	    case (0x40) :// Empty Buffer
-		*error_status = 1 << 2;
-		printf("Error: pd_uint16_pull: Empty 4b5b process buffer. - 0x%X\n", tmp);
-		return ret;
-		break;
-	    default :	 // Hex data (no error)
-		ret |= ((tmp & 0xF) << i * 4);
-		break;
-	}
-    }
-    return ret;
-}
 uint32_t pd_bytes_to_reg(uint32_t *preproc_buf, uint16_t *preproc_offset, uint32_t *proc_buf, uint8_t *proc_offset, int8_t *error_status, uint8_t num_bytes) {
     //Initialize temporary variables
     uint8_t tmp;
@@ -678,21 +603,6 @@ bool pd_read_error_handler(int8_t *error_code, uint8_t *process_state) {
     }
     return ret;
 }
-uint8_t pd_burst_pull(uint32_t *process_buffer, uint8_t *freed_bits_procbuf, int8_t *error_status, uint8_t *data_buf, uint8_t max_bytes) {//Returns # of received bytes (excluding EOP)
-    uint8_t tmp;
-    uint32_t ret = 0;
-    for(int i=0;i<(max_bytes*2-1);i++) {
-	tmp = bmc_4b5b_decode(process_buffer, freed_bits_procbuf);
-	//TODO - add error detection logic
-	if(tmp == 0x17) {	//EOP
-	    *error_status = 1;
-	    return i;
-	} else { 
-	    data_buf[i] = (tmp & 0xF) << (i & 0x1);
-	}
-    }
-    return ret;
-}
 int main() {
     // Initialize IO & PIO
     stdio_init_all();
@@ -748,12 +658,6 @@ int main() {
     buf1_output_count = (32 * 250);
     bmc_fill2();
 */
-    /*
-    for(int i=0;i<10;i++) {
-        bmc_fill();
-    }
-    */
-
 /*
     // Debug message
     sleep_ms(4000);
@@ -764,23 +668,14 @@ int main() {
     uint32_t us_prev = time_us_32();
     uint32_t us_lag, us_current, us_lag_record = 0;
 
-    //Timing test
-
     while(true) {
-	//if(us_bmc_lag_record > 2000) us_bmc_lag_record = 0;// TODO - fix hardcoded >2000us condition hack
-	/*
-	if(us_bmc_lag_record > 2000) {
-		printf("us_bmc_lag_record: %u\n", us_bmc_lag_record);
-		us_bmc_lag_record = 0;
-	}*/
-
-	//if(time_us_32() > 20000000) debug_u32_word(buf1, 255);//Print debug info (if over 20 seconds)
-
+	// Delay running loop if actively receiving data
 	while(time_us_32() < us_since_last_u32 + 150) {
 	    if (bmc_check_during_operation) bmc_rx_check();
 	    sleep_us(20);
 	}
-	//sleep_us(1500);
+
+	// Measure & display number of micro-seconds between runs (for Debugging)
 	us_current = time_us_32();
 	us_lag = us_current - us_prev;
 	us_prev = us_current;
