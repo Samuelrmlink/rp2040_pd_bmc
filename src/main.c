@@ -603,6 +603,19 @@ bool pd_read_error_handler(int8_t *error_code, uint8_t *process_state) {
     }
     return ret;
 }
+void pd_respond_goodcrc(void *rxd) {
+    pd_msg *msg_rxd = rxd;
+    pd_msg msg_resp;
+    uint32_t crc;
+
+    uint8_t msg_id = (msg_rxd->hdr >> 9) & 0b111;
+    //uint8_t spec_rev = (msg_rxd->hdr >> 6) & 0b11;
+    uint8_t spec_rev = 0b01;
+
+    msg_resp.hdr = msg_id << 9 | spec_rev << 6 | 0b00001;
+    crc = crc32_pdmsg(msg_resp.bytes);
+    printf("GOODCRC resp: %X:%X\n", msg_resp.hdr, crc);
+}
 int main() {
     // Initialize IO & PIO
     stdio_init_all();
@@ -632,11 +645,12 @@ int main() {
 
     bool preamble_lock = false;
 
-    /* Initialize TX FIFO
+    /* Initialize TX FIFO*/
     uint offset_tx = pio_add_program(pio, &differential_manchester_tx_program);
     printf("Transmit program loaded at %d\n", offset_tx);
     differential_manchester_tx_program_init(pio, SM_TX, offset_tx, pin_tx, 125.f / (5.3333));
     pio_sm_set_enabled(pio, SM_TX, false);
+    /*
     pio_sm_put_blocking(pio, SM_TX, 0);
     pio_sm_put_blocking(pio, SM_TX, 0x0ff0a55a);
     pio_sm_put_blocking(pio, SM_TX, 0x12345678);
@@ -750,7 +764,7 @@ int main() {
 		    if(!pd_read_error_handler(&bmc_err_status, &proc_state)) {
 		        proc_state++;
 			if(crc32_pdmsg(lastmsg.bytes) == crc32_val) {
-			    printf("CRC32 is Good!\n");
+			    printf("CRC32 is Good! - %X\n", crc32_val);
 			} else {
 			    printf("CRC32 mismatch\n");
 			}
@@ -761,6 +775,7 @@ int main() {
 		    if(pd_bytes_to_reg(buf1, &buf1_output_count, &procbuf, &proc_freed_offset, &bmc_err_status, 0) == 0xFF) {
 			proc_state = 0;
 			printf("EOP\n");
+			if(((lastmsg.hdr >> 12) & 0b111) && ((lastmsg.hdr & 0b11111) == 0b00001)) pd_respond_goodcrc(&lastmsg);
 		    } else {
 		    //TODO - add error handler function here (change proc_state in response to error)
 		    }
