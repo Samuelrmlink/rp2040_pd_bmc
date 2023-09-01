@@ -8,6 +8,7 @@
 #include <stdlib.h>
 
 #include "pico/stdlib.h"
+#include "hardware/gpio.h"
 #include "hardware/pio.h"
 #include "hardware/irq.h"
 #include "hardware/timer.h"
@@ -20,7 +21,7 @@
 #define SM_RX 1
 
 //Define pins (to be used by PIO for BMC TX/RX)
-const uint pin_tx = 7;
+const uint pin_tx = 9;
 const uint pin_rx = 6;
 uint8_t buf1_input_count = 0;
 uint16_t buf1_output_count;
@@ -717,10 +718,22 @@ void pd_respond_goodcrc(void *rxd) {
     }
     bmc_4b5b_encode(0x17, data_buf, &offset);//EOP
     printf("GOODCRC resp: %X:%X:%X-%X-%X-%X-%X\n", msg_resp.hdr, crc, data_buf[0], data_buf[1], data_buf[2], data_buf[3], data_buf[4]);
+    gpio_put(8, 1);
+    pio_sm_put_blocking(pio, SM_TX, data_buf[0]);
+    pio_sm_put_blocking(pio, SM_TX, data_buf[1]);
+    pio_sm_put_blocking(pio, SM_TX, data_buf[2]);
+    pio_sm_put_blocking(pio, SM_TX, data_buf[3]);
+    pio_sm_put_blocking(pio, SM_TX, data_buf[4]);
+    pio_sm_set_enabled(pio, SM_TX, true);
+    printf("pio_sm_get_tx_fifo_level: %X\n", pio_sm_get_tx_fifo_level(pio, SM_TX));
+    while(!pio_sm_is_tx_fifo_empty(pio, SM_TX)) sleep_us(5);
+    gpio_put(8, 0);
 }
 int main() {
     // Initialize IO & PIO
     stdio_init_all();
+    gpio_init(8);
+    gpio_set_dir(8, GPIO_OUT);
     buf1 = malloc(256 * 4);
     if(buf1 == NULL) 
 	    printf("Error - buf1 is a NULL pointer.");
