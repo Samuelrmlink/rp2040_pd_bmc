@@ -603,6 +603,92 @@ bool pd_read_error_handler(int8_t *error_code, uint8_t *process_state) {
     }
     return ret;
 }
+void bmc_4b_to_5b(uint8_t input_symbol, uint8_t *5b_symbol) {
+    switch (input_symbol) {
+	case (0x00) :// 0x0
+	    *5b_symbol = 0b11110;
+	    break;
+	case (0x01) :// 0x1
+	    *5b_symbol = 0b01001;
+	    break;
+	case (0x02) :// 0x2
+	    *5b_symbol = 0b10100;
+	    break;
+	case (0x03) :// 0x3
+	    5b_symbol = 0b10101;
+	    break;
+	case (0x04) :// 0x4
+	    5b_symbol = 0b01010;
+	    break;
+	case (0x05) :// 0x5
+	    *5b_symbol = 0b01011;
+	    break;
+	case (0x06) :// 0x6
+	    *5b_symbol = 0b01110;
+	    break;
+	case (0x07) :// 0x7
+	    *5b_symbol = 0b01111;
+	    break;
+	case (0x08) :// 0x8
+	    *5b_symbol = 0b10010;
+	    break;
+	case (0x09) :// 0x9
+	    *5b_symbol = 0b10011;
+	    break;
+	case (0x0A) :// 0xA
+	    *5b_symbol = 0b10110;
+	    break;
+	case (0x0B) :// 0xB
+	    *5b_symbol = 0b10111;
+	    break;
+	case (0x0C) :// 0xC
+	    *5b_symbol = 0b11010;
+	    break;
+	case (0x0D) :// 0xD
+	    *5b_symbol = 0b11011;
+	    break;
+	case (0x0E) :// 0xE
+	    *5b_symbol = 0b11100;
+	    break;
+	case (0x0F) :// 0xF
+	    *5b_symbol = 0b11101;
+	    break;
+	case (0x10) :// K-code Sync-1
+	    *5b_symbol = 0b11000;
+	    break;
+	case (0x11) :// K-code Sync-2
+	    *5b_symbol = 0b10001;
+	    break;
+	case (0x12) :// K-code Sync-3
+	    *5b_symbol = 0b00110;
+	    break;
+	case (0x13) :// K-code RST-2
+	    *5b_symbol = 0b00111;
+	    break;
+	case (0x14) :// K-code RST-2
+	    *5b_symbol = 0b11001;
+	    break;
+	case (0x17) :// K-code EOP
+	    *5b_symbol = 0b01101;
+	    break;
+	default:
+	    //Error - TODO
+    }
+}
+void bmc_4b5b_encode(uint8_t input_symbol, uint8_t *output_buffer, uint16_t *output_offset) {
+    uint8_t 5b_symbol;
+    uint8_t bitshift = 32 - *output_offset % 32;
+    if(bitshift > 5) bitshift = 5;	// Ensure bitshift is always 5 or less
+    bmc_4b_to_5b(input_symbol, &5b_symbol);
+    if(!(*output_offset % 32)) output_buffer[*output_offset / 32] = 0;		//Ensure output buffer is clean (if this is the first time we are writing to it)
+    output_buffer[*output_offset / 32] |= (5b_symbol & 0b11111 >> 5 - bitshift) << *output_offset % 32;
+    *output_offset += bitshift;
+    if(bitshift < 5) {
+	5b_symbol >>= 5 - bitshift;
+	output_buffer[*output_offset / 32] = (5b_symbol & 0b11111 >> bitshift); //Ensure output buffer is clean
+	*output_offset += 5 - bitshift;
+    }
+}
 void pd_respond_goodcrc(void *rxd) {
     pd_msg *msg_rxd = rxd;
     pd_msg msg_resp;
