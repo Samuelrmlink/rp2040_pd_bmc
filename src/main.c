@@ -604,6 +604,7 @@ bool pd_read_error_handler(int8_t *error_code, uint8_t *process_state) {
     }
     return ret;
 }
+/*
 void bmc_4b_to_5b(uint8_t input_symbol, uint8_t *output_symbol) {
     switch (input_symbol) {
 	case (0x00) :// 0x0
@@ -672,7 +673,7 @@ void bmc_4b_to_5b(uint8_t input_symbol, uint8_t *output_symbol) {
 	case (0x17) :// K-code EOP
 	    *output_symbol = 0b01101;
 	    break;
-	default:
+	default :
 	    //Error - TODO
     }
 }
@@ -703,9 +704,10 @@ void pd_respond_goodcrc(void *rxd) {
     crc = crc32_pdmsg(msg_resp.bytes);
 
     uint32_t data_buf[5];
-    data_buf[0] = 0xAAAAAAAA;
-    data_buf[1] = 0xAAAAAAAA;
-    uint16_t offset = 64;
+    data_buf[0] = 0x55555555;
+    data_buf[1] = 0x55555555;
+    data_buf[2] = 0x00000155;
+    uint16_t offset = 74;
     bmc_4b5b_encode(0x10, data_buf, &offset);//Sync-1
     bmc_4b5b_encode(0x10, data_buf, &offset);//Sync-1
     bmc_4b5b_encode(0x10, data_buf, &offset);//Sync-1
@@ -727,8 +729,45 @@ void pd_respond_goodcrc(void *rxd) {
     pio_sm_set_enabled(pio, SM_TX, true);
     printf("pio_sm_get_tx_fifo_level: %X\n", pio_sm_get_tx_fifo_level(pio, SM_TX));
     while(!pio_sm_is_tx_fifo_empty(pio, SM_TX)) sleep_us(5);
+    sleep_us(195);
     gpio_put(8, 0);
 }
+void pd_replay_test1() {
+    uint32_t data_buf[12];
+    data_buf[0] = 0xAAAAA800;
+    data_buf[1] = 0xAAAAAAAA;
+    data_buf[2] = 0x4C6C62AA;
+    data_buf[3] = 0xEF253E97;
+    data_buf[4] = 0x2BBDF7A5;
+    data_buf[5] = 0x56577D55;
+    data_buf[6] = 0x55555435;
+    data_buf[7] = 0x55555555;
+    data_buf[8] = 0x26363155;
+    data_buf[8] = 0xD537E4A9;
+    data_buf[10] = 0x1BBEDF4B;
+    data_buf[11] = 0x55555554;
+    printf("pd_replay_test1\n");
+    gpio_put(8, 1);
+    pio_sm_put_blocking(pio, SM_TX, data_buf[0]);
+    pio_sm_put_blocking(pio, SM_TX, data_buf[1]);
+    pio_sm_put_blocking(pio, SM_TX, data_buf[2]);
+    pio_sm_put_blocking(pio, SM_TX, data_buf[3]);
+    pio_sm_set_enabled(pio, SM_TX, true);
+    pio_sm_put_blocking(pio, SM_TX, data_buf[4]);
+    pio_sm_put_blocking(pio, SM_TX, data_buf[5]);
+    pio_sm_put_blocking(pio, SM_TX, data_buf[6]);
+    pio_sm_put_blocking(pio, SM_TX, data_buf[7]);
+    pio_sm_put_blocking(pio, SM_TX, data_buf[8]);
+    pio_sm_put_blocking(pio, SM_TX, data_buf[9]);
+    pio_sm_put_blocking(pio, SM_TX, data_buf[10]);
+    pio_sm_put_blocking(pio, SM_TX, data_buf[11]);
+    printf("pio_sm_get_tx_fifo_level: %X\n", pio_sm_get_tx_fifo_level(pio, SM_TX));
+    while(!pio_sm_is_tx_fifo_empty(pio, SM_TX)) sleep_us(5);
+    sleep_us(195);
+    gpio_put(8, 0);
+
+}
+*/
 int main() {
     // Initialize IO & PIO
     stdio_init_all();
@@ -797,6 +836,8 @@ int main() {
     uint32_t us_prev = time_us_32();
     uint32_t us_lag, us_current, us_lag_record = 0;
 
+    bool transmitted = false;
+
     while(true) {
 	// Delay running loop if actively receiving data
 	while(time_us_32() < us_since_last_u32 + 150) {
@@ -812,6 +853,20 @@ int main() {
 		us_lag_record = us_lag;
 		printf("us_lag_record: %u\n", us_lag_record);
 	}
+
+	// TX Debug testing
+	/*
+	if(((lastmsg.hdr >> 12) & 0b111) && ((lastmsg.hdr & 0b11111) == 0b00001) && !transmitted && time_us_32() > 10000000) {
+	    pd_respond_goodcrc(&lastmsg);
+	    transmitted = true;
+	}
+	*/
+	/*
+	if(!transmitted && time_us_32() > 10000000) {
+	    pd_replay_test1();
+	    transmitted = true;
+	}
+	*/
 
 	if (bmc_check_during_operation) bmc_rx_check();
 	fetch_u32_word_safe(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);
@@ -890,7 +945,7 @@ int main() {
 		    if(pd_bytes_to_reg(buf1, &buf1_output_count, &procbuf, &proc_freed_offset, &bmc_err_status, 0) == 0xFF) {
 			proc_state = 0;
 			printf("EOP\n");
-			if(((lastmsg.hdr >> 12) & 0b111) && ((lastmsg.hdr & 0b11111) == 0b00001)) pd_respond_goodcrc(&lastmsg);
+			//if(((lastmsg.hdr >> 12) & 0b111) && ((lastmsg.hdr & 0b11111) == 0b00001)) pd_respond_goodcrc(&lastmsg);
 		    } else {
 		    //TODO - add error handler function here (change proc_state in response to error)
 		    }
