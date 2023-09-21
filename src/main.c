@@ -578,11 +578,11 @@ int main() {
     bmc_check_during_operation = false;		// Override - disables this check
  
 //TODO - remove
-
+/*
     buf1_input_count = 250;
     buf1_output_count = (32 * 250);
     bmc_fill2();
-
+*/
 /*
     // Debug message
     sleep_ms(4000);
