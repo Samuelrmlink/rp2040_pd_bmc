@@ -1,3 +1,5 @@
+#include "main_i.h"
+
 uint32_t crc32_calc(uint8_t *data, int length) {
     uint32_t crc = crc32_initial_value;
     for(int i = 0; i < length; i++) {

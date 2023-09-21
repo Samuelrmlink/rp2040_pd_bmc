@@ -1,3 +1,6 @@
+#ifndef _BMC_CRC32_H
+#define _BMC_CRC32_H
+
 static const uint32_t crc32_initial_value = 0xFFFFFFFF;
 static const uint32_t crc32_residual = 0xC704DD7B;
 static const uint32_t crc32_lookup[26] = {
@@ -8,3 +11,5 @@ static const uint32_t crc32_lookup[26] = {
 };
 uint32_t crc32_calc(uint8_t *data, int length);
 bool crc32_isValid(uint8_t *data, int length);
+
+#endif
