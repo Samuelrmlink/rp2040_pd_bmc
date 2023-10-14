@@ -20,25 +20,12 @@ uint32_t *buf1;
 PIO pio = pio0;
 
 uint32_t us_bmc_current, us_bmc_lag, us_bmc_prev, us_bmc_lag_record = 0;
-bool print_bmc_lag = true;
 bool bmc_check_during_operation = true;
 
 uint32_t us_since_last_u32;
 
 void bmc_rx_check() {
-    if(print_bmc_lag) {
-        extern uint32_t us_bmc_current, us_bmc_lag, us_bmc_prev, us_bmc_lag_record;
-        us_bmc_current = time_us_32();
-        us_bmc_lag = us_bmc_current - us_bmc_prev;
-        us_bmc_prev = us_bmc_current;
-        if(us_bmc_lag > us_bmc_lag_record) {
-	    us_bmc_lag_record = us_bmc_lag;
-	    printf("bmc_lag_record: %u\n", us_bmc_lag_record);
-    	} else if(us_bmc_lag > 100) {
-	    //printf("bmc_lag: %u:%u\n", us_bmc_lag, us_bmc_lag_record);
-    	}
-    }
-    while(!pio_sm_is_rx_fifo_empty(pio, SM_RX)) {
+    if(!pio_sm_is_rx_fifo_empty(pio, SM_RX)) {
         //printf("%16d - %08x\n", time_us_32(), pio_sm_get(pio, SM_RX));
 	buf1[buf1_input_count] = pio_sm_get(pio, SM_RX);
 	us_since_last_u32 = time_us_32();
@@ -595,6 +582,24 @@ int main() {
 
     bool transmitted = false;
 
+/**/
+    uint32_t last_usval;
+    uint32_t tmpval;
+    while(true) {
+
+	if(us_since_last_u32 != last_usval) {
+	    tmpval = us_since_last_u32 - last_usval;
+	    last_usval = us_since_last_u32;
+	    printf("us_since_val: %utv: %u\n", time_us_32() - us_since_last_u32, tmpval);
+	}
+
+	//Clear the CDC-ACM output
+	if(time_us_32() - last_usval > 200) {
+	    sleep_us(300);
+	}
+	//printf("lastusval: %u   us: %u   tmpval: %u\n", last_usval, time_us_32() - last_usval, tmpval);
+    }
+/**/
     while(true) {
 	// Delay running loop if actively receiving data
 	while(time_us_32() < us_since_last_u32 + 150) {
