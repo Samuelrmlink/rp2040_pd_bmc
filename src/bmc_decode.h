@@ -12,6 +12,6 @@ struct bmcDecode {
     uint32_t rxTime;
 };
 
-void bmcProcessSymbols(bmcDecode* bmc_d);
+int bmcProcessSymbols(bmcDecode* bmc_d);
 
 #endif

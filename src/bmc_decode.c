@@ -1,5 +1,15 @@
-void bmcProcessSymbols(bmcDecode* bmc_d) {
-    while(bmc_d->pOffset < 4 && !(bmc_d->pOffset)) {
+int bmcProcessSymbols(bmcDecode* bmc_d) {
+    uint8_t input_offset = 0;
+    // Ensure that no full symbols are present in the process buffer (design assumption)
+    if(bmc_d->pOffset >= 4) {
+	return -1; // Error - unprocessed symbols in 4b5b process buffer
+    }
+
+    // Run in a while loop until all full symbols have been processed
+    while(bmc_d->pOffset >= 4 || !(bmc_d->pOffset)) {
+	if(bmc_d->pOffset < 32 && input_offset != 32) {
+	    //TODO - pickup here
+	}
     	// Switch depending on process stage
     	switch(procStage & 0xF) {
 	    case (0) :// Preamble
