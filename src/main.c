@@ -12,27 +12,28 @@
 //Define pins (to be used by PIO for BMC TX/RX)
 const uint pin_tx = 9;
 const uint pin_rx = 6;
-uint8_t buf1_input_count = 0;
-uint16_t buf1_output_count;
-bool buf1_rollover = false; // Indicates when inputbuf has rolled over (reset once the outputbuf also rolls over)
+//uint8_t buf1_input_count = 0;
+//uint16_t buf1_output_count;
+//bool buf1_rollover = false; // Indicates when inputbuf has rolled over (reset once the outputbuf also rolls over)
 
 uint32_t *buf1;
 PIO pio = pio0;
 
-uint32_t us_bmc_current, us_bmc_lag, us_bmc_prev, us_bmc_lag_record = 0;
 bool bmc_check_during_operation = true;
 
-uint32_t us_since_last_u32;
+//uint32_t us_since_last_u32;
+
+bmcDecode* bmc_d;
 
 void bmc_rx_check() {
     if(!pio_sm_is_rx_fifo_empty(pio, SM_RX)) {
         //printf("%16d - %08x\n", time_us_32(), pio_sm_get(pio, SM_RX));
-	buf1[buf1_input_count] = pio_sm_get(pio, SM_RX);
-	us_since_last_u32 = time_us_32();
-	if(buf1_input_count == 255) {		//Set rollover (flag for output buffer logic)
-	    buf1_rollover = true;
-	}
-	buf1_input_count++;
+	bmc_d->inBuf = pio_sm_get(pio, SM_RX);
+	bmc_d->rxTime = time_us_32();
+	//if(buf1_input_count == 255) {		//Set rollover (flag for output buffer logic)
+	//    buf1_rollover = true;
+	//}
+	//buf1_input_count++;
     }
 }
 void bmc_rx_cb() {
@@ -41,7 +42,7 @@ void bmc_rx_cb() {
 	pio_interrupt_clear(pio, 0);
     } 
 }
-
+/*
 bool fetch_u32_word(uint32_t *input_buffer, uint16_t *input_bitoffset, uint32_t *output_buffer, uint8_t *output_bitoffset) {
     if(bmc_check_during_operation) bmc_rx_check();
     uint8_t input_wordoffset, bitoffset;
@@ -108,6 +109,7 @@ bool debug_u32_word(uint32_t *input_buffer, uint8_t max_num) {
 	printf("%3d: %X\n", i, input_buffer[i]);
     }
 }
+*/
 bool bmc_eliminate_preamble_stage1(uint32_t *process_buffer, uint8_t *freed_bits_procbuf) {
     if(*freed_bits_procbuf)
 	return false;
@@ -299,6 +301,7 @@ bool bmc_print_type(uint16_t pd_frame_type) {
     }
     return true;
 }
+/*
 uint32_t pd_bytes_to_reg(uint32_t *preproc_buf, uint16_t *preproc_offset, uint32_t *proc_buf, uint8_t *proc_offset, int8_t *error_status, uint8_t num_bytes) {
     //Initialize temporary variables
     uint8_t tmp;
@@ -358,6 +361,7 @@ uint32_t pd_bytes_to_reg(uint32_t *preproc_buf, uint16_t *preproc_offset, uint32
     }
     return ret;
 }
+*/
 bool pd_read_error_handler(int8_t *error_code, uint8_t *process_state) {
     bool ret = true;	//Default state - true (meaning there are errors)
     switch (*error_code) {
@@ -523,6 +527,11 @@ int main() {
     for(int i=0;i<=255;i++) {
         buf1[i]=0x00000000;
     }
+
+    // Allocate BMC decoding struct
+    bmc_d = malloc(sizeof(bmcDecode));
+
+    /*
     //Define processing buffer
     uint32_t procbuf = 0x00000000;
     uint8_t proc_freed_offset = 32;
@@ -542,6 +551,7 @@ int main() {
     epr_pd_msg lastmsg_ext;
 
     bool preamble_lock = false;
+    */
 
     /* Initialize TX FIFO*/
     uint offset_tx = pio_add_program(pio, &differential_manchester_tx_program);
@@ -587,10 +597,10 @@ int main() {
     uint32_t tmpval;
     while(true) {
 
-	if(us_since_last_u32 != last_usval) {
-	    tmpval = us_since_last_u32 - last_usval;
-	    last_usval = us_since_last_u32;
-	    printf("us_since_val: %utv: %u\n", time_us_32() - us_since_last_u32, tmpval);
+	if(bmc_d->rxTime != last_usval) {
+	    tmpval = bmc_d->rxTime - last_usval;
+	    last_usval = bmc_d->rxTime;
+	    printf("us_since_val: %utv: %uval: %X\n", time_us_32() - bmc_d->rxTime, tmpval, bmc_d->inBuf);
 	}
 
 	//Clear the CDC-ACM output
@@ -599,7 +609,7 @@ int main() {
 	}
 	//printf("lastusval: %u   us: %u   tmpval: %u\n", last_usval, time_us_32() - last_usval, tmpval);
     }
-/**/
+/*
     while(true) {
 	// Delay running loop if actively receiving data
 	while(time_us_32() < us_since_last_u32 + 150) {
@@ -617,6 +627,7 @@ int main() {
 	}
 
 	// TX Debug testing
+*/
 	/*
 	if(((lastmsg.hdr >> 12) & 0b111) && ((lastmsg.hdr & 0b11111) == 0b00001) && !transmitted && time_us_32() > 10000000) {
 	    pd_respond_goodcrc(&lastmsg);
@@ -629,6 +640,7 @@ int main() {
 	    transmitted = true;
 	}
 	*/
+/*
 
 	if (bmc_check_during_operation) bmc_rx_check();
 	fetch_u32_word_safe(buf1, &buf1_output_count, &procbuf, &proc_freed_offset);
@@ -715,10 +727,13 @@ int main() {
 		default ://Error handler - TODO
 		    break;
 	}
+*/
 	/*
 	if(!pio_sm_is_rx_fifo_empty(pio, SM_RX)) {
             printf("%16d - %08x\n", time_us_32(), pio_sm_get(pio, SM_RX));
 	}
 	*/
+/*
     }
+    */
 }
