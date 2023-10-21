@@ -1,4 +1,6 @@
-int bmcProcessSymbols(bmcDecode* bmc_d) {
+#include "main_i.h"
+
+int bmcProcessSymbols(bmcDecode* bmc_d, pd_msg* msg) {
     uint8_t input_offset = 0;
     // Ensure that no full symbols are present in the process buffer (design assumption)
     if(bmc_d->pOffset >= 4) {
@@ -38,7 +40,43 @@ int bmcProcessSymbols(bmcDecode* bmc_d) {
 		}
 	        break;
 	    case (1) :// Ordered set
-		
+		uint internal_stage = 0;
+		if(bmc_d->procSubStage & 0x0b11111000000000000000) internal_stage = 3;
+		else if(bmc_d->procSubStage & 0x0b111110000000000) internal_stage = 2;
+		else if(bmc_d->procSubStage & 0x0b1111100000) internal_stage = 1;
+		// Otherwise internal_stage defaults to zero.
+
+		// Store partial Ordered Set to procSubStage
+		bmc_d->procSubStage <<= 5 * internal_stage;
+	       	bmc_d->procSubStage |= bmc_d->procBuf & 0b11111;
+		bmc_d->procBuf >>= 5;
+		bmc_d->pOffset -= 5;
+
+		if(internal_stage == 3) {
+		    switch(bmc_d->procSubStage & 0xFFFFF) {
+	    		case (0b11001001110011100111) : // Hard Reset
+			    msg->_pad1[0] = 1;
+			    break;
+			case (0b00110001111100000111) : // Cable Reset
+			    msg->_pad1[0] = 2;
+			    break;
+	    		case (0b10001110001100011000) : // SOP
+			    msg->_pad1[0] = 3;
+			    break;
+	    		case (0b00110001101100011000) : // SOP'
+			    msg->_pad1[0] = 4;
+			    break;
+	    		case (0b00110110000011011000) : // SOP''
+			    msg->_pad1[0] = 5;
+			    break;
+	    		case (0b00110110011100111000) : // SOP' Debug
+			    msg->_pad1[0] = 6;
+			    break;
+	    		case (0b10001001101100111000) : // SOP'' Debug
+			    msg->_pad1[0] = 7;
+			    break;
+		    }
+		}
 		break;
 	    case (2) :// PD Header
 		break;
