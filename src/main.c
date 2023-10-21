@@ -595,12 +595,16 @@ int main() {
 /**/
     uint32_t last_usval;
     uint32_t tmpval;
+    bmcDecode* decode;
+    pd_msg lastmsg;
     while(true) {
 
 	if(bmc_d->rxTime != last_usval) {
 	    tmpval = bmc_d->rxTime - last_usval;
 	    last_usval = bmc_d->rxTime;
-	    printf("us_since_val: %utv: %uval: %X\n", time_us_32() - bmc_d->rxTime, tmpval, bmc_d->inBuf);
+
+	    bmcProcessSymbols(decode, &lastmsg);
+	    printf("us_since_val: %utv: %uval: %Xlastmsg_pad1:%ups:%u\n", time_us_32() - bmc_d->rxTime, tmpval, bmc_d->inBuf, lastmsg._pad1[0], decode->procStage);
 	}
 
 	//Clear the CDC-ACM output
