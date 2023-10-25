@@ -595,21 +595,22 @@ int main() {
 /**/
     uint32_t last_usval;
     uint32_t tmpval;
-    bmcDecode* decode;
     pd_msg lastmsg;
+    bmc_d->pOffset = 0;
+    bmc_d->procStage = 0;
     while(true) {
-
 	if(bmc_d->rxTime != last_usval) {
 	    tmpval = bmc_d->rxTime - last_usval;
 	    last_usval = bmc_d->rxTime;
 
-	    bmcProcessSymbols(decode, &lastmsg);
-	    printf("us_since_val: %utv: %uval: %Xlastmsg_pad1:%ups:%u\n", time_us_32() - bmc_d->rxTime, tmpval, bmc_d->inBuf, lastmsg._pad1[0], decode->procStage);
+	    bmcProcessSymbols(bmc_d, &lastmsg);
+	    printf("usPassed: %u, %X, %X, %X, %X\n", tmpval, bmc_d->inBuf, lastmsg._pad1[0], bmc_d->pOffset, bmc_d->procStage);
+	    //printf("us_since_val: %utv: %uval: %Xlastmsg_pad1:%ups:%uprocBuf:%X\n", time_us_32() - bmc_d->rxTime, tmpval, bmc_d->inBuf, lastmsg._pad1[0], decode->procStage, bmc_d->procBuf);
 	}
 
 	//Clear the CDC-ACM output
 	if(time_us_32() - last_usval > 200) {
-	    sleep_us(300);
+	    sleep_us(3);
 	}
 	//printf("lastusval: %u   us: %u   tmpval: %u\n", last_usval, time_us_32() - last_usval, tmpval);
     }

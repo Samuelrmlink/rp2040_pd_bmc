@@ -2,6 +2,7 @@
 
 int bmcProcessSymbols(bmcDecode* bmc_d, pd_msg* msg) {
     uint8_t input_offset = 0;
+    bool breakout;
     // Ensure that no full symbols are present in the process buffer (design assumption)
     if(bmc_d->pOffset >= 4) {
 	return -1; // Error - unprocessed symbols in 4b5b process buffer
@@ -14,7 +15,7 @@ int bmcProcessSymbols(bmcDecode* bmc_d, pd_msg* msg) {
     	// It is expected that there may be remainder bits that won't fit into the procBuf
 
     // Run in a while loop until all full symbols have been processed
-    while(bmc_d->pOffset >= 4 || !(bmc_d->pOffset)) {
+    while(bmc_d->pOffset >= 4) {
 	// If there were remainder bits that can now fit into procBuf
 	if(remainOffset && (bmc_d->pOffset <= 27)) {
 	    bmc_d->procBuf |= (bmc_d->inBuf >> 32 - remainOffset) << bmc_d->pOffset;
@@ -77,6 +78,7 @@ int bmcProcessSymbols(bmcDecode* bmc_d, pd_msg* msg) {
 			    break;
 		    }
 		}
+		breakout = true;
 		break;
 	    case (2) :// PD Header
 		break;
@@ -91,5 +93,6 @@ int bmcProcessSymbols(bmcDecode* bmc_d, pd_msg* msg) {
 	    default  ://Error
 		//TODO - Implement error handling
 	}
+	if(breakout) break;
     }
 }
