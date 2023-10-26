@@ -598,6 +598,21 @@ int main() {
     pd_msg lastmsg;
     bmc_d->pOffset = 0;
     bmc_d->procStage = 0;
+    bmc_d->procBuf = 0;
+
+    /* TEST CASE */
+    sleep_ms(4000);
+    bmc_d->inBuf = 0xAAAAAAAA;
+    bmc_d->rxTime = time_us_32();
+    bmcProcessSymbols(bmc_d, &lastmsg);
+    printf("DBGusPassed: %u, %X, %X, %X, %X\n", tmpval, bmc_d->inBuf, lastmsg._pad1[0], bmc_d->pOffset, bmc_d->procStage);
+    printf("procStage: %u\n", bmc_d->procStage);
+    sleep_ms(3);
+
+
+
+
+
     while(true) {
 	if(bmc_d->rxTime != last_usval) {
 	    tmpval = bmc_d->rxTime - last_usval;

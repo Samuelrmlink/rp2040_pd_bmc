@@ -35,10 +35,12 @@ int bmcProcessSymbols(bmcDecode* bmc_d, pd_msg* msg) {
 		    bmc_d->procBuf >> 2;
 		    bmc_d->pOffset -= 2;
 		}
-		if(bmc_d->procBuf & 0b11111 != 0b01010) {//TODO - possibly change to identify start of ordered set
+//printf("DBG-REMOVE THIS: %X, %X\n", bmc_d->procBuf, bmc_d->pOffset);
+		if(bmc_d->procBuf & 0b11111 == 0b00111 || bmc_d->procBuf & 0b11111 == 0b11000) { // If start of ordered set is found
 		    bmc_d->procSubStage = 0;	// Clear procSubStage data
 		    bmc_d->procStage++;		// Increment procStage
 		}
+breakout = true;//TODO-remove
 	        break;
 	    case (1) :// Ordered set
 		uint internal_stage = 0;
