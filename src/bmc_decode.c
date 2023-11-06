@@ -32,15 +32,13 @@ int bmcProcessSymbols(bmcDecode* bmc_d, pd_msg* msg) {
 		    bmc_d->pOffset = 1;
 		}
 		while((bmc_d->procBuf & 0b11) == 0b10) {
-		    bmc_d->procBuf >> 2;
+		    bmc_d->procBuf >>= 2;
 		    bmc_d->pOffset -= 2;
 		}
-//printf("DBG-REMOVE THIS: %X, %X\n", bmc_d->procBuf, bmc_d->pOffset);
-		if(bmc_d->procBuf & 0b11111 == 0b00111 || bmc_d->procBuf & 0b11111 == 0b11000) { // If start of ordered set is found
+		if((bmc_d->procBuf & 0x1F) == 0x7 || (bmc_d->procBuf & 0x1F) == 0x18) { // If start of ordered set is found
 		    bmc_d->procSubStage = 0;	// Clear procSubStage data
 		    bmc_d->procStage++;		// Increment procStage
 		}
-breakout = true;//TODO-remove
 	        break;
 	    case (1) :// Ordered set
 		uint internal_stage = 0;
@@ -79,8 +77,8 @@ breakout = true;//TODO-remove
 			    msg->_pad1[0] = 7;
 			    break;
 		    }
+		    breakout = true;
 		}
-		breakout = true;
 		break;
 	    case (2) :// PD Header
 		break;
@@ -95,6 +93,6 @@ breakout = true;//TODO-remove
 	    default  ://Error
 		//TODO - Implement error handling
 	}
-	if(breakout) break;
+    if(breakout) break;
     }
 }
