@@ -519,7 +519,6 @@ void pd_respond_goodcrc(void *rxd) {
 int main() {
     // Initialize IO & PIO
     stdio_init_all();
-    sleep_ms(2000);
     gpio_init(8);
     gpio_set_dir(8, GPIO_OUT);
     buf1 = malloc(256 * 4);
@@ -602,20 +601,20 @@ int main() {
     bmc_d->procBuf = 0;
 
     /* TEST CASE */
-    sleep_ms(4000);
+    sleep_ms(4);
     bmc_d->inBuf = 0xAAAAAAAA;
     bmc_d->rxTime = time_us_32();
     bmcProcessSymbols(bmc_d, &lastmsg);
-    printf("DBGusPassed0: %u, %X, %X, %X, %X\n", tmpval, bmc_d->inBuf, lastmsg._pad1[0], bmc_d->pOffset, bmc_d->procStage);
+    printf("DBGusPassed0: %X, %X, %X, %X\n", bmc_d->inBuf, lastmsg._pad1[0], bmc_d->pOffset, bmc_d->procStage);
     bmc_d->inBuf = 0xAAAAAAAA;
     bmcProcessSymbols(bmc_d, &lastmsg);
-    printf("DBGusPassed1: %u, %X, %X, %X, %X\n", tmpval, bmc_d->inBuf, bmc_d->procBuf, bmc_d->pOffset, bmc_d->procStage);
+    printf("DBGusPassed1: %X, %X, %X, %X\n", bmc_d->inBuf, bmc_d->procBuf, bmc_d->pOffset, bmc_d->procStage);
     bmc_d->inBuf = 0x4C6C62AA;
     bmcProcessSymbols(bmc_d, &lastmsg);
-    printf("DBGusPassed2: %u, %X, %X, %X, %X\n", tmpval, bmc_d->inBuf, bmc_d->procBuf, bmc_d->pOffset, bmc_d->procStage);
+    printf("DBGusPassed2: %X, %X, %X, %X:%X\n", bmc_d->inBuf, bmc_d->procBuf, bmc_d->pOffset, bmc_d->procStage, bmc_d->procSubStage);
 
 
-
+    printf("procStage: %X\n", bmc_d->procStage);
     sleep_ms(3);
 
 

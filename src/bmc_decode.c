@@ -42,14 +42,13 @@ int bmcProcessSymbols(bmcDecode* bmc_d, pd_msg* msg) {
 	        break;
 	    case (1) :// Ordered set
 		uint internal_stage = 0;
-		if(bmc_d->procSubStage & 0x0b11111000000000000000) internal_stage = 3;
-		else if(bmc_d->procSubStage & 0x0b111110000000000) internal_stage = 2;
-		else if(bmc_d->procSubStage & 0x0b1111100000) internal_stage = 1;
+		if(bmc_d->procSubStage & 0b111110000000000) internal_stage = 3;
+		else if(bmc_d->procSubStage & 0b1111100000) internal_stage = 2;
+		else if(bmc_d->procSubStage & 0b11111) internal_stage = 1;
 		// Otherwise internal_stage defaults to zero.
 
 		// Store partial Ordered Set to procSubStage
-		bmc_d->procSubStage <<= 5 * internal_stage;
-	       	bmc_d->procSubStage |= bmc_d->procBuf & 0b11111;
+		bmc_d->procSubStage |= (bmc_d->procBuf & 0x1F) << 5 * internal_stage;
 		bmc_d->procBuf >>= 5;
 		bmc_d->pOffset -= 5;
 
@@ -77,10 +76,12 @@ int bmcProcessSymbols(bmcDecode* bmc_d, pd_msg* msg) {
 			    msg->_pad1[0] = 7;
 			    break;
 		    }
-		    breakout = true;
+		    bmc_d->procStage++;
 		}
 		break;
 	    case (2) :// PD Header
+		printf("Debugprocstage: %X\n", bmc_d->procStage);
+		breakout = true;
 		break;
 	    case (3) :// Extended Header (if applicable)
 		break;
