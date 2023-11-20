@@ -612,9 +612,29 @@ int main() {
     bmc_d->inBuf = 0x4C6C62AA;
     bmcProcessSymbols(bmc_d, &lastmsg);
     printf("DBGusPassed2: %X, %X, %X, %X:%X\n", bmc_d->inBuf, bmc_d->procBuf, bmc_d->pOffset, bmc_d->procStage, bmc_d->procSubStage);
+    bmc_d->inBuf = 0xEF253E97;
+    bmcProcessSymbols(bmc_d, &lastmsg);
+    printf("DBGusPassed3: %X, %X, %X, %X:%X\n", bmc_d->inBuf, bmc_d->procBuf, bmc_d->pOffset, bmc_d->procStage, bmc_d->procSubStage);
+    bmc_d->inBuf = 0x2BBDF7A5;
+    bmcProcessSymbols(bmc_d, &lastmsg);
+    printf("DBGusPassed4: %X, %X, %X, %X:%X\n", bmc_d->inBuf, bmc_d->procBuf, bmc_d->pOffset, bmc_d->procStage, bmc_d->procSubStage);
+    bmc_d->inBuf = 0x56577D55;
+    bmcProcessSymbols(bmc_d, &lastmsg);
+    printf("DBGusPassed5: %X, %X, %X, %X:%X\n", bmc_d->inBuf, bmc_d->procBuf, bmc_d->pOffset, bmc_d->procStage, bmc_d->procSubStage);
+    bmc_d->inBuf = 0x55555435;
+    bmcProcessSymbols(bmc_d, &lastmsg);
+    printf("DBGusPassed6: %X, %X, %X, %X:%X\n", bmc_d->inBuf, bmc_d->procBuf, bmc_d->pOffset, bmc_d->procStage, bmc_d->procSubStage);
+    bmc_d->inBuf = 0x55555555;
+    bmcProcessSymbols(bmc_d, &lastmsg);
+    printf("DBGusPassed7: %X, %X, %X, %X:%X\n", bmc_d->inBuf, bmc_d->procBuf, bmc_d->pOffset, bmc_d->procStage, bmc_d->procSubStage);
+    bmc_d->inBuf = 0x26363155;
+    bmcProcessSymbols(bmc_d, &lastmsg);
+    printf("DBGusPassed8: %X, %X, %X, %X:%X\n", bmc_d->inBuf, bmc_d->procBuf, bmc_d->pOffset, bmc_d->procStage, bmc_d->procSubStage);
+    bmc_d->inBuf = 0xD537E4A9;
+    bmcProcessSymbols(bmc_d, &lastmsg);
+    printf("DBGusPassed9: %X, %X, %X, %X:%X\n", bmc_d->inBuf, bmc_d->procBuf, bmc_d->pOffset, bmc_d->procStage, bmc_d->procSubStage);
 
-
-    printf("procStage: %X\n", bmc_d->procStage);
+    printf("sopType: %X\n", lastmsg._pad1[0]);
     sleep_ms(3);
 
 

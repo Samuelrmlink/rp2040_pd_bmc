@@ -2,7 +2,7 @@
 
 int bmcProcessSymbols(bmcDecode* bmc_d, pd_msg* msg) {
     uint8_t input_offset = 0;
-    bool breakout;
+    bool breakout = false;
     // Ensure that no full symbols are present in the process buffer (design assumption)
     if(bmc_d->pOffset >= 4) {
 	return -1; // Error - unprocessed symbols in 4b5b process buffer
@@ -15,7 +15,7 @@ int bmcProcessSymbols(bmcDecode* bmc_d, pd_msg* msg) {
     	// It is expected that there may be remainder bits that won't fit into the procBuf
 
     // Run in a while loop until all full symbols have been processed
-    while(bmc_d->pOffset >= 4) {
+    while(bmc_d->pOffset >= 4 && !breakout) {
 	// If there were remainder bits that can now fit into procBuf
 	if(remainOffset && (bmc_d->pOffset <= 27)) {
 	    bmc_d->procBuf |= (bmc_d->inBuf >> 32 - remainOffset) << bmc_d->pOffset;
@@ -75,25 +75,44 @@ int bmcProcessSymbols(bmcDecode* bmc_d, pd_msg* msg) {
 	    		case (0b10001001101100111000) : // SOP'' Debug
 			    msg->_pad1[0] = 7;
 			    break;
+			default:
+			    //printf("FrameType catch-all debug\n"); // Error condition - should never run this
 		    }
 		    bmc_d->procStage++;
+		    bmc_d->procSubStage = 0;
 		}
 		break;
 	    case (2) :// PD Header
 		printf("Debugprocstage: %X\n", bmc_d->procStage);
 		breakout = true;
+		// Process one symbol
+		msg->hdr |= (bmc_d->procBuf & 0x1F) << (5 * bmc_d->procSubStage);
+		bmc_d->procBuf >>= 5;
+		bmc_d->pOffset -= 5;
+		if(bmc_d->procSubStage == 3) { // If full header has been received
+		    if((msg->hdr >> 15) & 0x1) {
+			bmc_d->procStage++; // Extended header follows
+		    } else if((msg->hdr >> 12) & 0x7) {
+			bmc_d->procStage += 2; // Data objects follow
+		    } else {
+			bmc_d->procStage += 3; // No data objects - control message
+		    }
+		} else bmc_d->procSubStage++;  // Increment & wait for next symbol in PD header
 		break;
 	    case (3) :// Extended Header (if applicable)
+		breakout = true;
 		break;
 	    case (4) :// Data Objects (if applicable)
+		breakout = true;
 		break;
 	    case (5) :// CRC32
+		breakout = true;
 		break;
 	    case (6) :// EOP
+		breakout = true;
 		break;
 	    default  ://Error
 		//TODO - Implement error handling
 	}
-    if(breakout) break;
     }
 }
