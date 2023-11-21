@@ -72,4 +72,33 @@ typedef union {
     } __attribute__((packed));
 } __attribute__((packed)) epr_pd_msg;
 
+
+/**
+ * USB-C PD frame designed to accommodate 
+ * additional attributes such as frame type 
+ * (SOP, SOP', SOP'', Hard reset, etc.) as 
+ * well as frame arrival timestamps. 
+ */
+typedef union {
+    uint8_t raw_bytes[56];
+    struct {
+	union {
+	    uint32_t misc_attributes;
+	    struct {
+		uint8_t _unassigned1;
+		uint8_t _unassigned2;
+		uint8_t _unassigned3;
+		uint8_t frametype;
+	    } __attribute__((packed));
+	} __attribute__((packed));
+	uint32_t timestamp_us;
+	uint16_t hdr;
+	uint16_t exthdr;
+	union {
+	    uint32_t obj[11];
+	    uint8_t data[44];
+	} __attribute__((packed));
+    } __attribute__((packed));
+} __attribute__((packed)) pd_frame;
+
 #endif /* PDB_MSG_H */

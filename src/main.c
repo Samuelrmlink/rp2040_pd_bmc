@@ -595,17 +595,26 @@ int main() {
 /**/
     uint32_t last_usval;
     uint32_t tmpval;
-    pd_msg lastmsg;
-    bmc_d->pOffset = 0;
+    pd_frame lastmsg;
+
+    // Clear BMC decode data - TODO: move this to function
     bmc_d->procStage = 0;
+    bmc_d->procSubStage = 0;
+    bmc_d->inBuf = 0;
     bmc_d->procBuf = 0;
+    bmc_d->pOffset = 0;
+    bmc_d->rxTime = 0;
+    // Clear lastmsg - TODO: move this to function
+    for(uint8_t i = 0; i < 56; i++) {
+	lastmsg.raw_bytes[i] = 0;
+    }
 
     /* TEST CASE */
     sleep_ms(4);
     bmc_d->inBuf = 0xAAAAAAAA;
     bmc_d->rxTime = time_us_32();
     bmcProcessSymbols(bmc_d, &lastmsg);
-    printf("DBGusPassed0: %X, %X, %X, %X\n", bmc_d->inBuf, lastmsg._pad1[0], bmc_d->pOffset, bmc_d->procStage);
+    printf("DBGusPassed0: %X, %X, %X, %X\n", bmc_d->inBuf, lastmsg.frametype, bmc_d->pOffset, bmc_d->procStage);
     bmc_d->inBuf = 0xAAAAAAAA;
     bmcProcessSymbols(bmc_d, &lastmsg);
     printf("DBGusPassed1: %X, %X, %X, %X\n", bmc_d->inBuf, bmc_d->procBuf, bmc_d->pOffset, bmc_d->procStage);
@@ -634,7 +643,8 @@ int main() {
     bmcProcessSymbols(bmc_d, &lastmsg);
     printf("DBGusPassed9: %X, %X, %X, %X:%X\n", bmc_d->inBuf, bmc_d->procBuf, bmc_d->pOffset, bmc_d->procStage, bmc_d->procSubStage);
 
-    printf("sopType: %X\n", lastmsg._pad1[0]);
+    printf("sopType: %X\n", lastmsg.frametype);
+    printf("msgHdr: %X\n", lastmsg.hdr);
     sleep_ms(3);
 
 

@@ -1,6 +1,61 @@
 #include "main_i.h"
-
-int bmcProcessSymbols(bmcDecode* bmc_d, pd_msg* msg) {
+int8_t bmcDecode4b5b(uint8_t fiveB) {
+   int8_t ret; 
+    switch(fiveB & 0x1F) {
+	case (0b11110) :// 0x0
+	    ret = 0x0;
+	    break;
+	case (0b01001) :// 0x1
+	    ret = 0x1;
+	    break;
+	case (0b10100) :// 0x2
+	    ret = 0x2;
+	    break;
+	case (0b10101) :// 0x3
+	    ret = 0x3;
+	    break;
+	case (0b01010) :// 0x4
+	    ret = 0x4;
+	    break;
+	case (0b01011) :// 0x5
+	    ret = 0x5;
+	    break;
+	case (0b01110) :// 0x6
+	    ret = 0x6;
+	    break;
+	case (0b01111) :// 0x7
+	    ret = 0x7;
+	    break;
+	case (0b10010) :// 0x8
+	    ret = 0x8;
+	    break;
+	case (0b10011) :// 0x9
+	    ret = 0x9;
+	    break;
+	case (0b10110) :// 0xA
+	    ret = 0xA;
+	    break;
+	case (0b10111) :// 0xB
+	    ret = 0xB;
+	    break;
+	case (0b11010) :// 0xC
+	    ret = 0xC;
+	    break;
+	case (0b11011) :// 0xD
+	    ret = 0xD;
+	    break;
+	case (0b11100) :// 0xE
+	    ret = 0xE;
+	    break;
+	case (0b11101) :// 0xF
+	    ret = 0xF;
+	    break;
+	default :	// Error condition - invalid symbol (possible K-code symbol or data corruption)
+	    ret = -1;
+    }
+    return ret;
+}
+int bmcProcessSymbols(bmcDecode* bmc_d, pd_frame* msg) {
     uint8_t input_offset = 0;
     bool breakout = false;
     // Ensure that no full symbols are present in the process buffer (design assumption)
@@ -55,25 +110,25 @@ int bmcProcessSymbols(bmcDecode* bmc_d, pd_msg* msg) {
 		if(internal_stage == 3) {
 		    switch(bmc_d->procSubStage & 0xFFFFF) {
 	    		case (0b11001001110011100111) : // Hard Reset
-			    msg->_pad1[0] = 1;
+			    msg->frametype = 1;
 			    break;
 			case (0b00110001111100000111) : // Cable Reset
-			    msg->_pad1[0] = 2;
+			    msg->frametype = 2;
 			    break;
 	    		case (0b10001110001100011000) : // SOP
-			    msg->_pad1[0] = 3;
+			    msg->frametype = 3;
 			    break;
 	    		case (0b00110001101100011000) : // SOP'
-			    msg->_pad1[0] = 4;
+			    msg->frametype = 4;
 			    break;
 	    		case (0b00110110000011011000) : // SOP''
-			    msg->_pad1[0] = 5;
+			    msg->frametype = 5;
 			    break;
 	    		case (0b00110110011100111000) : // SOP' Debug
-			    msg->_pad1[0] = 6;
+			    msg->frametype = 6;
 			    break;
 	    		case (0b10001001101100111000) : // SOP'' Debug
-			    msg->_pad1[0] = 7;
+			    msg->frametype = 7;
 			    break;
 			default:
 			    //printf("FrameType catch-all debug\n"); // Error condition - should never run this
@@ -83,10 +138,9 @@ int bmcProcessSymbols(bmcDecode* bmc_d, pd_msg* msg) {
 		}
 		break;
 	    case (2) :// PD Header
-		printf("Debugprocstage: %X\n", bmc_d->procStage);
-		breakout = true;
+		printf("procBufDebug %X:%X - %d - %X - %X\n", bmc_d->procBuf, bmc_d->pOffset, bmc_d->procSubStage, msg->hdr, bmcDecode4b5b(bmc_d->procBuf & 0x1F));
 		// Process one symbol
-		msg->hdr |= (bmc_d->procBuf & 0x1F) << (5 * bmc_d->procSubStage);
+		msg->hdr |= bmcDecode4b5b(bmc_d->procBuf & 0x1F) << (4 * bmc_d->procSubStage);
 		bmc_d->procBuf >>= 5;
 		bmc_d->pOffset -= 5;
 		if(bmc_d->procSubStage == 3) { // If full header has been received
