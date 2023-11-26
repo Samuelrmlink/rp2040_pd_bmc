@@ -51,7 +51,7 @@ int8_t bmcDecode4b5b(uint8_t fiveB) {
 	    ret = 0xF;
 	    break;
 	default :	// Error condition - invalid symbol (possible K-code symbol or data corruption)
-	    ret = -1;
+	    ret = 1 << 7 | fiveB;
     }
     return ret;
 }
@@ -59,7 +59,7 @@ int bmcProcessSymbols(bmcDecode* bmc_d, pd_frame* msg) {
     uint8_t input_offset = 0;
     bool breakout = false;
     // Ensure that no full symbols are present in the process buffer (design assumption)
-    if(bmc_d->pOffset >= 4) {
+    if(bmc_d->pOffset > 4) {
 	return -1; // Error - unprocessed symbols in 4b5b process buffer
     }
 
@@ -70,11 +70,11 @@ int bmcProcessSymbols(bmcDecode* bmc_d, pd_frame* msg) {
     	// It is expected that there may be remainder bits that won't fit into the procBuf
 
     // Run in a while loop until all full symbols have been processed
-    while(bmc_d->pOffset >= 4 && !breakout) {
+    while(bmc_d->pOffset > 4 && !breakout) {
 	// If there were remainder bits that can now fit into procBuf
 	if(remainOffset && (bmc_d->pOffset <= 27)) {
 	    bmc_d->procBuf |= (bmc_d->inBuf >> 32 - remainOffset) << bmc_d->pOffset;
-	    bmc_d->pOffset += 32 - remainOffset;
+	    bmc_d->pOffset += 32 - (32 - remainOffset);
 	    remainOffset = 0;	// Reset offset
 	} 
 	
@@ -138,9 +138,10 @@ int bmcProcessSymbols(bmcDecode* bmc_d, pd_frame* msg) {
 		}
 		break;
 	    case (2) :// PD Header
-		printf("procBufDebug %X:%X - %d - %X - %X\n", bmc_d->procBuf, bmc_d->pOffset, bmc_d->procSubStage, msg->hdr, bmcDecode4b5b(bmc_d->procBuf & 0x1F));
+		//printf("procBufDebug %X:%X - %d - %X - %X\n", bmc_d->procBuf, bmc_d->pOffset, bmc_d->procSubStage, msg->hdr, bmcDecode4b5b(bmc_d->procBuf & 0x1F));
 		// Process one symbol
 		msg->hdr |= bmcDecode4b5b(bmc_d->procBuf & 0x1F) << (4 * bmc_d->procSubStage);
+		//printf("decode: %X - %X %u\n", bmcDecode4b5b(bmc_d->procBuf & 0x1F), bmc_d->procBuf, bmc_d->pOffset);
 		bmc_d->procBuf >>= 5;
 		bmc_d->pOffset -= 5;
 		if(bmc_d->procSubStage == 3) { // If full header has been received
@@ -148,8 +149,10 @@ int bmcProcessSymbols(bmcDecode* bmc_d, pd_frame* msg) {
 			bmc_d->procStage++; // Extended header follows
 		    } else if((msg->hdr >> 12) & 0x7) {
 			bmc_d->procStage += 2; // Data objects follow
+			bmc_d->procSubStage = 0;
 		    } else {
 			bmc_d->procStage += 3; // No data objects - control message
+			bmc_d->procSubStage = 0;
 		    }
 		} else bmc_d->procSubStage++;  // Increment & wait for next symbol in PD header
 		break;
@@ -157,7 +160,17 @@ int bmcProcessSymbols(bmcDecode* bmc_d, pd_frame* msg) {
 		breakout = true;
 		break;
 	    case (4) :// Data Objects (if applicable)
-		breakout = true;
+		msg->obj[bmc_d->procSubStage / 8] |= bmcDecode4b5b(bmc_d->procBuf & 0x1F) << (bmc_d->procSubStage % 8);
+		//printf("decode: %X - %X %u\n", bmcDecode4b5b(bmc_d->procBuf & 0x1F), bmc_d->procBuf, bmc_d->pOffset);
+		bmc_d->procBuf >>= 5;
+		bmc_d->pOffset -= 5;
+		bmc_d->procSubStage++;
+
+		// Check whether this is the last half-byte in the last data object
+		if(bmc_d->procSubStage == 8 * ((msg->hdr >> 12) & 0x7)) {
+		    bmc_d->procStage++;
+		    //bmc_d->procSubStage = 0;
+		}
 		break;
 	    case (5) :// CRC32
 		breakout = true;

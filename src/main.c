@@ -645,6 +645,7 @@ int main() {
 
     printf("sopType: %X\n", lastmsg.frametype);
     printf("msgHdr: %X\n", lastmsg.hdr);
+    printf("Obj0-10: %X %X %X %X %X %X %X %X %X %X %X", lastmsg.obj[0], lastmsg.obj[1], lastmsg.obj[2], lastmsg.obj[3], lastmsg.obj[4], lastmsg.obj[5], lastmsg.obj[6], lastmsg.obj[7], lastmsg.obj[8], lastmsg.obj[9], lastmsg.obj[10]);
     sleep_ms(3);
 
 
