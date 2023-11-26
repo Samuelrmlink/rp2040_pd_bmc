@@ -10,6 +10,7 @@ struct bmcDecode {
     uint32_t procBuf;
     uint8_t pOffset;
     uint32_t rxTime;
+    uint32_t crcTmp;
 };
 
 int bmcProcessSymbols(bmcDecode* bmc_d, pd_frame* msg);

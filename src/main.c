@@ -604,6 +604,7 @@ int main() {
     bmc_d->procBuf = 0;
     bmc_d->pOffset = 0;
     bmc_d->rxTime = 0;
+    bmc_d->crcTmp = 0;
     // Clear lastmsg - TODO: move this to function
     for(uint8_t i = 0; i < 56; i++) {
 	lastmsg.raw_bytes[i] = 0;
@@ -647,7 +648,7 @@ int main() {
     printf("sopType: %X\n", lastmsg.frametype);
     printf("msgHdr: %X\n", lastmsg.hdr);
     printf("Obj0-10: %X %X %X %X %X %X %X %X %X %X %X\n", lastmsg.obj[0], lastmsg.obj[1], lastmsg.obj[2], lastmsg.obj[3], lastmsg.obj[4], lastmsg.obj[5], lastmsg.obj[6], lastmsg.obj[7], lastmsg.obj[8], lastmsg.obj[9], lastmsg.obj[10]);
-    printf("CRC32: %X calc: %X\n", bmc_d->procSubStage, crc32_pdframe_calc(&lastmsg));
+    printf("CRC32: %X calc: %X\n", bmc_d->crcTmp, crc32_pdframe_calc(&lastmsg));
     sleep_ms(3);
 
 
