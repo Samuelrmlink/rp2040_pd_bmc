@@ -37,3 +37,28 @@ uint32_t crc32_pdmsg(uint8_t *pd_data) {
 
     return crc32_calc(&tmpval, num_bytes);
 }
+uint32_t crc32_pdframe_calc(pd_frame* pdf) {
+    // Establish variables
+    uint8_t num_bytes = 2;
+
+    // PD Header
+    //uint8_t tmpval[48] = { pdf->hdr & 0xFF, pdf->hdr >> 8 , 0x01, 0x80, 0x00, 0xFF};
+    uint8_t tmpval[48] = { pdf->hdr & 0xFF, pdf->hdr >> 8};
+    uint8_t *tmp_ptr = &tmpval[2];
+
+    // Extended Header (TODO)
+    //
+    //
+
+    // Data Objects (if applicable)
+    uint8_t num_obj = (pdf->hdr >> 12) & 0x7;//TODO: compiler definition
+    for(int obj = 0; obj < num_obj; obj++) {
+	for(int byte = 0; byte < 4; byte++) {
+	    tmpval[num_bytes + (obj * 4) + byte] = pdf->raw_bytes[12 + (obj * 4) + byte];
+	}
+    }
+    
+    num_bytes += num_obj * 4;
+
+    return crc32_calc(&tmpval, num_bytes);
+}

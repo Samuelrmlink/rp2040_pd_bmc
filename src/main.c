@@ -611,41 +611,43 @@ int main() {
 
     /* TEST CASE */
     sleep_ms(4);
-    bmc_d->inBuf = 0xAAAAAAAA;
     bmc_d->rxTime = time_us_32();
-    bmcProcessSymbols(bmc_d, &lastmsg);
-    printf("DBGusPassed0: %X, %X, %X, %X\n", bmc_d->inBuf, lastmsg.frametype, bmc_d->pOffset, bmc_d->procStage);
     bmc_d->inBuf = 0xAAAAAAAA;
     bmcProcessSymbols(bmc_d, &lastmsg);
-    printf("DBGusPassed1: %X, %X, %X, %X\n", bmc_d->inBuf, bmc_d->procBuf, bmc_d->pOffset, bmc_d->procStage);
+    //printf("DBGusPassed0: %X, %X, %X, %X\n", bmc_d->inBuf, lastmsg.frametype, bmc_d->pOffset, bmc_d->procStage);
+    bmc_d->inBuf = 0xAAAAAAAA;
+    bmcProcessSymbols(bmc_d, &lastmsg);
+    //printf("DBGusPassed1: %X, %X, %X, %X\n", bmc_d->inBuf, bmc_d->procBuf, bmc_d->pOffset, bmc_d->procStage);
     bmc_d->inBuf = 0x4C6C62AA;
     bmcProcessSymbols(bmc_d, &lastmsg);
-    printf("DBGusPassed2: %X, %X, %X, %X:%X\n", bmc_d->inBuf, bmc_d->procBuf, bmc_d->pOffset, bmc_d->procStage, bmc_d->procSubStage);
+    //printf("DBGusPassed2: %X, %X, %X, %X:%X\n", bmc_d->inBuf, bmc_d->procBuf, bmc_d->pOffset, bmc_d->procStage, bmc_d->procSubStage);
     bmc_d->inBuf = 0xEF253E97;
     bmcProcessSymbols(bmc_d, &lastmsg);
-    printf("DBGusPassed3: %X, %X, %X, %X:%X\n", bmc_d->inBuf, bmc_d->procBuf, bmc_d->pOffset, bmc_d->procStage, bmc_d->procSubStage);
+    //printf("DBGusPassed3: %X, %X, %X, %X:%X\n", bmc_d->inBuf, bmc_d->procBuf, bmc_d->pOffset, bmc_d->procStage, bmc_d->procSubStage);
     bmc_d->inBuf = 0x2BBDF7A5;
     bmcProcessSymbols(bmc_d, &lastmsg);
-    printf("DBGusPassed4: %X, %X, %X, %X:%X\n", bmc_d->inBuf, bmc_d->procBuf, bmc_d->pOffset, bmc_d->procStage, bmc_d->procSubStage);
+    //printf("DBGusPassed4: %X, %X, %X, %X:%X\n", bmc_d->inBuf, bmc_d->procBuf, bmc_d->pOffset, bmc_d->procStage, bmc_d->procSubStage);
     bmc_d->inBuf = 0x56577D55;
     bmcProcessSymbols(bmc_d, &lastmsg);
-    printf("DBGusPassed5: %X, %X, %X, %X:%X\n", bmc_d->inBuf, bmc_d->procBuf, bmc_d->pOffset, bmc_d->procStage, bmc_d->procSubStage);
+    //printf("DBGusPassed5: %X, %X, %X, %X:%X\n", bmc_d->inBuf, bmc_d->procBuf, bmc_d->pOffset, bmc_d->procStage, bmc_d->procSubStage);
     bmc_d->inBuf = 0x55555435;
     bmcProcessSymbols(bmc_d, &lastmsg);
-    printf("DBGusPassed6: %X, %X, %X, %X:%X\n", bmc_d->inBuf, bmc_d->procBuf, bmc_d->pOffset, bmc_d->procStage, bmc_d->procSubStage);
+    //printf("DBGusPassed6: %X, %X, %X, %X:%X\n", bmc_d->inBuf, bmc_d->procBuf, bmc_d->pOffset, bmc_d->procStage, bmc_d->procSubStage);
     bmc_d->inBuf = 0x55555555;
     bmcProcessSymbols(bmc_d, &lastmsg);
-    printf("DBGusPassed7: %X, %X, %X, %X:%X\n", bmc_d->inBuf, bmc_d->procBuf, bmc_d->pOffset, bmc_d->procStage, bmc_d->procSubStage);
+    //printf("DBGusPassed7: %X, %X, %X, %X:%X\n", bmc_d->inBuf, bmc_d->procBuf, bmc_d->pOffset, bmc_d->procStage, bmc_d->procSubStage);
     bmc_d->inBuf = 0x26363155;
     bmcProcessSymbols(bmc_d, &lastmsg);
-    printf("DBGusPassed8: %X, %X, %X, %X:%X\n", bmc_d->inBuf, bmc_d->procBuf, bmc_d->pOffset, bmc_d->procStage, bmc_d->procSubStage);
+    //printf("DBGusPassed8: %X, %X, %X, %X:%X\n", bmc_d->inBuf, bmc_d->procBuf, bmc_d->pOffset, bmc_d->procStage, bmc_d->procSubStage);
     bmc_d->inBuf = 0xD537E4A9;
     bmcProcessSymbols(bmc_d, &lastmsg);
-    printf("DBGusPassed9: %X, %X, %X, %X:%X\n", bmc_d->inBuf, bmc_d->procBuf, bmc_d->pOffset, bmc_d->procStage, bmc_d->procSubStage);
+    //printf("DBGusPassed9: %X, %X, %X, %X:%X\n", bmc_d->inBuf, bmc_d->procBuf, bmc_d->pOffset, bmc_d->procStage, bmc_d->procSubStage);
 
+    printf("Time us: %u\n", time_us_32() - bmc_d->rxTime);
     printf("sopType: %X\n", lastmsg.frametype);
     printf("msgHdr: %X\n", lastmsg.hdr);
-    printf("Obj0-10: %X %X %X %X %X %X %X %X %X %X %X", lastmsg.obj[0], lastmsg.obj[1], lastmsg.obj[2], lastmsg.obj[3], lastmsg.obj[4], lastmsg.obj[5], lastmsg.obj[6], lastmsg.obj[7], lastmsg.obj[8], lastmsg.obj[9], lastmsg.obj[10]);
+    printf("Obj0-10: %X %X %X %X %X %X %X %X %X %X %X\n", lastmsg.obj[0], lastmsg.obj[1], lastmsg.obj[2], lastmsg.obj[3], lastmsg.obj[4], lastmsg.obj[5], lastmsg.obj[6], lastmsg.obj[7], lastmsg.obj[8], lastmsg.obj[9], lastmsg.obj[10]);
+    printf("CRC32: %X calc: %X\n", bmc_d->procSubStage, crc32_pdframe_calc(&lastmsg));
     sleep_ms(3);
 
 

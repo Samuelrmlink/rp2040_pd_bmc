@@ -56,6 +56,7 @@ int8_t bmcDecode4b5b(uint8_t fiveB) {
     return ret;
 }
 int bmcProcessSymbols(bmcDecode* bmc_d, pd_frame* msg) {
+    uint8_t internal_stage;
     uint8_t input_offset = 0;
     bool breakout = false;
     // Ensure that no full symbols are present in the process buffer (design assumption)
@@ -96,7 +97,7 @@ int bmcProcessSymbols(bmcDecode* bmc_d, pd_frame* msg) {
 		}
 	        break;
 	    case (1) :// Ordered set
-		uint internal_stage = 0;
+		internal_stage = 0;
 		if(bmc_d->procSubStage & 0b111110000000000) internal_stage = 3;
 		else if(bmc_d->procSubStage & 0b1111100000) internal_stage = 2;
 		else if(bmc_d->procSubStage & 0b11111) internal_stage = 1;
@@ -160,7 +161,7 @@ int bmcProcessSymbols(bmcDecode* bmc_d, pd_frame* msg) {
 		breakout = true;
 		break;
 	    case (4) :// Data Objects (if applicable)
-		msg->obj[bmc_d->procSubStage / 8] |= bmcDecode4b5b(bmc_d->procBuf & 0x1F) << (bmc_d->procSubStage % 8);
+		msg->obj[bmc_d->procSubStage / 8] |= bmcDecode4b5b(bmc_d->procBuf & 0x1F) << 4 * (bmc_d->procSubStage % 8);
 		//printf("decode: %X - %X %u\n", bmcDecode4b5b(bmc_d->procBuf & 0x1F), bmc_d->procBuf, bmc_d->pOffset);
 		bmc_d->procBuf >>= 5;
 		bmc_d->pOffset -= 5;
@@ -169,11 +170,26 @@ int bmcProcessSymbols(bmcDecode* bmc_d, pd_frame* msg) {
 		// Check whether this is the last half-byte in the last data object
 		if(bmc_d->procSubStage == 8 * ((msg->hdr >> 12) & 0x7)) {
 		    bmc_d->procStage++;
-		    //bmc_d->procSubStage = 0;
+		    bmc_d->procSubStage = 0;
 		}
 		break;
 	    case (5) :// CRC32
-		breakout = true;
+		internal_stage = 0;
+		if(bmc_d->procSubStage & 0x0F000000) internal_stage = 7;
+		else if(bmc_d->procSubStage & 0xF00000) internal_stage = 6;
+		else if(bmc_d->procSubStage & 0xF0000) internal_stage = 5;
+		else if(bmc_d->procSubStage & 0xF000) internal_stage = 4;
+		else if(bmc_d->procSubStage & 0xF00) internal_stage = 3;
+		else if(bmc_d->procSubStage & 0xF0) internal_stage = 2;
+		else if(bmc_d->procSubStage & 0xF) internal_stage = 1;
+		// Otherwise internal_stage defaults to zero.
+
+		bmc_d->procSubStage |= bmcDecode4b5b(bmc_d->procBuf & 0x1F) << (4 * internal_stage);
+		bmc_d->procBuf >>= 5;
+		bmc_d->pOffset -= 5;
+
+		if(internal_stage == 7) bmc_d->procStage++; // Move to next stage (CRC32 will be evaluated after EOP)
+		// Note: procSubStage contains the CRC32 - it does NOT get cleared.
 		break;
 	    case (6) :// EOP
 		breakout = true;
