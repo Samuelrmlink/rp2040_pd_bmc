@@ -55,6 +55,15 @@ int8_t bmcDecode4b5b(uint8_t fiveB) {
     }
     return ret;
 }
+void bmc_decode_clear(bmcDecode* bmc_d) {
+    bmc_d->procStage = 0;
+    bmc_d->procSubStage = 0;
+    bmc_d->inBuf = 0;
+    bmc_d->procBuf = 0;
+    bmc_d->pOffset = 0;
+    bmc_d->rxTime = 0;
+    bmc_d->crcTmp = 0;
+}
 int bmcProcessSymbols(bmcDecode* bmc_d, pd_frame* msg) {
     uint8_t internal_stage;
     uint8_t input_offset = 0;
@@ -82,7 +91,7 @@ int bmcProcessSymbols(bmcDecode* bmc_d, pd_frame* msg) {
 	// Switch depending on process stage
 	switch(bmc_d->procStage & 0xF) {
 	    case (0) :// Preamble
-		while(((bmc_d->procBuf & 0b11) != 0b10) && ((bmc_d->procBuf & 0x1F) != 0x7 || 0x18)) {
+		while(((bmc_d->procBuf & 0b11) != 0b10) && ((bmc_d->procBuf & 0x1F) != 0x7) && ((bmc_d->procBuf & 0x1F) != 0x18)) {
 		    bmc_d->procBuf >>= 1;
 		    bmc_d->pOffset -= 1;
 		}

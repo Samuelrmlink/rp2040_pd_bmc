@@ -20,11 +20,13 @@ PIO pio = pio0;
 bool bmc_check_during_operation = true;
 
 bmcDecode* bmc_d;
+pd_frame lastmsg;
 
 void bmc_rx_check() {
     if(!pio_sm_is_rx_fifo_empty(pio, SM_RX)) {
 	bmc_d->inBuf = pio_sm_get(pio, SM_RX);
 	bmc_d->rxTime = time_us_32();
+	bmcProcessSymbols(bmc_d, &lastmsg);
     }
 }
 void bmc_rx_cb() {
@@ -83,16 +85,10 @@ int main() {
  
     uint32_t last_usval;
     uint32_t tmpval;
-    pd_frame lastmsg;
 
-    // Clear BMC decode data - TODO: move this to function
-    bmc_d->procStage = 0;
-    bmc_d->procSubStage = 0;
-    bmc_d->inBuf = 0;
-    bmc_d->procBuf = 0;
-    bmc_d->pOffset = 0;
-    bmc_d->rxTime = 0;
-    bmc_d->crcTmp = 0;
+    // Clear BMC decode data
+    bmc_decode_clear(bmc_d);
+
     // Clear lastmsg - TODO: move this to function
     for(uint8_t i = 0; i < 56; i++) {
 	lastmsg.raw_bytes[i] = 0;
@@ -101,7 +97,8 @@ int main() {
     /* TEST CASE */
     sleep_ms(4);
     bmc_d->rxTime = time_us_32();
-    bmc_testfill(bmc_testpayload, 7, bmc_d, &lastmsg);
+    bmc_testfill(bmc_testpayload + 11, 11, bmc_d, &lastmsg, true);
+    printf("procStage: %u\n", bmc_d->procStage);
     printf("Time us: %u\n", time_us_32() - bmc_d->rxTime);
     printf("sopType: %X\n", lastmsg.frametype);
     printf("msgHdr: %X\n", lastmsg.hdr);
@@ -114,6 +111,12 @@ int main() {
 
 
     while(true) {
+    //printf("procStage: %u\n", bmc_d->procStage);
+	if(bmc_d->rxTime != last_usval) {
+	    last_usval = bmc_d->rxTime;
+	    printf("rxTime: %u\n", bmc_d->rxTime);
+	}
+	/*
 	if(bmc_d->rxTime != last_usval) {
 	    tmpval = bmc_d->rxTime - last_usval;
 	    last_usval = bmc_d->rxTime;
@@ -126,5 +129,6 @@ int main() {
 	if(time_us_32() - last_usval > 200) {
 	    sleep_us(3);
 	}
+	*/
     }
 }
