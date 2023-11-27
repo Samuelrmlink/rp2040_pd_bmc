@@ -1,10 +1,8 @@
 #ifndef _BMC_TEST_H
 #define _BMC_TEST_H
 
-void bmc_fill_check();
-void bmc_fill();
-void bmc_fill2();
+#include "bmc_decode.h"
 
-void pd_replay_test1();
+void bmc_testfill(uint32_t *data_ptr, uint16_t data_count, bmcDecode* bmc_d, pd_frame* pdf);
 
 #endif
