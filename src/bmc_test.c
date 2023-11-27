@@ -21,5 +21,17 @@ void bmc_testfill(uint32_t *data_ptr, uint16_t data_count, bmcDecode* bmc_d, pd_
 	if(debug) {
 	    printf("DBG%u: %X, %X, %X, %X:%X\n", c, bmc_d->inBuf, bmc_d->procBuf, bmc_d->pOffset, bmc_d->procStage, bmc_d->procSubStage);
 	}
+	// Determine what to do with data
+	if((pdf->frametype == 0x83) && ((pdf->hdr >> 12) & 0b111) && ((pdf->hdr & 0b11111) == 1)) { // CRC good, Data Objects, msgtype (source-cap)
+	    printf("Found source cap %X\n", pdf->hdr);
+	}
+	// Clear data - but only if Good CRC was received
+	if(pdf->frametype >> 7) {
+	    // Clear pd_frame queue
+	    bmc_decode_clear(bmc_d);
+	    for(uint8_t i = 0; i < 56; i++) {
+		pdf->raw_bytes[i] = 0;
+	    }
+	}
     }
 }

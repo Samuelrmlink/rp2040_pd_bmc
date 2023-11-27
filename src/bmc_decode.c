@@ -200,6 +200,7 @@ int bmcProcessSymbols(bmcDecode* bmc_d, pd_frame* msg) {
 		}
 		bmc_d->procBuf >>= 5;
 		bmc_d->pOffset -= 5;
+
 		// Reset process stage to zero
 		bmc_d->procStage = 0;
 		break;

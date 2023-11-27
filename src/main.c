@@ -98,7 +98,7 @@ int main() {
     sleep_ms(4);
     bmc_d->rxTime = time_us_32();
     // Note - 26, 15 is the source_capabilies message
-    bmc_testfill(bmc_testpayload + 26, 15, bmc_d, &lastmsg, true);
+    bmc_testfill(bmc_testpayload, 92, bmc_d, &lastmsg, false);
     printf("procStage: %u\n", bmc_d->procStage);
     printf("Time us: %u\n", time_us_32() - bmc_d->rxTime);
     printf("sopType: %X\n", lastmsg.frametype);
