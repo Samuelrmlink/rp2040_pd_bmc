@@ -21,12 +21,25 @@ bool bmc_check_during_operation = true;
 
 bmcDecode* bmc_d;
 pd_frame lastmsg;
+pd_frame lastsrccap;
 
 void bmc_rx_check() {
     if(!pio_sm_is_rx_fifo_empty(pio, SM_RX)) {
 	bmc_d->inBuf = pio_sm_get(pio, SM_RX);
 	bmc_d->rxTime = time_us_32();
 	bmcProcessSymbols(bmc_d, &lastmsg);
+
+	// If frame has a valid CRC
+	if(lastmsg.frametype >> 7) {
+	    // If frame is Source_Capabilies message
+	    if((lastmsg.hdr >> 12 & 0x7) && (lastmsg.hdr & 0x1F) == 0x1) {
+		memcpy(&lastsrccap, &lastmsg, sizeof(pd_frame));
+	    }
+	    // Clear lastmsg - TODO: move this to function
+	    for(uint8_t i = 0; i < 56; i++) {
+		lastmsg.raw_bytes[i] = 0;
+	    }
+	}
     }
 }
 void bmc_rx_cb() {
@@ -98,7 +111,7 @@ int main() {
     sleep_ms(4);
     bmc_d->rxTime = time_us_32();
     // Note - 26, 15 is the source_capabilies message
-    bmc_testfill(bmc_testpayload, 92, bmc_d, &lastmsg, false);
+    bmc_testfill(bmc_testpayload, 92, bmc_d, &lastmsg, &lastsrccap, false);
     printf("procStage: %u\n", bmc_d->procStage);
     printf("Time us: %u\n", time_us_32() - bmc_d->rxTime);
     printf("sopType: %X\n", lastmsg.frametype);
@@ -111,11 +124,16 @@ int main() {
 
 
 
+
     while(true) {
     //printf("procStage: %u\n", bmc_d->procStage);
 	if(bmc_d->rxTime != last_usval) {
 	    last_usval = bmc_d->rxTime;
-	    printf("rxTime: %u\n", bmc_d->rxTime);
+	    printf("rxTime: %u    %X,%X,%X\n", bmc_d->rxTime, bmc_d->procStage, bmc_d->procSubStage, bmc_d->procBuf);
+	}
+	if(!(lastsrccap.frametype >> 6 & 0x1)) {
+	    lastsrccap.frametype |= (0x1 << 6);
+	    printf("SrccapHdr: %X\n", lastsrccap.hdr);
 	}
 	/*
 	if(bmc_d->rxTime != last_usval) {

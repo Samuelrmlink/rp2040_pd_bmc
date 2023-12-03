@@ -14,7 +14,7 @@ const uint32_t bmc_testpayload[] = {	0xAAAAA800, 0xAAAAAAAA, 0x4C6C62AA, 0xEF253
 					0x55555555, 0x1C631555, 0x737EAD93, 0xAEEEB5AE, 0xAAAAAAA1, 0xAAAAAAAA, 0xCA8E318A, 0xEF2E9F3E,
 					0x50D4AF6E, 0x55555555, 0xC5555555, 0x9CA4C718, 0xB96A72E7, }; // 92 32-bit words
 */
-void bmc_testfill(uint32_t *data_ptr, uint16_t data_count, bmcDecode* bmc_d, pd_frame* pdf, bool debug) {
+void bmc_testfill(uint32_t *data_ptr, uint16_t data_count, bmcDecode* bmc_d, pd_frame* pdf, pd_frame* src_cap, bool debug) {
     for(uint16_t c = 0; c < data_count; c++) {
 	bmc_d->inBuf = data_ptr[c];
         bmcProcessSymbols(bmc_d, pdf);
@@ -22,10 +22,10 @@ void bmc_testfill(uint32_t *data_ptr, uint16_t data_count, bmcDecode* bmc_d, pd_
 	    printf("DBG%u: %X, %X, %X, %X:%X\n", c, bmc_d->inBuf, bmc_d->procBuf, bmc_d->pOffset, bmc_d->procStage, bmc_d->procSubStage);
 	}
 	// Determine what to do with data
-	if((pdf->frametype == 0x83) && ((pdf->hdr >> 12) & 0b111) && ((pdf->hdr & 0b11111) == 1)) { // CRC good, Data Objects, msgtype (source-cap)
-	    printf("Found source cap %X\n", pdf->hdr);
+	if((pdf->frametype == 0x83) && ((pdf->hdr >> 12) & 0b111) && ((pdf->hdr & 0b11111) == 1)) { // CRC valid, Data Objects, msgtype (source-cap)
+	    memcpy(src_cap, pdf, sizeof(pd_frame));
 	}
-	// Clear data - but only if Good CRC was received
+	// Clear data - but only if the frame CRC was valid
 	if(pdf->frametype >> 7) {
 	    // Clear pd_frame queue
 	    bmc_decode_clear(bmc_d);
