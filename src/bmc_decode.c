@@ -166,7 +166,19 @@ int bmcProcessSymbols(bmcDecode* bmc_d, pd_frame* msg) {
 		} else bmc_d->procSubStage++;  // Increment & wait for next symbol in PD header
 		break;
 	    case (3) :// Extended Header (if applicable)
-		breakout = true;
+		msg->exthdr |= bmcDecode4b5b(bmc_d->procBuf & 0x1F) << (4 * bmc_d->procSubStage);
+		bmc_d->procBuf >>= 5;
+		bmc_d->pOffset -= 5;
+		if(bmc_d->procSubStage == 3) { // If full extended header has been received
+		    printf("Hdr-nx: %X\nHdr-ext: %X\n", msg->hdr, msg->exthdr);
+		    if(msg->exthdr >> 15) {
+			bmc_d->procStage++;
+			bmc_d->procSubStage = 0;
+		    } else {
+		        breakout = true;
+			// TODO - implement non-chunked Extended messages
+		    }
+		}
 		break;
 	    case (4) :// Data Objects (if applicable)
 		msg->obj[bmc_d->procSubStage / 8] |= bmcDecode4b5b(bmc_d->procBuf & 0x1F) << 4 * (bmc_d->procSubStage % 8);

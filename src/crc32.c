@@ -47,7 +47,11 @@ uint32_t crc32_pdframe_calc(pd_frame* pdf) {
     uint8_t *tmp_ptr = &tmpval[2];
 
     // Extended Header (TODO)
-    //
+    if(pdf->hdr >> 15) {
+	tmpval[2] = pdf->exthdr & 0xFF;
+	tmpval[3] = pdf->exthdr >> 8;
+	num_bytes += 2;
+    }
     //
 
     // Data Objects (if applicable)
