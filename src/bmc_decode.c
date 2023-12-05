@@ -81,7 +81,7 @@ int bmcProcessSymbols(bmcDecode* bmc_d, pd_frame* msg) {
 
     // Run in a while loop until all full symbols have been processed
     while(bmc_d->pOffset > 4 && !breakout) {
-	// If there were remainder bits that can now fit into procBuf
+	// If there were remainder bits that can now fit into procBuf - TODO: move this into a function or macro
 	if(remainOffset && (bmc_d->pOffset <= 27)) {
 	    bmc_d->procBuf |= (bmc_d->inBuf >> 32 - remainOffset) << bmc_d->pOffset;
 	    bmc_d->pOffset += 32 - (32 - remainOffset);
@@ -91,18 +91,28 @@ int bmcProcessSymbols(bmcDecode* bmc_d, pd_frame* msg) {
 	// Switch depending on process stage
 	switch(bmc_d->procStage & 0xF) {
 	    case (0) :// Preamble
-		while(((bmc_d->procBuf & 0b11) != 0b10) && ((bmc_d->procBuf & 0x1F) != 0x7) && ((bmc_d->procBuf & 0x1F) != 0x18)) {
+//		printf("p1:%X:%u ", bmc_d->procBuf, bmc_d->pOffset);
+		while(((bmc_d->procBuf & 0b11) != 0b10) && ((bmc_d->procBuf & 0x1F) != 0x7) && ((bmc_d->procBuf & 0x1F) != 0x18) && (bmc_d->pOffset > 4)) {
 		    bmc_d->procBuf >>= 1;
 		    bmc_d->pOffset -= 1;
 		}
+//		printf("p2:%X:%u ", bmc_d->procBuf, bmc_d->pOffset);
 		while((bmc_d->procBuf & 0b11) == 0b10) {
 		    bmc_d->procBuf >>= 2;
 		    bmc_d->pOffset -= 2;
 		}
-		if(((bmc_d->procBuf & 0x1F) == 0x7) || ((bmc_d->procBuf & 0x1F) == 0x18)) {
+		// If there were remainder bits that can now fit into procBuf - TODO: move this into a function or macro
+		if(remainOffset && (bmc_d->pOffset <= 27)) {
+		    bmc_d->procBuf |= (bmc_d->inBuf >> 32 - remainOffset) << bmc_d->pOffset;
+		    bmc_d->pOffset += 32 - (32 - remainOffset);
+		    remainOffset = 0;	// Reset offset
+		}
+//		printf("p3:%X:%u ", bmc_d->procBuf, bmc_d->pOffset);
+		if(((bmc_d->procBuf & 0x3FF) == 0b0011100111) || ((bmc_d->procBuf & 0x3FF) == 0b1100000111) || ((bmc_d->procBuf & 0x1F) == 0x18)) {
 		    bmc_d->procSubStage = 0;
 		    bmc_d->procStage++;
 		}
+//		printf("p4:%X:%u \n", bmc_d->procBuf, bmc_d->pOffset);
 	        break;
 	    case (1) :// Ordered set
 		internal_stage = 0;
@@ -144,6 +154,7 @@ int bmcProcessSymbols(bmcDecode* bmc_d, pd_frame* msg) {
 		    }
 		    bmc_d->procStage++;
 		    bmc_d->procSubStage = 0;
+//		    printf("Debugos: %X - %u - %X\n", bmc_d->procBuf, msg->frametype, bmc_d->procSubStage);
 		}
 		break;
 	    case (2) :// PD Header
@@ -208,7 +219,7 @@ int bmcProcessSymbols(bmcDecode* bmc_d, pd_frame* msg) {
 		// If EOP is received && CRC is valid
 		if(((bmc_d->procBuf & 0x1F) == 0b01101) && (crc32_pdframe_calc(msg) == bmc_d->crcTmp)) {
 		    msg->frametype |= 1 << 7;
-		    printf("CRC is valid\n");
+		    printf("CRC is valid %X - %X\n", msg->hdr, bmc_d->crcTmp);
 		}
 		bmc_d->procBuf >>= 5;
 		bmc_d->pOffset -= 5;
