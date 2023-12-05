@@ -52,6 +52,7 @@ int8_t bmcDecode4b5b(uint8_t fiveB) {
 	    break;
 	default :	// Error condition - invalid symbol (possible K-code symbol or data corruption)
 	    ret = 1 << 7 | fiveB;
+	    break;
     }
     return ret;
 }
@@ -151,6 +152,7 @@ int bmcProcessSymbols(bmcDecode* bmc_d, pd_frame* msg) {
 			    break;
 			default:
 			    //printf("FrameType catch-all debug\n"); // Error condition - should never run this
+			    break;
 		    }
 		    bmc_d->procStage++;
 		    bmc_d->procSubStage = 0;
@@ -229,6 +231,7 @@ int bmcProcessSymbols(bmcDecode* bmc_d, pd_frame* msg) {
 		break;
 	    default  ://Error
 		//TODO - Implement error handling
+		break;
 	}
     }
 }
