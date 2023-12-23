@@ -135,19 +135,5 @@ int main() {
 	    lastsrccap.frametype |= (0x1 << 6);
 	    printf("SrccapHdr: %X\n", lastsrccap.hdr);
 	}
-	/*
-	if(bmc_d->rxTime != last_usval) {
-	    tmpval = bmc_d->rxTime - last_usval;
-	    last_usval = bmc_d->rxTime;
-
-	    bmcProcessSymbols(bmc_d, &lastmsg);
-	    printf("usPassed: %u, %X, %X, %X, %X\n", tmpval, bmc_d->inBuf, bmc_d->procBuf, bmc_d->pOffset, bmc_d->procStage);
-	}
-
-	//Clear the CDC-ACM output
-	if(time_us_32() - last_usval > 200) {
-	    sleep_us(3);
-	}
-	*/
     }
 }
