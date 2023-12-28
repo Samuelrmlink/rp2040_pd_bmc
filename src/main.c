@@ -17,20 +17,31 @@ const uint pin_rx = 6;
 uint32_t *buf1;
 PIO pio = pio0;
 
+QueueHandle_t queue_proc = NULL;	// PD Frame process queue
+QueueHandle_t queue_print = NULL;	// PD Frame print queue
+TaskHandle_t tskhdl_proc = NULL;	// PD Frame process task
+TaskHandle_t tskhdl_print = NULL;	// PD Frame print task
+
+
 bool bmc_check_during_operation = true;
 
 bmcDecode* bmc_d;
 pd_frame lastmsg;
-pd_frame lastsrccap;
+//pd_frame lastsrccap;
 
 void bmc_rx_check() {
+    // If PIO RX buffer is not empty
     if(!pio_sm_is_rx_fifo_empty(pio, SM_RX)) {
+	// Receive BMC data from PIO interface
 	bmc_d->inBuf = pio_sm_get(pio, SM_RX);
-	bmc_d->rxTime = time_us_32();
+	bmc_d->rxTime = time_us_32();// TODO - transition to only using timestamp_us
+	lastmsg.timestamp_us = bmc_d->rxTime;
 	bmcProcessSymbols(bmc_d, &lastmsg);
 
 	// If frame has a valid CRC
 	if(lastmsg.frametype >> 7) {
+	    xQueueSendToBack(queue_proc, bmc_d, 0);
+	/*
 	    // If frame is Source_Capabilies message
 	    if((lastmsg.hdr >> 12 & 0x7) && (lastmsg.hdr & 0x1F) == 0x1) {
 		memcpy(&lastsrccap, &lastmsg, sizeof(pd_frame));
@@ -39,6 +50,7 @@ void bmc_rx_check() {
 	    for(uint8_t i = 0; i < 56; i++) {
 		lastmsg.raw_bytes[i] = 0;
 	    }
+	*/
 	}
     }
 }
@@ -60,6 +72,23 @@ const uint32_t bmc_testpayload[] = {	0xAAAAA800, 0xAAAAAAAA, 0x4C6C62AA, 0xEF253
 					0xA52638C6, 0xBAD2B53C, 0x55436DDD, 0x55555555, 0x63155555, 0x3EA4A71C, 0x5CDCBF6D, 0x555541AA,
 					0x55555555, 0x1C631555, 0x737EAD93, 0xAEEEB5AE, 0xAAAAAAA1, 0xAAAAAAAA, 0xCA8E318A, 0xEF2E9F3E,
 					0x50D4AF6E, 0x55555555, 0xC5555555, 0x9CA4C718, 0xB96A72E7, }; // 92 32-bit words
+void thread_proc(void* unused_arg) {
+    pd_frame lastmsg;
+
+    if(xQueueReceive(queue_proc, &lastmsg, portMAX_DELAY) == pdTRUE) {
+	printf("Data: %X - %u\n", lastmsg.hdr, lastmsg.timestamp_us);
+	/*
+	    // If frame is Source_Capabilies message
+	    if((lastmsg.hdr >> 12 & 0x7) && (lastmsg.hdr & 0x1F) == 0x1) {
+		memcpy(&lastsrccap, &lastmsg, sizeof(pd_frame));
+	    }
+	    // Clear lastmsg - TODO: move this to function
+	    for(uint8_t i = 0; i < 56; i++) {
+		lastmsg.raw_bytes[i] = 0;
+	    }
+	*/
+    }
+}
 int main() {
     // Initialize IO & PIO
     stdio_init_all();
@@ -107,7 +136,22 @@ int main() {
 	lastmsg.raw_bytes[i] = 0;
     }
 
-    /* TEST CASE */
+    // Setup tasks
+    BaseType_t status_task_proc = xTaskCreate(thread_proc, "PROC_THREAD", 128, NULL, 1, &tskhdl_proc);
+    //BaseType_t status_task_print = xTaskCreate(thread_print, "PRINT_TASK", 128, NULL, 1, &tskhdl_print);
+
+    if(status_task_proc == pdPASS) {
+	// Setup the queues
+	queue_proc = xQueueCreate(4, sizeof(pd_frame));
+	queue_print = xQueueCreate(4, sizeof(pd_frame));
+	
+	// Start the scheduler
+	vTaskStartScheduler();
+    } else {
+	printf("Unable to start task scheduler.\n");
+    }
+
+    /* TEST CASE
     sleep_ms(4);
     bmc_d->rxTime = time_us_32();
     // Note - 26, 15 is the source_capabilies message
@@ -136,4 +180,5 @@ int main() {
 	    printf("SrccapHdr: %X\n", lastsrccap.hdr);
 	}
     }
+    */
 }

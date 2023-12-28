@@ -5,6 +5,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <FreeRTOS.h>
+#include <task.h>
+#include <queue.h>
+#include <timers.h>
+#include <semphr.h>
+
 #include "pico/stdlib.h"
 #include "hardware/gpio.h"
 #include "hardware/pio.h"

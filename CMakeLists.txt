@@ -41,7 +41,7 @@ add_executable(bmc_pd ${SOURCES})
 pico_generate_pio_header(bmc_pd ${CMAKE_CURRENT_LIST_DIR}/src/bmc.pio)
 
 # Link libraries used for this application
-target_link_libraries(bmc_pd PRIVATE pico_stdlib hardware_pio hardware_dma)
+target_link_libraries(bmc_pd PRIVATE pico_stdlib hardware_pio hardware_dma FreeRTOS)
 
 # Generate additional output files (.UF2)
 pico_add_extra_outputs(bmc_pd)
