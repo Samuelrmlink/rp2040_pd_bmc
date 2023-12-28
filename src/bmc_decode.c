@@ -221,7 +221,7 @@ int bmcProcessSymbols(bmcDecode* bmc_d, pd_frame* msg) {
 		// If EOP is received && CRC is valid
 		if(((bmc_d->procBuf & 0x1F) == 0b01101) && (crc32_pdframe_calc(msg) == bmc_d->crcTmp)) {
 		    msg->frametype |= 1 << 7;
-		    printf("CRC is valid %X - %X\n", msg->hdr, bmc_d->crcTmp);
+		    //printf("CRC is valid %X - %X\n", msg->hdr, bmc_d->crcTmp);
 		}
 		bmc_d->procBuf >>= 5;
 		bmc_d->pOffset -= 5;
