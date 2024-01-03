@@ -22,6 +22,7 @@ QueueHandle_t queue_print = NULL;	// PD Frame print queue
 TaskHandle_t tskhdl_proc = NULL;	// PD Frame process task
 TaskHandle_t tskhdl_print = NULL;	// PD Frame print task
 
+TaskHandle_t tskhdl_test = NULL;	// PD Frame process task - TODO - remove
 
 bool bmc_check_during_operation = true;
 
@@ -40,7 +41,7 @@ void bmc_rx_check() {
 
 	// If frame has a valid CRC
 	if(lastmsg.frametype >> 7) {
-	    xQueueSendToBack(queue_proc, bmc_d, 0);
+	    //xQueueSendToBack(queue_proc, bmc_d, 0);
 	/*
 	    // If frame is Source_Capabilies message
 	    if((lastmsg.hdr >> 12 & 0x7) && (lastmsg.hdr & 0x1F) == 0x1) {
@@ -73,20 +74,45 @@ const uint32_t bmc_testpayload[] = {	0xAAAAA800, 0xAAAAAAAA, 0x4C6C62AA, 0xEF253
 					0x55555555, 0x1C631555, 0x737EAD93, 0xAEEEB5AE, 0xAAAAAAA1, 0xAAAAAAAA, 0xCA8E318A, 0xEF2E9F3E,
 					0x50D4AF6E, 0x55555555, 0xC5555555, 0x9CA4C718, 0xB96A72E7, }; // 92 32-bit words
 void thread_proc(void* unused_arg) {
-    pd_frame lastmsg;
+    pd_frame *latestmsg;
+    printf("Test\n");
 
-    if(xQueueReceive(queue_proc, &lastmsg, portMAX_DELAY) == pdTRUE) {
-	printf("Data: %X - %u\n", lastmsg.hdr, lastmsg.timestamp_us);
+    while(true) {
+    if(xQueueReceive(queue_proc, &(latestmsg), portMAX_DELAY) == pdTRUE) {
+	printf("addr: %X\n", latestmsg);
+	//printf("Data: %X - %u\n", latestmsg->hdr, latestmsg->timestamp_us);
 	/*
 	    // If frame is Source_Capabilies message
-	    if((lastmsg.hdr >> 12 & 0x7) && (lastmsg.hdr & 0x1F) == 0x1) {
-		memcpy(&lastsrccap, &lastmsg, sizeof(pd_frame));
+	    if((latestmsg.hdr >> 12 & 0x7) && (latestmsg.hdr & 0x1F) == 0x1) {
+		memcpy(&lastsrccap, &latestmsg, sizeof(pd_frame));
 	    }
-	    // Clear lastmsg - TODO: move this to function
+	    // Clear latestmsg - TODO: move this to function
 	    for(uint8_t i = 0; i < 56; i++) {
-		lastmsg.raw_bytes[i] = 0;
+		latestmsg.raw_bytes[i] = 0;
 	    }
 	*/
+    //}
+    printf("proc_thread\n");
+    sleep_ms(400);
+    }
+    }
+}
+void thread_test(void* unused_arg) {
+    uint8_t num = 7;
+    pd_frame testframe;
+    pd_frame* ptr_tf;
+    ptr_tf = &testframe;
+    while(true) {
+	sleep_ms(1000);
+	printf("test_thread %u\n", uxQueueSpacesAvailable(queue_proc));
+	//bmc_decode_clear(&testframe);
+	testframe.hdr = num;
+	if(xQueueSendToBack(queue_proc, (void *) &ptr_tf, 0) == pdTRUE) {
+	    printf("Added to queue successfully\n");
+	} else {
+	    printf("Queue is likely full");
+	}
+	num++;
     }
 }
 int main() {
@@ -138,18 +164,20 @@ int main() {
 
     // Setup tasks
     BaseType_t status_task_proc = xTaskCreate(thread_proc, "PROC_THREAD", 128, NULL, 1, &tskhdl_proc);
+    BaseType_t status_task_test = xTaskCreate(thread_test, "TEST_THREAD", 128, NULL, 1, &tskhdl_test);
     //BaseType_t status_task_print = xTaskCreate(thread_print, "PRINT_TASK", 128, NULL, 1, &tskhdl_print);
 
     if(status_task_proc == pdPASS) {
 	// Setup the queues
-	queue_proc = xQueueCreate(4, sizeof(pd_frame));
-	queue_print = xQueueCreate(4, sizeof(pd_frame));
+	queue_proc = xQueueCreate(4, sizeof(pd_frame*));
+	queue_print = xQueueCreate(4, sizeof(pd_frame*));
 	
 	// Start the scheduler
 	vTaskStartScheduler();
     } else {
 	printf("Unable to start task scheduler.\n");
     }
+
 
     /* TEST CASE
     sleep_ms(4);
