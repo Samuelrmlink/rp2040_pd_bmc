@@ -74,14 +74,19 @@ const uint32_t bmc_testpayload[] = {	0xAAAAA800, 0xAAAAAAAA, 0x4C6C62AA, 0xEF253
 					0x55555555, 0x1C631555, 0x737EAD93, 0xAEEEB5AE, 0xAAAAAAA1, 0xAAAAAAAA, 0xCA8E318A, 0xEF2E9F3E,
 					0x50D4AF6E, 0x55555555, 0xC5555555, 0x9CA4C718, 0xB96A72E7, }; // 92 32-bit words
 void thread_proc(void* unused_arg) {
+    printf("Test\n");
+    while(true) {
+	
+    }
+/*
     pd_frame *latestmsg;
     printf("Test\n");
 
     while(true) {
-    if(xQueueReceive(queue_proc, &(latestmsg), portMAX_DELAY) == pdTRUE) {
+    if(xQueueReceive(queue_proc, &(latestmsg), 0)) {
 	printf("addr: %X\n", latestmsg);
 	//printf("Data: %X - %u\n", latestmsg->hdr, latestmsg->timestamp_us);
-	/*
+*/	/*
 	    // If frame is Source_Capabilies message
 	    if((latestmsg.hdr >> 12 & 0x7) && (latestmsg.hdr & 0x1F) == 0x1) {
 		memcpy(&lastsrccap, &latestmsg, sizeof(pd_frame));
@@ -90,12 +95,14 @@ void thread_proc(void* unused_arg) {
 	    for(uint8_t i = 0; i < 56; i++) {
 		latestmsg.raw_bytes[i] = 0;
 	    }
-	*/
+	*//*
     //}
-    printf("proc_thread\n");
+    } else {
+	printf("0q\n");
+    }
     sleep_ms(400);
     }
-    }
+*/
 }
 void thread_test(void* unused_arg) {
     uint8_t num = 7;
@@ -103,6 +110,7 @@ void thread_test(void* unused_arg) {
     pd_frame* ptr_tf;
     ptr_tf = &testframe;
     while(true) {
+	printf("procp\n");
 	sleep_ms(1000);
 	printf("test_thread %u\n", uxQueueSpacesAvailable(queue_proc));
 	//bmc_decode_clear(&testframe);
@@ -113,6 +121,7 @@ void thread_test(void* unused_arg) {
 	    printf("Queue is likely full");
 	}
 	num++;
+	printf("test_thread2 %u\n", uxQueueSpacesAvailable(queue_proc));
     }
 }
 int main() {
@@ -167,7 +176,7 @@ int main() {
     BaseType_t status_task_test = xTaskCreate(thread_test, "TEST_THREAD", 128, NULL, 1, &tskhdl_test);
     //BaseType_t status_task_print = xTaskCreate(thread_print, "PRINT_TASK", 128, NULL, 1, &tskhdl_print);
 
-    if(status_task_proc == pdPASS) {
+    if(status_task_test == pdPASS) {
 	// Setup the queues
 	queue_proc = xQueueCreate(4, sizeof(pd_frame*));
 	queue_print = xQueueCreate(4, sizeof(pd_frame*));
