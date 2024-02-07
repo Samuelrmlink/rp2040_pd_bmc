@@ -75,18 +75,14 @@ const uint32_t bmc_testpayload[] = {	0xAAAAA800, 0xAAAAAAAA, 0x4C6C62AA, 0xEF253
 					0x50D4AF6E, 0x55555555, 0xC5555555, 0x9CA4C718, 0xB96A72E7, }; // 92 32-bit words
 void thread_proc(void* unused_arg) {
     printf("Test\n");
-    while(true) {
-	
-    }
-/*
     pd_frame *latestmsg;
     printf("Test\n");
 
     while(true) {
-    if(xQueueReceive(queue_proc, &(latestmsg), 0)) {
-	printf("addr: %X\n", latestmsg);
+    if(xQueueReceive(queue_proc, &latestmsg, 0)) {
+	printf("addr: %X - %X - %X\n", latestmsg->hdr, latestmsg, *latestmsg);
 	//printf("Data: %X - %u\n", latestmsg->hdr, latestmsg->timestamp_us);
-*/	/*
+	/*
 	    // If frame is Source_Capabilies message
 	    if((latestmsg.hdr >> 12 & 0x7) && (latestmsg.hdr & 0x1F) == 0x1) {
 		memcpy(&lastsrccap, &latestmsg, sizeof(pd_frame));
@@ -95,33 +91,30 @@ void thread_proc(void* unused_arg) {
 	    for(uint8_t i = 0; i < 56; i++) {
 		latestmsg.raw_bytes[i] = 0;
 	    }
-	*//*
+	*/
     //}
     } else {
 	printf("0q\n");
     }
     sleep_ms(400);
     }
-*/
 }
 void thread_test(void* unused_arg) {
     uint8_t num = 7;
-    pd_frame testframe;
-    pd_frame* ptr_tf;
-    ptr_tf = &testframe;
+    pd_frame *testframe = malloc(sizeof(pd_frame));
     while(true) {
-	printf("procp\n");
+	//printf("procp\n");
 	sleep_ms(1000);
-	printf("test_thread %u\n", uxQueueSpacesAvailable(queue_proc));
-	//bmc_decode_clear(&testframe);
-	testframe.hdr = num;
-	if(xQueueSendToBack(queue_proc, (void *) &ptr_tf, 0) == pdTRUE) {
-	    printf("Added to queue successfully\n");
+	printf("test_thread %u - %X\n", uxQueueSpacesAvailable(queue_proc), testframe);
+	//bmc_decode_clear(testframe);
+	testframe->hdr = num;
+	if(xQueueSendToBack(queue_proc, (void *) &testframe, 0)) {
+	    printf("Added to queue successfully %X - %X\n", &testframe, testframe, testframe->hdr);
 	} else {
 	    printf("Queue is likely full");
 	}
 	num++;
-	printf("test_thread2 %u\n", uxQueueSpacesAvailable(queue_proc));
+	//printf("test_thread2 %u\n", uxQueueSpacesAvailable(queue_proc));
     }
 }
 int main() {
@@ -178,8 +171,8 @@ int main() {
 
     if(status_task_test == pdPASS) {
 	// Setup the queues
-	queue_proc = xQueueCreate(4, sizeof(pd_frame*));
-	queue_print = xQueueCreate(4, sizeof(pd_frame*));
+	queue_proc = xQueueCreate(4, sizeof(pd_frame));
+	queue_print = xQueueCreate(4, sizeof(pd_frame));
 	
 	// Start the scheduler
 	vTaskStartScheduler();
