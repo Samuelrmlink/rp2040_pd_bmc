@@ -28,6 +28,7 @@ bool bmc_check_during_operation = true;
 
 bmcDecode* bmc_d;
 pd_frame lastmsg;
+pd_frame *lastmsg_ptr = &lastmsg;
 //pd_frame lastsrccap;
 
 void bmc_rx_check() {
@@ -41,7 +42,7 @@ void bmc_rx_check() {
 
 	// If frame has a valid CRC
 	if(lastmsg.frametype >> 7) {
-	    //xQueueSendToBack(queue_proc, bmc_d, 0);
+	    xQueueSendToBack(queue_proc, (void *) &lastmsg_ptr, 0);
 	/*
 	    // If frame is Source_Capabilies message
 	    if((lastmsg.hdr >> 12 & 0x7) && (lastmsg.hdr & 0x1F) == 0x1) {
@@ -76,7 +77,6 @@ const uint32_t bmc_testpayload[] = {	0xAAAAA800, 0xAAAAAAAA, 0x4C6C62AA, 0xEF253
 void thread_proc(void* unused_arg) {
     printf("Test\n");
     pd_frame *latestmsg;
-    printf("Test\n");
 
     while(true) {
     if(xQueueReceive(queue_proc, &latestmsg, 0)) {
@@ -94,7 +94,7 @@ void thread_proc(void* unused_arg) {
 	*/
     //}
     } else {
-	printf("0q\n");
+	//printf("0q\n");
     }
     sleep_ms(400);
     }
@@ -105,15 +105,16 @@ void thread_test(void* unused_arg) {
     while(true) {
 	//printf("procp\n");
 	sleep_ms(1000);
-	printf("test_thread %u - %X\n", uxQueueSpacesAvailable(queue_proc), testframe);
+	//printf("test_thread %u - %X\n", uxQueueSpacesAvailable(queue_proc), testframe);
 	//bmc_decode_clear(testframe);
 	testframe->hdr = num;
 	if(xQueueSendToBack(queue_proc, (void *) &testframe, 0)) {
-	    printf("Added to queue successfully %X - %X\n", &testframe, testframe, testframe->hdr);
+	    printf("Added to queue successfully %X - %X\n", testframe, testframe->hdr);
 	} else {
 	    printf("Queue is likely full");
 	}
 	num++;
+	sleep_ms(4000);
 	//printf("test_thread2 %u\n", uxQueueSpacesAvailable(queue_proc));
     }
 }
@@ -166,10 +167,10 @@ int main() {
 
     // Setup tasks
     BaseType_t status_task_proc = xTaskCreate(thread_proc, "PROC_THREAD", 128, NULL, 1, &tskhdl_proc);
-    BaseType_t status_task_test = xTaskCreate(thread_test, "TEST_THREAD", 128, NULL, 1, &tskhdl_test);
+    //BaseType_t status_task_test = xTaskCreate(thread_test, "TEST_THREAD", 128, NULL, 1, &tskhdl_test);
     //BaseType_t status_task_print = xTaskCreate(thread_print, "PRINT_TASK", 128, NULL, 1, &tskhdl_print);
 
-    if(status_task_test == pdPASS) {
+    if(status_task_proc == pdPASS) {
 	// Setup the queues
 	queue_proc = xQueueCreate(4, sizeof(pd_frame));
 	queue_print = xQueueCreate(4, sizeof(pd_frame));

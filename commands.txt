@@ -1,0 +1,5 @@
+cd ~/Dropbox/rp2040_pd_bmc
+export PICO_SDK_PATH=/home/samuel/git-clone/pico-sdk
+./compile
+openocd -f interface/cmsis-dap.cfg -f target/rp2040.cfg -c "adapter speed 5000"
+gdb-multiarch build/bmc_pd.elf
