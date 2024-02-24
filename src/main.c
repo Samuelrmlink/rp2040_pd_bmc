@@ -85,7 +85,11 @@ void thread_proc(void* unused_arg) {
     bmcDecode *bmc_d = malloc(sizeof(bmcDecode));
     pd_frame *lmsg = malloc(sizeof(pd_frame));
 
+    // Clear variables
     bmc_decode_clear(bmc_d);
+    for(uint8_t i = 0; i < 56; i++) {
+	lmsg->raw_bytes[i] = 0;
+    }
 
     //Debug only temp
     uint16_t poffset_before, poffset_after = 0;

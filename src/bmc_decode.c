@@ -230,6 +230,8 @@ int bmcProcessSymbols(bmcDecode* bmc_d, pd_frame* msg) {
 
 		// Reset process stage to zero
 		bmc_d->procStage = 0;
+		bmc_d->procSubStage = 0;
+		bmc_d->crcTmp = 0;
 		break;
 	    default  ://Error
 		//TODO - Implement error handling
