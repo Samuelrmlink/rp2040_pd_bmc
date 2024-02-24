@@ -17,6 +17,7 @@ const uint pin_rx = 6;
 uint32_t *buf1;
 PIO pio = pio0;
 
+QueueHandle_t queue_rx_pio = NULL;
 QueueHandle_t queue_proc = NULL;	// PD Frame process queue
 QueueHandle_t queue_print = NULL;	// PD Frame print queue
 TaskHandle_t tskhdl_proc = NULL;	// PD Frame process task
@@ -26,7 +27,7 @@ TaskHandle_t tskhdl_test = NULL;	// PD Frame process task - TODO - remove
 
 bool bmc_check_during_operation = true;
 
-bmcDecode* bmc_d;
+//bmcDecode* bmc_d;
 pd_frame lastmsg;
 pd_frame *lastmsg_ptr = &lastmsg;
 //pd_frame lastsrccap;
@@ -35,6 +36,10 @@ void bmc_rx_check() {
     // If PIO RX buffer is not empty
     if(!pio_sm_is_rx_fifo_empty(pio, SM_RX)) {
 	// Receive BMC data from PIO interface
+	uint32_t rx_pio = pio_sm_get(pio, SM_RX);
+	xQueueSendToBackFromISR(queue_rx_pio, (void *) &rx_pio, NULL);
+
+	/*
 	bmc_d->inBuf = pio_sm_get(pio, SM_RX);
 	bmc_d->rxTime = time_us_32();// TODO - transition to only using timestamp_us
 	lastmsg.timestamp_us = bmc_d->rxTime;
@@ -42,18 +47,19 @@ void bmc_rx_check() {
 
 	// If frame has a valid CRC
 	if(lastmsg.frametype >> 7) {
-	    xQueueSendToBack(queue_proc, (void *) &lastmsg_ptr, 0);
-	/*
+	    xQueueSendToBackFromISR(queue_proc, (void *) &lastmsg_ptr, NULL);
+	*//*
 	    // If frame is Source_Capabilies message
 	    if((lastmsg.hdr >> 12 & 0x7) && (lastmsg.hdr & 0x1F) == 0x1) {
 		memcpy(&lastsrccap, &lastmsg, sizeof(pd_frame));
 	    }
+	*//*
 	    // Clear lastmsg - TODO: move this to function
 	    for(uint8_t i = 0; i < 56; i++) {
 		lastmsg.raw_bytes[i] = 0;
 	    }
-	*/
 	}
+	*/
     }
 }
 void bmc_rx_cb() {
@@ -75,29 +81,55 @@ const uint32_t bmc_testpayload[] = {	0xAAAAA800, 0xAAAAAAAA, 0x4C6C62AA, 0xEF253
 					0x55555555, 0x1C631555, 0x737EAD93, 0xAEEEB5AE, 0xAAAAAAA1, 0xAAAAAAAA, 0xCA8E318A, 0xEF2E9F3E,
 					0x50D4AF6E, 0x55555555, 0xC5555555, 0x9CA4C718, 0xB96A72E7, }; // 92 32-bit words
 void thread_proc(void* unused_arg) {
+    uint32_t rxval;
+    bmcDecode *bmc_d = malloc(sizeof(bmcDecode));
+    pd_frame *lmsg = malloc(sizeof(pd_frame));
+
+    bmc_decode_clear(bmc_d);
+
+    //Debug only temp
+    uint16_t poffset_before, poffset_after = 0;
+
+    while(true) {
+        xQueueReceive(queue_rx_pio, &(bmc_d->inBuf), portMAX_DELAY);
+        bmc_d->rxTime = time_us_32();// TODO - transition to only using timestamp_us
+	poffset_before = bmc_d->pOffset;
+        bmcProcessSymbols(bmc_d, lmsg);
+	poffset_after = bmc_d->pOffset;
+        if((lmsg->frametype & 0x7) == 3) {
+	    printf("SOP Header: %X %X:%X:%X %X\n", lmsg->hdr, lmsg->obj[0], lmsg->obj[1], lmsg->obj[2], bmc_d->crcTmp);
+	} else if((lmsg->frametype & 0x7) == 4) {
+	    printf("SOP' Header: %X %X:%X:%X %X\n", lmsg->hdr, lmsg->obj[0], lmsg->obj[1], lmsg->obj[2], bmc_d->crcTmp);
+	}
+
+	printf("%u: %X - %u:%u %u*%u\n", bmc_d->rxTime, bmc_d->inBuf, bmc_d->procStage, bmc_d->procSubStage, poffset_before, poffset_after);
+    }
+/*
     printf("Test\n");
     pd_frame *latestmsg;
 
     while(true) {
-    if(xQueueReceive(queue_proc, &latestmsg, 0)) {
-	printf("addr: %X - %X - %X\n", latestmsg->hdr, latestmsg, *latestmsg);
+    //printf("before");
+    if(xQueueReceive(queue_proc, &latestmsg, portMAX_DELAY)) {
+	printf("Hdr: %X - %X - %X\n", latestmsg->hdr, latestmsg->timestamp_us, latestmsg->obj[1]);
 	//printf("Data: %X - %u\n", latestmsg->hdr, latestmsg->timestamp_us);
-	/*
 	    // If frame is Source_Capabilies message
-	    if((latestmsg.hdr >> 12 & 0x7) && (latestmsg.hdr & 0x1F) == 0x1) {
-		memcpy(&lastsrccap, &latestmsg, sizeof(pd_frame));
+	    if((latestmsg->hdr >> 12 & 0x7) && (latestmsg->hdr & 0x1F) == 0x1) {
+		//memcpy(&lastsrccap, &latestmsg, sizeof(pd_frame));
+		printf("SRC_CAP: %X %X\n", latestmsg->obj[0], latestmsg->obj[1]);
 	    }
 	    // Clear latestmsg - TODO: move this to function
 	    for(uint8_t i = 0; i < 56; i++) {
-		latestmsg.raw_bytes[i] = 0;
+		latestmsg->raw_bytes[i] = 0;
 	    }
-	*/
     //}
     } else {
 	//printf("0q\n");
     }
-    sleep_ms(400);
+    //printf("after\n");
+    //sleep_ms(400);
     }
+*/
 }
 void thread_test(void* unused_arg) {
     uint8_t num = 7;
@@ -106,7 +138,7 @@ void thread_test(void* unused_arg) {
 	//printf("procp\n");
 	sleep_ms(1000);
 	//printf("test_thread %u - %X\n", uxQueueSpacesAvailable(queue_proc), testframe);
-	//bmc_decode_clear(testframe);
+	//bnanmc_decode_clear(testframe);
 	testframe->hdr = num;
 	if(xQueueSendToBack(queue_proc, (void *) &testframe, 0)) {
 	    printf("Added to queue successfully %X - %X\n", testframe, testframe->hdr);
@@ -131,7 +163,7 @@ int main() {
     }
 
     // Allocate BMC decoding struct
-    bmc_d = malloc(sizeof(bmcDecode));
+    //bmc_d = malloc(sizeof(bmcDecode));
 
     /* Initialize TX FIFO*/
     uint offset_tx = pio_add_program(pio, &differential_manchester_tx_program);
@@ -158,7 +190,7 @@ int main() {
     uint32_t tmpval;
 
     // Clear BMC decode data
-    bmc_decode_clear(bmc_d);
+    //bmc_decode_clear(bmc_d);
 
     // Clear lastmsg - TODO: move this to function
     for(uint8_t i = 0; i < 56; i++) {
@@ -172,6 +204,7 @@ int main() {
 
     if(status_task_proc == pdPASS) {
 	// Setup the queues
+	queue_rx_pio = xQueueCreate(10, sizeof(uint32_t));
 	queue_proc = xQueueCreate(4, sizeof(pd_frame));
 	queue_print = xQueueCreate(4, sizeof(pd_frame));
 	

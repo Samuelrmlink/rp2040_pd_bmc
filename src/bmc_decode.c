@@ -183,7 +183,7 @@ int bmcProcessSymbols(bmcDecode* bmc_d, pd_frame* msg) {
 		bmc_d->procBuf >>= 5;
 		bmc_d->pOffset -= 5;
 		if(bmc_d->procSubStage == 3) { // If full extended header has been received
-		    printf("Hdr-nx: %X\nHdr-ext: %X\n", msg->hdr, msg->exthdr);
+		    //printf("Hdr-nx: %X\nHdr-ext: %X\n", msg->hdr, msg->exthdr);
 		    if(msg->exthdr >> 15) {
 			bmc_d->procStage++;
 			bmc_d->procSubStage = 0;
@@ -221,7 +221,9 @@ int bmcProcessSymbols(bmcDecode* bmc_d, pd_frame* msg) {
 		// If EOP is received && CRC is valid
 		if(((bmc_d->procBuf & 0x1F) == 0b01101) && (crc32_pdframe_calc(msg) == bmc_d->crcTmp)) {
 		    msg->frametype |= 1 << 7;
-		    //printf("CRC is valid %X - %X\n", msg->hdr, bmc_d->crcTmp);
+		    printf("CRC is valid %X - %X\n", msg->hdr, bmc_d->crcTmp);
+		} else {
+		    printf("CRC invalid: %X %X:%X\n", bmc_d->procBuf, crc32_pdframe_calc(msg), bmc_d->crcTmp);
 		}
 		bmc_d->procBuf >>= 5;
 		bmc_d->pOffset -= 5;
