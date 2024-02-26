@@ -232,6 +232,11 @@ int bmcProcessSymbols(bmcDecode* bmc_d, pd_frame* msg) {
 		bmc_d->procStage = 0;
 		bmc_d->procSubStage = 0;
 		bmc_d->crcTmp = 0;
+
+		// Reset PD msg
+		for(uint8_t i = 0; i < 56; i++) {
+		    msg->raw_bytes[i] = 0;
+		}
 		break;
 	    default  ://Error
 		//TODO - Implement error handling

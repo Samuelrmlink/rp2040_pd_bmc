@@ -38,28 +38,6 @@ void bmc_rx_check() {
 	// Receive BMC data from PIO interface
 	uint32_t rx_pio = pio_sm_get(pio, SM_RX);
 	xQueueSendToBackFromISR(queue_rx_pio, (void *) &rx_pio, NULL);
-
-	/*
-	bmc_d->inBuf = pio_sm_get(pio, SM_RX);
-	bmc_d->rxTime = time_us_32();// TODO - transition to only using timestamp_us
-	lastmsg.timestamp_us = bmc_d->rxTime;
-	bmcProcessSymbols(bmc_d, &lastmsg);
-
-	// If frame has a valid CRC
-	if(lastmsg.frametype >> 7) {
-	    xQueueSendToBackFromISR(queue_proc, (void *) &lastmsg_ptr, NULL);
-	*//*
-	    // If frame is Source_Capabilies message
-	    if((lastmsg.hdr >> 12 & 0x7) && (lastmsg.hdr & 0x1F) == 0x1) {
-		memcpy(&lastsrccap, &lastmsg, sizeof(pd_frame));
-	    }
-	*//*
-	    // Clear lastmsg - TODO: move this to function
-	    for(uint8_t i = 0; i < 56; i++) {
-		lastmsg.raw_bytes[i] = 0;
-	    }
-	}
-	*/
     }
 }
 void bmc_rx_cb() {
@@ -95,45 +73,23 @@ void thread_proc(void* unused_arg) {
     uint16_t poffset_before, poffset_after = 0;
 
     while(true) {
-        xQueueReceive(queue_rx_pio, &(bmc_d->inBuf), portMAX_DELAY);
+        // Await new data from the BMC PIO ISR (blocking function)
+	xQueueReceive(queue_rx_pio, &(bmc_d->inBuf), portMAX_DELAY);
         bmc_d->rxTime = time_us_32();// TODO - transition to only using timestamp_us
 	poffset_before = bmc_d->pOffset;
         bmcProcessSymbols(bmc_d, lmsg);
 	poffset_after = bmc_d->pOffset;
-        if((lmsg->frametype & 0x7) == 3) {
-	    printf("SOP Header: %X %X:%X:%X %X\n", lmsg->hdr, lmsg->obj[0], lmsg->obj[1], lmsg->obj[2], bmc_d->crcTmp);
-	} else if((lmsg->frametype & 0x7) == 4) {
-	    printf("SOP' Header: %X %X:%X:%X %X\n", lmsg->hdr, lmsg->obj[0], lmsg->obj[1], lmsg->obj[2], bmc_d->crcTmp);
-	}
+        
+	// Determine what to do with that data
+	//
+	// TODO
 
-	printf("%u: %X - %u:%u %u*%u\n", bmc_d->rxTime, bmc_d->inBuf, bmc_d->procStage, bmc_d->procSubStage, poffset_before, poffset_after);
+	// Print debug messages - TODO: remove
+	printf("Time/Input: %X:%X\n", bmc_d->rxTime, bmc_d->inBuf);
+	printf("procBuf/pOffset: %X:%X\n", bmc_d->procBuf, bmc_d->pOffset);
+	printf("procStage/SubStage: %u:%u\n", bmc_d->procStage, bmc_d->procSubStage);
+	printf("%X %X %X %X\n", lmsg->hdr, lmsg->obj[0], lmsg->obj[1], bmc_d->crcTmp);
     }
-/*
-    printf("Test\n");
-    pd_frame *latestmsg;
-
-    while(true) {
-    //printf("before");
-    if(xQueueReceive(queue_proc, &latestmsg, portMAX_DELAY)) {
-	printf("Hdr: %X - %X - %X\n", latestmsg->hdr, latestmsg->timestamp_us, latestmsg->obj[1]);
-	//printf("Data: %X - %u\n", latestmsg->hdr, latestmsg->timestamp_us);
-	    // If frame is Source_Capabilies message
-	    if((latestmsg->hdr >> 12 & 0x7) && (latestmsg->hdr & 0x1F) == 0x1) {
-		//memcpy(&lastsrccap, &latestmsg, sizeof(pd_frame));
-		printf("SRC_CAP: %X %X\n", latestmsg->obj[0], latestmsg->obj[1]);
-	    }
-	    // Clear latestmsg - TODO: move this to function
-	    for(uint8_t i = 0; i < 56; i++) {
-		latestmsg->raw_bytes[i] = 0;
-	    }
-    //}
-    } else {
-	//printf("0q\n");
-    }
-    //printf("after\n");
-    //sleep_ms(400);
-    }
-*/
 }
 void thread_test(void* unused_arg) {
     uint8_t num = 7;
@@ -208,7 +164,7 @@ int main() {
 
     if(status_task_proc == pdPASS) {
 	// Setup the queues
-	queue_rx_pio = xQueueCreate(10, sizeof(uint32_t));
+	queue_rx_pio = xQueueCreate(1000, sizeof(uint32_t));
 	queue_proc = xQueueCreate(4, sizeof(pd_frame));
 	queue_print = xQueueCreate(4, sizeof(pd_frame));
 	
@@ -217,36 +173,4 @@ int main() {
     } else {
 	printf("Unable to start task scheduler.\n");
     }
-
-
-    /* TEST CASE
-    sleep_ms(4);
-    bmc_d->rxTime = time_us_32();
-    // Note - 26, 15 is the source_capabilies message
-    bmc_testfill(bmc_testpayload, 92, bmc_d, &lastmsg, &lastsrccap, false);
-    printf("procStage: %u\n", bmc_d->procStage);
-    printf("Time us: %u\n", time_us_32() - bmc_d->rxTime);
-    printf("sopType: %X\n", lastmsg.frametype);
-    printf("msgHdr: %X\n", lastmsg.hdr);
-    printf("Obj0-10: %X %X %X %X %X %X %X %X %X %X %X\n", lastmsg.obj[0], lastmsg.obj[1], lastmsg.obj[2], lastmsg.obj[3], lastmsg.obj[4], lastmsg.obj[5], lastmsg.obj[6], lastmsg.obj[7], lastmsg.obj[8], lastmsg.obj[9], lastmsg.obj[10]);
-    printf("CRC32: %X calc: %X\n", bmc_d->crcTmp, crc32_pdframe_calc(&lastmsg));
-    sleep_ms(3);
-
-
-
-
-
-
-    while(true) {
-    //printf("procStage: %u\n", bmc_d->procStage);
-	if(bmc_d->rxTime != last_usval) {
-	    last_usval = bmc_d->rxTime;
-	    printf("rxTime: %u    %X,%X,%X\n", bmc_d->rxTime, bmc_d->procStage, bmc_d->procSubStage, bmc_d->procBuf);
-	}
-	if(!(lastsrccap.frametype >> 6 & 0x1)) {
-	    lastsrccap.frametype |= (0x1 << 6);
-	    printf("SrccapHdr: %X\n", lastsrccap.hdr);
-	}
-    }
-    */
 }
