@@ -11,8 +11,9 @@ struct bmcDecode {
     uint8_t pOffset;
     uint32_t rxTime;
     uint32_t crcTmp;
+    pd_frame *msg;
 };
 
-int bmcProcessSymbols(bmcDecode* bmc_d, pd_frame* msg);
+int bmcProcessSymbols(bmcDecode* bmc_d, pd_frame *msg, QueueHandle_t q_validPdf);
 
 #endif

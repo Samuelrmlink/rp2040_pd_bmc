@@ -65,7 +65,7 @@ void bmc_decode_clear(bmcDecode* bmc_d) {
     bmc_d->rxTime = 0;
     bmc_d->crcTmp = 0;
 }
-int bmcProcessSymbols(bmcDecode* bmc_d, pd_frame* msg) {
+int bmcProcessSymbols(bmcDecode* bmc_d, pd_frame *msg, QueueHandle_t q_validPdf) {
     uint8_t internal_stage;
     uint8_t input_offset = 0;
     bool breakout = false;

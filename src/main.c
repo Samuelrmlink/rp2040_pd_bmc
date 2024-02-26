@@ -18,6 +18,7 @@ uint32_t *buf1;
 PIO pio = pio0;
 
 QueueHandle_t queue_rx_pio = NULL;
+QueueHandle_t queue_rx_validFrame = NULL;
 QueueHandle_t queue_proc = NULL;	// PD Frame process queue
 QueueHandle_t queue_print = NULL;	// PD Frame print queue
 TaskHandle_t tskhdl_proc = NULL;	// PD Frame process task
@@ -61,12 +62,12 @@ const uint32_t bmc_testpayload[] = {	0xAAAAA800, 0xAAAAAAAA, 0x4C6C62AA, 0xEF253
 void thread_proc(void* unused_arg) {
     uint32_t rxval;
     bmcDecode *bmc_d = malloc(sizeof(bmcDecode));
-    pd_frame *lmsg = malloc(sizeof(pd_frame));
+    bmc_d->msg = malloc(sizeof(pd_frame));
 
     // Clear variables
     bmc_decode_clear(bmc_d);
     for(uint8_t i = 0; i < 56; i++) {
-	lmsg->raw_bytes[i] = 0;
+	bmc_d->msg->raw_bytes[i] = 0;
     }
 
     //Debug only temp
@@ -77,18 +78,24 @@ void thread_proc(void* unused_arg) {
 	xQueueReceive(queue_rx_pio, &(bmc_d->inBuf), portMAX_DELAY);
         bmc_d->rxTime = time_us_32();// TODO - transition to only using timestamp_us
 	poffset_before = bmc_d->pOffset;
-        bmcProcessSymbols(bmc_d, lmsg);
+        bmcProcessSymbols(bmc_d, bmc_d->msg, queue_rx_validFrame);
 	poffset_after = bmc_d->pOffset;
         
 	// Determine what to do with that data
 	//
 	// TODO
+	if((bmc_d->msg->frametype & 0x7) == 3) {
+	    printf("SOP Header: %X %X:%X:%X %X\n", bmc_d->msg->hdr, bmc_d->msg->obj[0], bmc_d->msg->obj[1], bmc_d->msg->obj[2], bmc_d->crcTmp);
+	} else if((bmc_d->msg->frametype & 0x7) == 4) {
+	    printf("SOP' Header: %X %X:%X:%X %X\n", bmc_d->msg->hdr, bmc_d->msg->obj[0], bmc_d->msg->obj[1], bmc_d->msg->obj[2], bmc_d->crcTmp);
+	}
+
 
 	// Print debug messages - TODO: remove
-	printf("Time/Input: %X:%X\n", bmc_d->rxTime, bmc_d->inBuf);
-	printf("procBuf/pOffset: %X:%X\n", bmc_d->procBuf, bmc_d->pOffset);
-	printf("procStage/SubStage: %u:%u\n", bmc_d->procStage, bmc_d->procSubStage);
-	printf("%X %X %X %X\n", lmsg->hdr, lmsg->obj[0], lmsg->obj[1], bmc_d->crcTmp);
+	//printf("Time/Input: %X:%X\n", bmc_d->rxTime, bmc_d->inBuf);
+	//printf("procBuf/pOffset: %X:%X\n", bmc_d->procBuf, bmc_d->pOffset);
+	//printf("procStage/SubStage: %u:%u\n", bmc_d->procStage, bmc_d->procSubStage);
+	//printf("%X %X %X %X\n", bmc_d->msg->hdr, bmc_d->msg->obj[0], bmc_d->msg->obj[1], bmc_d->crcTmp);
     }
 }
 void thread_test(void* unused_arg) {
@@ -165,6 +172,7 @@ int main() {
     if(status_task_proc == pdPASS) {
 	// Setup the queues
 	queue_rx_pio = xQueueCreate(1000, sizeof(uint32_t));
+	queue_rx_validFrame = xQueueCreate(10, sizeof(pd_frame));
 	queue_proc = xQueueCreate(4, sizeof(pd_frame));
 	queue_print = xQueueCreate(4, sizeof(pd_frame));
 	

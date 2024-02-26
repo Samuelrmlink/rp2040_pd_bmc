@@ -18,7 +18,7 @@
 #include "hardware/timer.h"
 #include "bmc.pio.h"
 #include "pdb_msg.h"
-#include "bmc_test.h"
+//#include "bmc_test.h"
 #include "crc32.h"
 #include "bmc_decode.h"
 
