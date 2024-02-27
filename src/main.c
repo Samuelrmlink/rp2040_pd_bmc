@@ -74,7 +74,7 @@ void thread_proc(void* unused_arg) {
     while(true) {
         // Await new data from the BMC PIO ISR (blocking function)
 	xQueueReceive(queue_rx_pio, &(bmc_d->inBuf), portMAX_DELAY);
-        bmc_d->rxTime = time_us_32();// TODO - transition to only using timestamp_us
+        bmc_d->msg->timestamp_us = time_us_32();
         bmcProcessSymbols(bmc_d, queue_rx_validFrame);
         
 	// Check for complete pd_frame data
@@ -90,7 +90,7 @@ void thread_proc(void* unused_arg) {
 	}
 
 	// Print debug messages - TODO: remove
-	//printf("Time/Input: %X:%X\n", bmc_d->rxTime, bmc_d->inBuf);
+	//printf("Time/Input: %X:%X\n", bmc_d->msg->timestamp_us, bmc_d->inBuf);
 	//printf("procBuf/pOffset: %X:%X\n", bmc_d->procBuf, bmc_d->pOffset);
 	//printf("procStage/SubStage: %u:%u\n", bmc_d->procStage, bmc_d->procSubStage);
 	//printf("%X %X %X %X\n", bmc_d->msg->hdr, bmc_d->msg->obj[0], bmc_d->msg->obj[1], bmc_d->crcTmp);

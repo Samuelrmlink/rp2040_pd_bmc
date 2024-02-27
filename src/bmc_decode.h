@@ -9,7 +9,6 @@ struct bmcDecode {
     uint32_t inBuf;
     uint32_t procBuf;
     uint8_t pOffset;
-    uint32_t rxTime;
     uint32_t crcTmp;
     pd_frame *msg;
 };

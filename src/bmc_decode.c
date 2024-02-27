@@ -62,7 +62,6 @@ void bmc_decode_clear(bmcDecode* bmc_d) {
     bmc_d->inBuf = 0;
     bmc_d->procBuf = 0;
     bmc_d->pOffset = 0;
-    bmc_d->rxTime = 0;
     bmc_d->crcTmp = 0;
 }
 int bmcProcessSymbols(bmcDecode* bmc_d, QueueHandle_t q_validPdf) {
