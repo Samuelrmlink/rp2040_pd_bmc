@@ -87,6 +87,9 @@ void thread_proc(void* unused_arg) {
 	    } else if((rxdPdf->frametype & 0x7) == 4) {
 		printf("SOP' Header: %X %X:%X:%X\n", rxdPdf->hdr, rxdPdf->obj[0], rxdPdf->obj[1], rxdPdf->obj[2]);
 	    }
+
+	    // Free memory at pointer to avoid memory leak
+	    free(rxdPdf);
 	}
 
 	// Print debug messages - TODO: remove
