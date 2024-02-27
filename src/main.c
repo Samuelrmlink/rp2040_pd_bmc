@@ -63,6 +63,7 @@ void thread_proc(void* unused_arg) {
     uint32_t rxval;
     bmcDecode *bmc_d = malloc(sizeof(bmcDecode));
     bmc_d->msg = malloc(sizeof(pd_frame));
+    pd_frame *rxdPdf = NULL;
 
     // Clear variables
     bmc_decode_clear(bmc_d);
@@ -70,26 +71,23 @@ void thread_proc(void* unused_arg) {
 	bmc_d->msg->raw_bytes[i] = 0;
     }
 
-    //Debug only temp
-    uint16_t poffset_before, poffset_after = 0;
-
     while(true) {
         // Await new data from the BMC PIO ISR (blocking function)
 	xQueueReceive(queue_rx_pio, &(bmc_d->inBuf), portMAX_DELAY);
         bmc_d->rxTime = time_us_32();// TODO - transition to only using timestamp_us
-	poffset_before = bmc_d->pOffset;
-        bmcProcessSymbols(bmc_d, bmc_d->msg, queue_rx_validFrame);
-	poffset_after = bmc_d->pOffset;
+        bmcProcessSymbols(bmc_d, queue_rx_validFrame);
         
-	// Determine what to do with that data
-	//
-	// TODO
-	if((bmc_d->msg->frametype & 0x7) == 3) {
-	    printf("SOP Header: %X %X:%X:%X %X\n", bmc_d->msg->hdr, bmc_d->msg->obj[0], bmc_d->msg->obj[1], bmc_d->msg->obj[2], bmc_d->crcTmp);
-	} else if((bmc_d->msg->frametype & 0x7) == 4) {
-	    printf("SOP' Header: %X %X:%X:%X %X\n", bmc_d->msg->hdr, bmc_d->msg->obj[0], bmc_d->msg->obj[1], bmc_d->msg->obj[2], bmc_d->crcTmp);
+	// Check for complete pd_frame data
+	if(xQueueReceive(queue_rx_validFrame, &rxdPdf, 0) && (rxdPdf->frametype & 0x80)) { // If rxd && CRC is valid
+	    // Determine what to do with that data
+	    //
+	    // TODO
+	    if((rxdPdf->frametype & 0x7) == 3) {
+		printf("SOP Header: %X %X:%X:%X\n", rxdPdf->hdr, rxdPdf->obj[0], rxdPdf->obj[1], rxdPdf->obj[2]);
+	    } else if((rxdPdf->frametype & 0x7) == 4) {
+		printf("SOP' Header: %X %X:%X:%X\n", rxdPdf->hdr, rxdPdf->obj[0], rxdPdf->obj[1], rxdPdf->obj[2]);
+	    }
 	}
-
 
 	// Print debug messages - TODO: remove
 	//printf("Time/Input: %X:%X\n", bmc_d->rxTime, bmc_d->inBuf);

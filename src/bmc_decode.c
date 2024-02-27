@@ -65,7 +65,7 @@ void bmc_decode_clear(bmcDecode* bmc_d) {
     bmc_d->rxTime = 0;
     bmc_d->crcTmp = 0;
 }
-int bmcProcessSymbols(bmcDecode* bmc_d, pd_frame *msg, QueueHandle_t q_validPdf) {
+int bmcProcessSymbols(bmcDecode* bmc_d, QueueHandle_t q_validPdf) {
     uint8_t internal_stage;
     uint8_t input_offset = 0;
     bool breakout = false;
@@ -130,25 +130,25 @@ int bmcProcessSymbols(bmcDecode* bmc_d, pd_frame *msg, QueueHandle_t q_validPdf)
 		if(internal_stage == 3) {
 		    switch(bmc_d->procSubStage & 0xFFFFF) {
 	    		case (0b11001001110011100111) : // Hard Reset
-			    msg->frametype = 1;
+			    bmc_d->msg->frametype = 1;
 			    break;
 			case (0b00110001111100000111) : // Cable Reset
-			    msg->frametype = 2;
+			    bmc_d->msg->frametype = 2;
 			    break;
 	    		case (0b10001110001100011000) : // SOP
-			    msg->frametype = 3;
+			    bmc_d->msg->frametype = 3;
 			    break;
 	    		case (0b00110001101100011000) : // SOP'
-			    msg->frametype = 4;
+			    bmc_d->msg->frametype = 4;
 			    break;
 	    		case (0b00110110000011011000) : // SOP''
-			    msg->frametype = 5;
+			    bmc_d->msg->frametype = 5;
 			    break;
 	    		case (0b00110110011100111000) : // SOP' Debug
-			    msg->frametype = 6;
+			    bmc_d->msg->frametype = 6;
 			    break;
 	    		case (0b10001001101100111000) : // SOP'' Debug
-			    msg->frametype = 7;
+			    bmc_d->msg->frametype = 7;
 			    break;
 			default:
 			    //printf("FrameType catch-all debug\n"); // Error condition - should never run this
@@ -156,20 +156,20 @@ int bmcProcessSymbols(bmcDecode* bmc_d, pd_frame *msg, QueueHandle_t q_validPdf)
 		    }
 		    bmc_d->procStage++;
 		    bmc_d->procSubStage = 0;
-//		    printf("Debugos: %X - %u - %X\n", bmc_d->procBuf, msg->frametype, bmc_d->procSubStage);
+//		    printf("Debugos: %X - %u - %X\n", bmc_d->procBuf, bmc_d->msg->frametype, bmc_d->procSubStage);
 		}
 		break;
 	    case (2) :// PD Header
-		//printf("procBufDebug %X:%X - %d - %X - %X\n", bmc_d->procBuf, bmc_d->pOffset, bmc_d->procSubStage, msg->hdr, bmcDecode4b5b(bmc_d->procBuf & 0x1F));
+		//printf("procBufDebug %X:%X - %d - %X - %X\n", bmc_d->procBuf, bmc_d->pOffset, bmc_d->procSubStage, bmc_d->msg->hdr, bmcDecode4b5b(bmc_d->procBuf & 0x1F));
 		// Process one symbol
-		msg->hdr |= bmcDecode4b5b(bmc_d->procBuf & 0x1F) << (4 * bmc_d->procSubStage);
+		bmc_d->msg->hdr |= bmcDecode4b5b(bmc_d->procBuf & 0x1F) << (4 * bmc_d->procSubStage);
 		//printf("decode: %X - %X %u\n", bmcDecode4b5b(bmc_d->procBuf & 0x1F), bmc_d->procBuf, bmc_d->pOffset);
 		bmc_d->procBuf >>= 5;
 		bmc_d->pOffset -= 5;
 		if(bmc_d->procSubStage == 3) { // If full header has been received
-		    if((msg->hdr >> 15) & 0x1) {
+		    if((bmc_d->msg->hdr >> 15) & 0x1) {
 			bmc_d->procStage++; // Extended header follows
-		    } else if((msg->hdr >> 12) & 0x7) {
+		    } else if((bmc_d->msg->hdr >> 12) & 0x7) {
 			bmc_d->procStage += 2; // Data objects follow
 			bmc_d->procSubStage = 0;
 		    } else {
@@ -179,12 +179,12 @@ int bmcProcessSymbols(bmcDecode* bmc_d, pd_frame *msg, QueueHandle_t q_validPdf)
 		} else bmc_d->procSubStage++;  // Increment & wait for next symbol in PD header
 		break;
 	    case (3) :// Extended Header (if applicable)
-		msg->exthdr |= bmcDecode4b5b(bmc_d->procBuf & 0x1F) << (4 * bmc_d->procSubStage);
+		bmc_d->msg->exthdr |= bmcDecode4b5b(bmc_d->procBuf & 0x1F) << (4 * bmc_d->procSubStage);
 		bmc_d->procBuf >>= 5;
 		bmc_d->pOffset -= 5;
 		if(bmc_d->procSubStage == 3) { // If full extended header has been received
-		    //printf("Hdr-nx: %X\nHdr-ext: %X\n", msg->hdr, msg->exthdr);
-		    if(msg->exthdr >> 15) {
+		    //printf("Hdr-nx: %X\nHdr-ext: %X\n", bmc_d->msg->hdr, bmc_d->msg->exthdr);
+		    if(bmc_d->msg->exthdr >> 15) {
 			bmc_d->procStage++;
 			bmc_d->procSubStage = 0;
 		    } else {
@@ -194,14 +194,14 @@ int bmcProcessSymbols(bmcDecode* bmc_d, pd_frame *msg, QueueHandle_t q_validPdf)
 		}
 		break;
 	    case (4) :// Data Objects (if applicable)
-		msg->obj[bmc_d->procSubStage / 8] |= bmcDecode4b5b(bmc_d->procBuf & 0x1F) << 4 * (bmc_d->procSubStage % 8);
+		bmc_d->msg->obj[bmc_d->procSubStage / 8] |= bmcDecode4b5b(bmc_d->procBuf & 0x1F) << 4 * (bmc_d->procSubStage % 8);
 		//printf("decode: %X - %X %u\n", bmcDecode4b5b(bmc_d->procBuf & 0x1F), bmc_d->procBuf, bmc_d->pOffset);
 		bmc_d->procBuf >>= 5;
 		bmc_d->pOffset -= 5;
 		bmc_d->procSubStage++;
 
 		// Check whether this is the last half-byte in the last data object
-		if(bmc_d->procSubStage == 8 * ((msg->hdr >> 12) & 0x7)) {
+		if(bmc_d->procSubStage == 8 * ((bmc_d->msg->hdr >> 12) & 0x7)) {
 		    bmc_d->procStage++;
 		    bmc_d->procSubStage = 0;
 		}
@@ -219,14 +219,20 @@ int bmcProcessSymbols(bmcDecode* bmc_d, pd_frame *msg, QueueHandle_t q_validPdf)
 		break;
 	    case (6) :// EOP
 		// If EOP is received && CRC is valid
-		if(((bmc_d->procBuf & 0x1F) == 0b01101) && (crc32_pdframe_calc(msg) == bmc_d->crcTmp)) {
-		    msg->frametype |= 1 << 7;
-		    printf("CRC is valid %X - %X\n", msg->hdr, bmc_d->crcTmp);
+		if(((bmc_d->procBuf & 0x1F) == 0b01101) && (crc32_pdframe_calc(bmc_d->msg) == bmc_d->crcTmp)) {
+		    bmc_d->msg->frametype |= 1 << 7;
+		    //printf("CRC is valid %X - %X\n", bmc_d->msg->hdr, bmc_d->crcTmp);
 		} else {
-		    printf("CRC invalid: %X %X:%X\n", bmc_d->procBuf, crc32_pdframe_calc(msg), bmc_d->crcTmp);
+		    //printf("CRC invalid: %X %X:%X\n", bmc_d->procBuf, crc32_pdframe_calc(bmc_d->msg), bmc_d->crcTmp);
 		}
 		bmc_d->procBuf >>= 5;
 		bmc_d->pOffset -= 5;
+
+		// Send complete pd_frame for evaluation (regardless of CRC validation status)
+		xQueueSendToBack(q_validPdf, (void *) &bmc_d->msg, portMAX_DELAY);
+
+		// Allocate another pd_frame
+		bmc_d->msg = malloc(sizeof(pd_frame));
 
 		// Reset process stage to zero
 		bmc_d->procStage = 0;
@@ -235,7 +241,7 @@ int bmcProcessSymbols(bmcDecode* bmc_d, pd_frame *msg, QueueHandle_t q_validPdf)
 
 		// Reset PD msg
 		for(uint8_t i = 0; i < 56; i++) {
-		    msg->raw_bytes[i] = 0;
+		    bmc_d->msg->raw_bytes[i] = 0;
 		}
 		break;
 	    default  ://Error

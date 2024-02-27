@@ -14,6 +14,6 @@ struct bmcDecode {
     pd_frame *msg;
 };
 
-int bmcProcessSymbols(bmcDecode* bmc_d, pd_frame *msg, QueueHandle_t q_validPdf);
+int bmcProcessSymbols(bmcDecode* bmc_d, QueueHandle_t q_validPdf);
 
 #endif
