@@ -74,7 +74,9 @@ void thread_proc(void* unused_arg) {
     while(true) {
         // Await new data from the BMC PIO ISR (blocking function)
 	xQueueReceive(queue_rx_pio, &(bmc_d->inBuf), portMAX_DELAY);
-        bmc_d->msg->timestamp_us = time_us_32();
+        if(!bmc_d->msg->timestamp_us) {
+	    bmc_d->msg->timestamp_us = time_us_32();
+	}
         bmcProcessSymbols(bmc_d, queue_rx_validFrame);
         
 	// Check for complete pd_frame data
@@ -83,9 +85,9 @@ void thread_proc(void* unused_arg) {
 	    //
 	    // TODO
 	    if((rxdPdf->frametype & 0x7) == 3) {
-		printf("SOP Header: %X %X:%X:%X\n", rxdPdf->hdr, rxdPdf->obj[0], rxdPdf->obj[1], rxdPdf->obj[2]);
+		printf("%u - SOP Header: %X %X:%X:%X\n", rxdPdf->timestamp_us, rxdPdf->hdr, rxdPdf->obj[0], rxdPdf->obj[1], rxdPdf->obj[2]);
 	    } else if((rxdPdf->frametype & 0x7) == 4) {
-		printf("SOP' Header: %X %X:%X:%X\n", rxdPdf->hdr, rxdPdf->obj[0], rxdPdf->obj[1], rxdPdf->obj[2]);
+		printf("%u - SOP' Header: %X %X:%X:%X\n", rxdPdf->timestamp_us, rxdPdf->hdr, rxdPdf->obj[0], rxdPdf->obj[1], rxdPdf->obj[2]);
 	    }
 
 	    // Free memory at pointer to avoid memory leak
