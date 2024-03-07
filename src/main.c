@@ -33,12 +33,19 @@ pd_frame lastmsg;
 pd_frame *lastmsg_ptr = &lastmsg;
 //pd_frame lastsrccap;
 
+typedef struct {
+    uint32_t val;
+    uint32_t time;
+} rx_data;
+
 void bmc_rx_check() {
+    rx_data data;
     // If PIO RX buffer is not empty
     if(!pio_sm_is_rx_fifo_empty(pio, SM_RX)) {
 	// Receive BMC data from PIO interface
-	uint32_t rx_pio = pio_sm_get(pio, SM_RX);
-	xQueueSendToBackFromISR(queue_rx_pio, (void *) &rx_pio, NULL);
+	data.val = pio_sm_get(pio, SM_RX);
+	data.time = time_us_32();
+	xQueueSendToBackFromISR(queue_rx_pio, (void *) &data, NULL);
     }
 }
 void bmc_rx_cb() {
@@ -63,6 +70,7 @@ void thread_proc(void* unused_arg) {
     uint32_t rxval;
     bmcDecode *bmc_d = malloc(sizeof(bmcDecode));
     bmc_d->msg = malloc(sizeof(pd_frame));
+    rx_data pio;
     pd_frame *rxdPdf = NULL;
 
     // Clear variables
@@ -73,9 +81,10 @@ void thread_proc(void* unused_arg) {
 
     while(true) {
         // Await new data from the BMC PIO ISR (blocking function)
-	xQueueReceive(queue_rx_pio, &(bmc_d->inBuf), portMAX_DELAY);
+	xQueueReceive(queue_rx_pio, &pio, portMAX_DELAY);
+	bmc_d->inBuf = pio.val; // TODO - change below uses & eliminate this line
         if(!bmc_d->msg->timestamp_us) {
-	    bmc_d->msg->timestamp_us = time_us_32();
+	    bmc_d->msg->timestamp_us = pio.time;
 	}
         bmcProcessSymbols(bmc_d, queue_rx_validFrame);
         
@@ -174,7 +183,7 @@ int main() {
 
     if(status_task_proc == pdPASS) {
 	// Setup the queues
-	queue_rx_pio = xQueueCreate(1000, sizeof(uint32_t));
+	queue_rx_pio = xQueueCreate(1000, sizeof(rx_data));
 	queue_rx_validFrame = xQueueCreate(10, sizeof(pd_frame));
 	queue_proc = xQueueCreate(4, sizeof(pd_frame));
 	queue_print = xQueueCreate(4, sizeof(pd_frame));
