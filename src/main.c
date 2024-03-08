@@ -83,8 +83,12 @@ void thread_proc(void* unused_arg) {
 	    if(!xQueueReceive(queue_rx_pio, &bmc_d->pioData, 0)) {
 		sleep_us(120);
 		if(!xQueueReceive(queue_rx_pio, &bmc_d->pioData, 0)) {
-		    //printf("s");
 		    // TODO - add PIO flush function here
+		    irq_set_enabled(PIO0_IRQ_0, false);
+		    while(pio_sm_is_rx_fifo_empty(pio, SM_RX)) {
+			pio_sm_exec_wait_blocking(pio, SM_RX, pio_encode_in(pio_y, 1));
+		    }
+		    irq_set_enabled(PIO0_IRQ_0, true);
 		    continue;
 		}
 	    }
