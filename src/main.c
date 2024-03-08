@@ -74,8 +74,21 @@ void thread_proc(void* unused_arg) {
     }
 
     while(true) {
-        // Await new data from the BMC PIO ISR (blocking function)
-	xQueueReceive(queue_rx_pio, &bmc_d->pioData, portMAX_DELAY);
+	// Block this thread if we are in the awaiting preamble stage
+	if(!bmc_d->procStage) {
+	    // Await new data from the BMC PIO ISR (blocking function)
+	    xQueueReceive(queue_rx_pio, &bmc_d->pioData, portMAX_DELAY);
+	// Otherwise check the queue without blocking (provide some time)
+	} else {
+	    if(!xQueueReceive(queue_rx_pio, &bmc_d->pioData, 0)) {
+		sleep_us(120);
+		if(!xQueueReceive(queue_rx_pio, &bmc_d->pioData, 0)) {
+		    //printf("s");
+		    // TODO - add PIO flush function here
+		    continue;
+		}
+	    }
+	}
         bmcProcessSymbols(bmc_d, queue_rx_validFrame);
         
 	// Check for complete pd_frame data
