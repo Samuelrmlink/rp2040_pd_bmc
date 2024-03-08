@@ -3,10 +3,15 @@
 
 typedef struct bmcDecode bmcDecode;
 
+typedef struct {
+    uint32_t val;
+    uint32_t time;
+} rx_data;
+
 struct bmcDecode {
     uint8_t procStage;
     uint32_t procSubStage;
-    uint32_t inBuf;
+    rx_data pioData;
     uint32_t procBuf;
     uint8_t pOffset;
     uint32_t crcTmp;

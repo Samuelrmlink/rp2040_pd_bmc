@@ -59,7 +59,7 @@ int8_t bmcDecode4b5b(uint8_t fiveB) {
 void bmc_decode_clear(bmcDecode* bmc_d) {
     bmc_d->procStage = 0;
     bmc_d->procSubStage = 0;
-    bmc_d->inBuf = 0;
+    bmc_d->pioData.val = 0;
     bmc_d->procBuf = 0;
     bmc_d->pOffset = 0;
     bmc_d->crcTmp = 0;
@@ -73,9 +73,14 @@ int bmcProcessSymbols(bmcDecode* bmc_d, QueueHandle_t q_validPdf) {
 	return -1; // Error - unprocessed symbols in 4b5b process buffer
     }
 
+    // Assign starting timestamp to new PD frames
+    if(!bmc_d->msg->timestamp_us) {
+	bmc_d->msg->timestamp_us = bmc_d->pioData.time;
+    }
+
     // Copy some data from input buffer to process buffer
     uint8_t remainOffset = bmc_d->pOffset;
-    bmc_d->procBuf |= bmc_d->inBuf << remainOffset;
+    bmc_d->procBuf |= bmc_d->pioData.val << remainOffset;
     bmc_d->pOffset = 32; // No space left in process buffer (31 would mean 1 bit is free, 0 would mean 32 bits are free)
     	// It is expected that there may be remainder bits that won't fit into the procBuf
 
@@ -83,7 +88,7 @@ int bmcProcessSymbols(bmcDecode* bmc_d, QueueHandle_t q_validPdf) {
     while(bmc_d->pOffset > 4 && !breakout) {
 	// If there were remainder bits that can now fit into procBuf - TODO: move this into a function or macro
 	if(remainOffset && (bmc_d->pOffset <= 27)) {
-	    bmc_d->procBuf |= (bmc_d->inBuf >> 32 - remainOffset) << bmc_d->pOffset;
+	    bmc_d->procBuf |= (bmc_d->pioData.val >> 32 - remainOffset) << bmc_d->pOffset;
 	    bmc_d->pOffset += 32 - (32 - remainOffset);
 	    remainOffset = 0;	// Reset offset
 	} 
@@ -103,7 +108,7 @@ int bmcProcessSymbols(bmcDecode* bmc_d, QueueHandle_t q_validPdf) {
 		}
 		// If there were remainder bits that can now fit into procBuf - TODO: move this into a function or macro
 		if(remainOffset && (bmc_d->pOffset <= 27)) {
-		    bmc_d->procBuf |= (bmc_d->inBuf >> 32 - remainOffset) << bmc_d->pOffset;
+		    bmc_d->procBuf |= (bmc_d->pioData.val >> 32 - remainOffset) << bmc_d->pOffset;
 		    bmc_d->pOffset += 32 - (32 - remainOffset);
 		    remainOffset = 0;	// Reset offset
 		}

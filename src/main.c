@@ -33,11 +33,6 @@ pd_frame lastmsg;
 pd_frame *lastmsg_ptr = &lastmsg;
 //pd_frame lastsrccap;
 
-typedef struct {
-    uint32_t val;
-    uint32_t time;
-} rx_data;
-
 void bmc_rx_check() {
     rx_data data;
     // If PIO RX buffer is not empty
@@ -70,7 +65,6 @@ void thread_proc(void* unused_arg) {
     uint32_t rxval;
     bmcDecode *bmc_d = malloc(sizeof(bmcDecode));
     bmc_d->msg = malloc(sizeof(pd_frame));
-    rx_data pio;
     pd_frame *rxdPdf = NULL;
 
     // Clear variables
@@ -81,11 +75,7 @@ void thread_proc(void* unused_arg) {
 
     while(true) {
         // Await new data from the BMC PIO ISR (blocking function)
-	xQueueReceive(queue_rx_pio, &pio, portMAX_DELAY);
-	bmc_d->inBuf = pio.val; // TODO - change below uses & eliminate this line
-        if(!bmc_d->msg->timestamp_us) {
-	    bmc_d->msg->timestamp_us = pio.time;
-	}
+	xQueueReceive(queue_rx_pio, &bmc_d->pioData, portMAX_DELAY);
         bmcProcessSymbols(bmc_d, queue_rx_validFrame);
         
 	// Check for complete pd_frame data
