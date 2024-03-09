@@ -89,6 +89,7 @@ void thread_proc(void* unused_arg) {
 			pio_sm_exec_wait_blocking(pio, SM_RX, pio_encode_in(pio_y, 1));
 		    }
 		    irq_set_enabled(PIO0_IRQ_0, true);
+		    bmc_rx_check();
 		    continue;
 		}
 	    }
