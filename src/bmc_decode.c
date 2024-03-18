@@ -173,6 +173,7 @@ int bmcProcessSymbols(bmcDecode* bmc_d, QueueHandle_t q_validPdf) {
 		if(bmc_d->procSubStage == 3) { // If full header has been received
 		    if((bmc_d->msg->hdr >> 15) & 0x1) {
 			bmc_d->procStage++; // Extended header follows
+			bmc_d->procSubStage = 0;
 		    } else if((bmc_d->msg->hdr >> 12) & 0x7) {
 			bmc_d->procStage += 2; // Data objects follow
 			bmc_d->procSubStage = 0;
@@ -183,17 +184,19 @@ int bmcProcessSymbols(bmcDecode* bmc_d, QueueHandle_t q_validPdf) {
 		} else bmc_d->procSubStage++;  // Increment & wait for next symbol in PD header
 		break;
 	    case (3) :// Extended Header (if applicable)
-		bmc_d->msg->exthdr |= bmcDecode4b5b(bmc_d->procBuf & 0x1F) << (4 * bmc_d->procSubStage);
+		bmc_d->msg->obj[0] |= bmcDecode4b5b(bmc_d->procBuf & 0x1F) << 4 * (bmc_d->procSubStage % 8);
 		bmc_d->procBuf >>= 5;
 		bmc_d->pOffset -= 5;
-		if(bmc_d->procSubStage == 3) { // If full extended header has been received
-		    //printf("Hdr-nx: %X\nHdr-ext: %X\n", bmc_d->msg->hdr, bmc_d->msg->exthdr);
-		    if(bmc_d->msg->exthdr >> 15) {
+		bmc_d->procSubStage++;
+		// Once Extended Header has been received
+		if(bmc_d->procSubStage == 4) {
+		    if(bmc_d->msg->obj[0] >> 15) { // Chunked bit is set
+			// Continue process in the next stage
 			bmc_d->procStage++;
-			bmc_d->procSubStage = 0;
+			// Don't change the procSubStage to ensure continution of the first
+			// data object. (With extended header as part of that first object.)
 		    } else {
-		        breakout = true;
-			// TODO - implement non-chunked Extended messages
+			// TODO - implement unchunked extended messages
 		    }
 		}
 		break;

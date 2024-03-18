@@ -97,12 +97,12 @@ void thread_proc(void* unused_arg) {
         bmcProcessSymbols(bmc_d, queue_rx_validFrame);
         
 	// Check for complete pd_frame data
-	if(xQueueReceive(queue_rx_validFrame, &rxdPdf, 0) && (rxdPdf->frametype & 0x80)) { // If rxd && CRC is valid
+	if(xQueueReceive(queue_rx_validFrame, &rxdPdf, 0) && ((rxdPdf->frametype & 0x80) || (rxdPdf->hdr & 0x80))) { // If rxd && CRC is valid or extended frame
 	    // Determine what to do with that data
 	    //
 	    // TODO
 	    if((rxdPdf->frametype & 0x7) == 3) {
-		printf("%u - SOP Header: %X %X:%X:%X\n", rxdPdf->timestamp_us, rxdPdf->hdr, rxdPdf->obj[0], rxdPdf->obj[1], rxdPdf->obj[2]);
+		printf("%u - SOP Header: %X %X:%X:%X -- %u\n", rxdPdf->timestamp_us, rxdPdf->hdr, rxdPdf->obj[0], rxdPdf->obj[1], rxdPdf->obj[2], (rxdPdf->frametype & 0x80));
 	    } else if((rxdPdf->frametype & 0x7) == 4) {
 		printf("%u - SOP' Header: %X %X:%X:%X\n", rxdPdf->timestamp_us, rxdPdf->hdr, rxdPdf->obj[0], rxdPdf->obj[1], rxdPdf->obj[2]);
 	    }
