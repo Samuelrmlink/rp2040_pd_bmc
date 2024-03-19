@@ -46,13 +46,17 @@ uint32_t crc32_pdframe_calc(pd_frame* pdf) {
     uint8_t tmpval[48] = { pdf->hdr & 0xFF, pdf->hdr >> 8};
     uint8_t *tmp_ptr = &tmpval[2];
 
+    
+/* - TODO: Need to implement unchunked Extended Header CRC generation - chunked 
+ * Extended Header packets work normally without this commented section. 
     // Extended Header (TODO)
-    if(pdf->hdr >> 15) {
+    if((pdf->hdr >> 15) && !((pdf->obj[0] >> 15) & 0x1)) {
 	tmpval[2] = pdf->obj[0] & 0xFF;
 	tmpval[3] = (pdf->obj[0] & 0xFF00) >> 8;
 	num_bytes += 2;
     }
     //
+*/
 
     // Data Objects (if applicable)
     uint8_t num_obj = (pdf->hdr >> 12) & 0x7;//TODO: compiler definition
