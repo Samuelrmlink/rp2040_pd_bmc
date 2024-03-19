@@ -14,24 +14,16 @@
 const uint pin_tx = 9;
 const uint pin_rx = 6;
 
-uint32_t *buf1;
+// PIO instances
 PIO pio = pio0;
 
-QueueHandle_t queue_rx_pio = NULL;
-QueueHandle_t queue_rx_validFrame = NULL;
-QueueHandle_t queue_proc = NULL;	// PD Frame process queue
-QueueHandle_t queue_print = NULL;	// PD Frame print queue
-TaskHandle_t tskhdl_proc = NULL;	// PD Frame process task
-TaskHandle_t tskhdl_print = NULL;	// PD Frame print task
+// Queues
+QueueHandle_t queue_rx_pio = NULL;		// PD Frame:	Raw PIO output pipeline (1st stage)
+QueueHandle_t queue_rx_validFrame = NULL;	// PD Frame:	Valid USB-PD frame	(2nd stage)
 
-TaskHandle_t tskhdl_test = NULL;	// PD Frame process task - TODO - remove
+// Task Handles (Thread Handles)
+TaskHandle_t tskhdl_pd_rxf = NULL;	// Task handle: RX frame receiver
 
-bool bmc_check_during_operation = true;
-
-//bmcDecode* bmc_d;
-pd_frame lastmsg;
-pd_frame *lastmsg_ptr = &lastmsg;
-//pd_frame lastsrccap;
 
 void bmc_rx_check() {
     rx_data data;
@@ -49,19 +41,12 @@ void bmc_rx_cb() {
 	pio_interrupt_clear(pio, 0);
     } 
 }
-const uint32_t bmc_testpayload[] = {	0xAAAAA800, 0xAAAAAAAA, 0x4C6C62AA, 0xEF253E97, 0x2BBDF7A5, 0x56577D55, 0x55555435, 0x55555555,
-					0x26363155, 0xD537E4A9, 0x1BBEDF4B, 0x55555554, 0x55555555, 0xABA63631, 0xD2F292B4, 0xF7BDDEFB,
-					0xBC997BDE, 0xEF7BDEF7, 0x7BDEF7BD, 0x4EF2FDEF, 0x94DFEF7A, 0x1BC9A529, 0xAAAAAAAA, 0xAAAAAAAA,
-					0x94931B18, 0x776AF7F7, 0xAA0DB4AF, 0xAAAAAAAA, 0x18AAAAAA, 0x7A6C98E3, 0xBC99A69A, 0x4DA69AF4,
-					0xA69AF7BD, 0x89F7BCAB, 0xF7BCE57B, 0xB7AA25CA, 0xEA26BAD4, 0x269BD4D5, 0x33D4ECAA, 0x7A975969,
-					0xAAAAAA0D, 0xAAAAAAAA, 0x98E318AA, 0x6AF7F794, 0x0DB4AF77, 0xAAAAAAAA, 0xAAAAAAAA, 0xA548E318,
-					0x592B894F, 0xEF4F5525, 0x0D95373E, 0x55555555, 0x55555555, 0x2E4C718C, 0x93E52EF9, 0x5506AAD5,
-					0x55555555, 0x8C555555, 0xFAB6AC71, 0x7DB5B4EE, 0xAAAA86AF, 0xAAAAAAAA, 0x38C62AAA, 0x9BFD4526,
-					0x54EBAFDB, 0xAAAAAA83, 0xAAAAAAAA, 0x3A38C62A, 0xBB4F7CBB, 0x83753E73, 0xAAAAAAAA, 0x2AAAAAAA,
-					0xA52638C6, 0xBAD2B53C, 0x55436DDD, 0x55555555, 0x63155555, 0x3EA4A71C, 0x5CDCBF6D, 0x555541AA,
-					0x55555555, 0x1C631555, 0x737EAD93, 0xAEEEB5AE, 0xAAAAAAA1, 0xAAAAAAAA, 0xCA8E318A, 0xEF2E9F3E,
-					0x50D4AF6E, 0x55555555, 0xC5555555, 0x9CA4C718, 0xB96A72E7, }; // 92 32-bit words
-void thread_proc(void* unused_arg) {
+
+/*
+ *	USB-PD PIO data -> pd_frame data structure (as defined in pdb_msg.h header file)
+ *
+ */
+void thread_rx_process(void* unused_arg) {
     uint32_t rxval;
     bmcDecode *bmc_d = malloc(sizeof(bmcDecode));
     bmc_d->msg = malloc(sizeof(pd_frame));
@@ -118,39 +103,11 @@ void thread_proc(void* unused_arg) {
 	//printf("%X %X %X %X\n", bmc_d->msg->hdr, bmc_d->msg->obj[0], bmc_d->msg->obj[1], bmc_d->crcTmp);
     }
 }
-void thread_test(void* unused_arg) {
-    uint8_t num = 7;
-    pd_frame *testframe = malloc(sizeof(pd_frame));
-    while(true) {
-	//printf("procp\n");
-	sleep_ms(1000);
-	//printf("test_thread %u - %X\n", uxQueueSpacesAvailable(queue_proc), testframe);
-	//bnanmc_decode_clear(testframe);
-	testframe->hdr = num;
-	if(xQueueSendToBack(queue_proc, (void *) &testframe, 0)) {
-	    printf("Added to queue successfully %X - %X\n", testframe, testframe->hdr);
-	} else {
-	    printf("Queue is likely full");
-	}
-	num++;
-	sleep_ms(4000);
-	//printf("test_thread2 %u\n", uxQueueSpacesAvailable(queue_proc));
-    }
-}
 int main() {
     // Initialize IO & PIO
     stdio_init_all();
     gpio_init(8);
     gpio_set_dir(8, GPIO_OUT);
-    buf1 = malloc(256 * 4);
-    if(buf1 == NULL) 
-	    printf("Error - buf1 is a NULL pointer.");
-    for(int i=0;i<=255;i++) {
-        buf1[i]=0x00000000;
-    }
-
-    // Allocate BMC decoding struct
-    //bmc_d = malloc(sizeof(bmcDecode));
 
     /* Initialize TX FIFO*/
     uint offset_tx = pio_add_program(pio, &differential_manchester_tx_program);
@@ -171,30 +128,14 @@ int main() {
     pio_set_irq0_source_enabled(pio, pis_interrupt0, true);
     irq_set_exclusive_handler(PIO0_IRQ_0, bmc_rx_cb);
     irq_set_enabled(PIO0_IRQ_0, true);
-    bmc_check_during_operation = false;		// Override - disables this check
- 
-    uint32_t last_usval;
-    uint32_t tmpval;
-
-    // Clear BMC decode data
-    //bmc_decode_clear(bmc_d);
-
-    // Clear lastmsg - TODO: move this to function
-    for(uint8_t i = 0; i < 56; i++) {
-	lastmsg.raw_bytes[i] = 0;
-    }
 
     // Setup tasks
-    BaseType_t status_task_proc = xTaskCreate(thread_proc, "PROC_THREAD", 128, NULL, 1, &tskhdl_proc);
-    //BaseType_t status_task_test = xTaskCreate(thread_test, "TEST_THREAD", 128, NULL, 1, &tskhdl_test);
-    //BaseType_t status_task_print = xTaskCreate(thread_print, "PRINT_TASK", 128, NULL, 1, &tskhdl_print);
+    BaseType_t status_task_rx_frame = xTaskCreate(thread_rx_process, "PROC_THREAD", 1024, NULL, 1, &tskhdl_pd_rxf);
 
-    if(status_task_proc == pdPASS) {
+    if(status_task_rx_frame == pdPASS) {
 	// Setup the queues
 	queue_rx_pio = xQueueCreate(1000, sizeof(rx_data));
 	queue_rx_validFrame = xQueueCreate(10, sizeof(pd_frame));
-	queue_proc = xQueueCreate(4, sizeof(pd_frame));
-	queue_print = xQueueCreate(4, sizeof(pd_frame));
 	
 	// Start the scheduler
 	vTaskStartScheduler();
