@@ -64,6 +64,11 @@ void bmc_decode_clear(bmcDecode* bmc_d) {
     bmc_d->pOffset = 0;
     bmc_d->crcTmp = 0;
 }
+void pd_frame_clear(pd_frame *pdf) {
+    for(uint8_t i = 0; i < 56; i++) {
+	pdf->raw_bytes[i] = 0;
+    }
+}
 int bmcProcessSymbols(bmcDecode* bmc_d, QueueHandle_t q_validPdf) {
     uint8_t internal_stage;
     uint8_t input_offset = 0;
@@ -236,9 +241,7 @@ int bmcProcessSymbols(bmcDecode* bmc_d, QueueHandle_t q_validPdf) {
 		bmc_d->crcTmp = 0;
 
 		// Reset PD msg
-		for(uint8_t i = 0; i < 56; i++) {
-		    bmc_d->msg->raw_bytes[i] = 0;
-		}
+		pd_frame_clear(bmc_d->msg);
 		break;
 	    default  ://Error
 		//TODO - Implement error handling

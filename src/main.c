@@ -20,9 +20,11 @@ PIO pio = pio0;
 // Queues
 QueueHandle_t queue_rx_pio = NULL;		// PD Frame:	Raw PIO output pipeline (1st stage)
 QueueHandle_t queue_rx_validFrame = NULL;	// PD Frame:	Valid USB-PD frame	(2nd stage)
+QueueHandle_t queue_policy = NULL;		// PD Frame:	Input to policy thread	(3rd stage)
 
 // Task Handles (Thread Handles)
 TaskHandle_t tskhdl_pd_rxf = NULL;	// Task handle: RX frame receiver
+TaskHandle_t tskhdl_pd_pol = NULL;	// Task handle: USB-PD policy
 
 
 void bmc_rx_check() {
@@ -83,24 +85,25 @@ void thread_rx_process(void* unused_arg) {
         
 	// Check for complete pd_frame data
 	if(xQueueReceive(queue_rx_validFrame, &rxdPdf, 0) && ((rxdPdf->frametype & 0x80) || (rxdPdf->hdr & 0x80))) { // If rxd && CRC is valid or extended frame
-	    // Determine what to do with that data
-	    //
-	    // TODO
-	    if((rxdPdf->frametype & 0x7) == 3) {
-		printf("%u - SOP Header: %X %X:%X:%X -- %u\n", rxdPdf->timestamp_us, rxdPdf->hdr, rxdPdf->obj[0], rxdPdf->obj[1], rxdPdf->obj[2], (rxdPdf->frametype & 0x80));
-	    } else if((rxdPdf->frametype & 0x7) == 4) {
-		printf("%u - SOP' Header: %X %X:%X:%X\n", rxdPdf->timestamp_us, rxdPdf->hdr, rxdPdf->obj[0], rxdPdf->obj[1], rxdPdf->obj[2]);
-	    }
-
+	    xQueueSendToBack(queue_policy, rxdPdf, portMAX_DELAY);
 	    // Free memory at pointer to avoid memory leak
 	    free(rxdPdf);
 	}
+    }
+}
+void thread_rx_policy(void *unused_arg) {
+    pd_frame *cFrame = malloc(sizeof(pd_frame));
+    pd_frame latestSrcCap, latestReqDataObj;
+    pd_frame_clear(&latestSrcCap);
+    pd_frame_clear(&latestReqDataObj);
 
-	// Print debug messages - TODO: remove
-	//printf("Time/Input: %X:%X\n", bmc_d->msg->timestamp_us, bmc_d->inBuf);
-	//printf("procBuf/pOffset: %X:%X\n", bmc_d->procBuf, bmc_d->pOffset);
-	//printf("procStage/SubStage: %u:%u\n", bmc_d->procStage, bmc_d->procSubStage);
-	//printf("%X %X %X %X\n", bmc_d->msg->hdr, bmc_d->msg->obj[0], bmc_d->msg->obj[1], bmc_d->crcTmp);
+    while(true) {
+	xQueueReceive(queue_policy, cFrame, portMAX_DELAY);
+	if((cFrame->frametype & 0x7) == 3) {
+	    printf("%u - SOP Header: %X %X:%X:%X\n", cFrame->timestamp_us, cFrame->hdr, cFrame->obj[0], cFrame->obj[1], cFrame->obj[2]);
+	} else if((cFrame->frametype & 0x7) == 4) {
+	    printf("%u - SOP' Header: %X %X:%X:%X\n", cFrame->timestamp_us, cFrame->hdr, cFrame->obj[0], cFrame->obj[1], cFrame->obj[2]);
+	}
     }
 }
 int main() {
@@ -131,11 +134,13 @@ int main() {
 
     // Setup tasks
     BaseType_t status_task_rx_frame = xTaskCreate(thread_rx_process, "PROC_THREAD", 1024, NULL, 1, &tskhdl_pd_rxf);
+    BaseType_t status_task_policy = xTaskCreate(thread_rx_policy, "POLICY_THREAD", 1024, NULL, 2, &tskhdl_pd_pol);
 
     if(status_task_rx_frame == pdPASS) {
 	// Setup the queues
 	queue_rx_pio = xQueueCreate(1000, sizeof(rx_data));
 	queue_rx_validFrame = xQueueCreate(10, sizeof(pd_frame));
+	queue_policy = xQueueCreate(10, sizeof(pd_frame));
 	
 	// Start the scheduler
 	vTaskStartScheduler();
