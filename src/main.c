@@ -90,7 +90,32 @@ void thread_rx_process(void* unused_arg) {
     }
 }
 char *sop_type_str(uint8_t frametype_input) {
-    
+    switch(frametype_input & 0x7) {
+	case (1) :
+	    return "Hard Rst";
+	    break;
+	case (2) :
+	    return "Cable Rst";
+	    break;
+	case (3) :
+	    return "SOP";
+	    break;
+	case (4) :
+	    return "SOP'";
+	    break;
+	case (5) :
+	    return "SOP\"";
+	    break;
+	case (6) :
+	    return "SOP' Dbg";
+	    break;
+	case (7) :
+	    return "SOP\' Dbg";
+	    break;
+	default :
+	    return "Unknown";
+	    break;
+    }
 }
 void thread_rx_policy(void *unused_arg) {
     pd_frame *cFrame = malloc(sizeof(pd_frame));
@@ -100,11 +125,7 @@ void thread_rx_policy(void *unused_arg) {
 
     while(true) {
 	xQueueReceive(queue_policy, cFrame, portMAX_DELAY);
-	if((cFrame->frametype & 0x7) == 3) {
-	    printf("%u - SOP Header: %X %X:%X:%X\n", cFrame->timestamp_us, cFrame->hdr, cFrame->obj[0], cFrame->obj[1], cFrame->obj[2]);
-	} else if((cFrame->frametype & 0x7) == 4) {
-	    printf("%u - SOP' Header: %X %X:%X:%X\n", cFrame->timestamp_us, cFrame->hdr, cFrame->obj[0], cFrame->obj[1], cFrame->obj[2]);
-	}
+	printf("%u - %s Header: %X %X:%X:%X\n", cFrame->timestamp_us, sop_type_str(cFrame->frametype), cFrame->hdr, cFrame->obj[0], cFrame->obj[1], cFrame->obj[2]);
     }
 }
 int main() {
