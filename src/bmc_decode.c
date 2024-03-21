@@ -69,6 +69,21 @@ void pd_frame_clear(pd_frame *pdf) {
 	pdf->raw_bytes[i] = 0;
     }
 }
+void pd_frame_queue_and_reset(bmcDecode* bmc_d, QueueHandle_t q_validPdf) {
+    // Send complete pd_frame for evaluation (regardless of CRC validation status)
+    xQueueSendToBack(q_validPdf, (void *) &bmc_d->msg, portMAX_DELAY);
+
+    // Allocate another pd_frame
+    bmc_d->msg = malloc(sizeof(pd_frame));
+
+    // Reset process stage to zero
+    bmc_d->procStage = 0;
+    bmc_d->procSubStage = 0;
+    bmc_d->crcTmp = 0;
+
+    // Reset PD msg
+    pd_frame_clear(bmc_d->msg);
+}
 int bmcProcessSymbols(bmcDecode* bmc_d, QueueHandle_t q_validPdf) {
     uint8_t internal_stage;
     uint8_t input_offset = 0;
@@ -136,9 +151,11 @@ int bmcProcessSymbols(bmcDecode* bmc_d, QueueHandle_t q_validPdf) {
 		    switch(bmc_d->procSubStage & 0xFFFFF) {
 	    		case (0b11001001110011100111) : // Hard Reset
 			    bmc_d->msg->frametype = 1;
+			    bmc_d->procStage = 0;
 			    break;
 			case (0b00110001111100000111) : // Cable Reset
 			    bmc_d->msg->frametype = 2;
+			    bmc_d->procStage = 0;
 			    break;
 	    		case (0b10001110001100011000) : // SOP
 			    bmc_d->msg->frametype = 3;
@@ -158,8 +175,12 @@ int bmcProcessSymbols(bmcDecode* bmc_d, QueueHandle_t q_validPdf) {
 			default:
 			    break;
 		    }
-		    bmc_d->procStage++;
-		    bmc_d->procSubStage = 0;
+		    if(bmc_d->procStage) {
+			bmc_d->procStage++;
+			bmc_d->procSubStage = 0;
+		    } else {
+			pd_frame_queue_and_reset(bmc_d, q_validPdf);
+		    }
 		}
 		break;
 	    case (2) :// PD Header
@@ -229,19 +250,8 @@ int bmcProcessSymbols(bmcDecode* bmc_d, QueueHandle_t q_validPdf) {
 		bmc_d->procBuf >>= 5;
 		bmc_d->pOffset -= 5;
 
-		// Send complete pd_frame for evaluation (regardless of CRC validation status)
-		xQueueSendToBack(q_validPdf, (void *) &bmc_d->msg, portMAX_DELAY);
-
-		// Allocate another pd_frame
-		bmc_d->msg = malloc(sizeof(pd_frame));
-
-		// Reset process stage to zero
-		bmc_d->procStage = 0;
-		bmc_d->procSubStage = 0;
-		bmc_d->crcTmp = 0;
-
-		// Reset PD msg
-		pd_frame_clear(bmc_d->msg);
+		// Add to valid frame queue (regardless of CRC status) && reset the decode variables
+		pd_frame_queue_and_reset(bmc_d, q_validPdf);
 		break;
 	    default  ://Error
 		//TODO - Implement error handling

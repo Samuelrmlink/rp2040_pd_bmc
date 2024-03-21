@@ -56,9 +56,7 @@ void thread_rx_process(void* unused_arg) {
 
     // Clear variables
     bmc_decode_clear(bmc_d);
-    for(uint8_t i = 0; i < 56; i++) {
-	bmc_d->msg->raw_bytes[i] = 0;
-    }
+    pd_frame_clear(bmc_d->msg);
 
     while(true) {
 	// Block this thread if we are in the awaiting preamble stage
@@ -90,6 +88,9 @@ void thread_rx_process(void* unused_arg) {
 	    free(rxdPdf);
 	}
     }
+}
+char *sop_type_str(uint8_t frametype_input) {
+    
 }
 void thread_rx_policy(void *unused_arg) {
     pd_frame *cFrame = malloc(sizeof(pd_frame));
