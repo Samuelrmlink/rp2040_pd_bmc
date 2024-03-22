@@ -93,11 +93,6 @@ int bmcProcessSymbols(bmcDecode* bmc_d, QueueHandle_t q_validPdf) {
 	return -1; // Error - unprocessed symbols in 4b5b process buffer
     }
 
-    // Assign starting timestamp to new PD frames
-    if(!bmc_d->msg->timestamp_us) {
-	bmc_d->msg->timestamp_us = bmc_d->pioData.time;
-    }
-
     // Copy some data from input buffer to process buffer
     uint8_t remainOffset = bmc_d->pOffset;
     bmc_d->procBuf |= bmc_d->pioData.val << remainOffset;
@@ -106,6 +101,7 @@ int bmcProcessSymbols(bmcDecode* bmc_d, QueueHandle_t q_validPdf) {
 
     // Run in a while loop until all full symbols have been processed
     while(bmc_d->pOffset > 4 && !breakout) {
+
 	// If there were remainder bits that can now fit into procBuf - TODO: move this into a function or macro
 	if(remainOffset && (bmc_d->pOffset <= 27)) {
 	    bmc_d->procBuf |= (bmc_d->pioData.val >> 32 - remainOffset) << bmc_d->pOffset;
@@ -256,6 +252,10 @@ int bmcProcessSymbols(bmcDecode* bmc_d, QueueHandle_t q_validPdf) {
 	    default  ://Error
 		//TODO - Implement error handling
 		break;
+	}
+	// Assign starting timestamp to new PD frame (ONLY AFTER exiting the preamble stage!)
+	if(!bmc_d->msg->timestamp_us && bmc_d->procStage) {
+	    bmc_d->msg->timestamp_us = bmc_d->pioData.time;
 	}
     }
 }

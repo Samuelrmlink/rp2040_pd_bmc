@@ -122,10 +122,13 @@ void thread_rx_policy(void *unused_arg) {
     pd_frame latestSrcCap, latestReqDataObj;
     pd_frame_clear(&latestSrcCap);
     pd_frame_clear(&latestReqDataObj);
+    uint32_t timestamp_now = 0;
 
     while(true) {
 	xQueueReceive(queue_policy, cFrame, portMAX_DELAY);
-	printf("%u - %s Header: %X %X:%X:%X\n", cFrame->timestamp_us, sop_type_str(cFrame->frametype), cFrame->hdr, cFrame->obj[0], cFrame->obj[1], cFrame->obj[2]);
+	timestamp_now = time_us_32();
+	if((cFrame->frametype & 0x7) == 3)
+	printf("%u:%u - %s Header: %X %X:%X:%X\n", cFrame->timestamp_us, (timestamp_now - cFrame->timestamp_us), sop_type_str(cFrame->frametype), cFrame->hdr, cFrame->obj[0], cFrame->obj[1], cFrame->obj[2]);
     }
 }
 int main() {
