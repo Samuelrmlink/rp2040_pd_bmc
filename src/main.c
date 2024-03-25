@@ -89,33 +89,27 @@ void thread_rx_process(void* unused_arg) {
 	}
     }
 }
-char *sop_type_str(uint8_t frametype_input) {
-    switch(frametype_input & 0x7) {
-	case (1) :
-	    return "Hard Rst";
-	    break;
-	case (2) :
-	    return "Cable Rst";
-	    break;
-	case (3) :
-	    return "SOP";
-	    break;
-	case (4) :
-	    return "SOP'";
-	    break;
-	case (5) :
-	    return "SOP\"";
-	    break;
-	case (6) :
-	    return "SOP' Dbg";
-	    break;
-	case (7) :
-	    return "SOP\' Dbg";
-	    break;
-	default :
-	    return "Unknown";
-	    break;
+static const char* const sopFrameTypeNames[] = {
+    NULL,
+    "Hard Rst",
+    "Cable Rst",
+    "SOP",
+    "SOP'",
+    "SOP\"",
+    "SOP' Dbg",
+    "SOP\" Dbg"
+};
+PDMessageType pdf_get_sop_msg_type(pd_frame *msg) {
+    uint8_t msgType = 0;
+    if(msg->hdr & 0x8000) {		// Extended message
+	msgType = 1 << 7;
+    } else if(msg->hdr & 0x7000) {	// Data message
+	msgType = 1 << 6;
+    } else {
+	msgType = 0;
     }
+
+    // Apply 
 }
 void thread_rx_policy(void *unused_arg) {
     pd_frame *cFrame = malloc(sizeof(pd_frame));
@@ -123,12 +117,12 @@ void thread_rx_policy(void *unused_arg) {
     pd_frame_clear(&latestSrcCap);
     pd_frame_clear(&latestReqDataObj);
     uint32_t timestamp_now = 0;
+    PDMessageType msgType;
 
     while(true) {
 	xQueueReceive(queue_policy, cFrame, portMAX_DELAY);
 	timestamp_now = time_us_32();
-	if((cFrame->frametype & 0x7) == 3)
-	printf("%u:%u - %s Header: %X %X:%X:%X\n", cFrame->timestamp_us, (timestamp_now - cFrame->timestamp_us), sop_type_str(cFrame->frametype), cFrame->hdr, cFrame->obj[0], cFrame->obj[1], cFrame->obj[2]);
+	printf("%u:%u - %s Header: %X %X:%X:%X\n", cFrame->timestamp_us, (timestamp_now - cFrame->timestamp_us), sopFrameTypeNames[cFrame->frametype & 0x7], cFrame->hdr, cFrame->obj[0], cFrame->obj[1], cFrame->obj[2]);
     }
 }
 int main() {
