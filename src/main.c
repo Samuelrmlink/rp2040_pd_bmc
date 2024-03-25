@@ -105,11 +105,11 @@ PDMessageType pdf_get_sop_msg_type(pd_frame *msg) {
 	msgType = 1 << 7;
     } else if(msg->hdr & 0x7000) {	// Data message
 	msgType = 1 << 6;
-    } else {
+    } else {				// Control messsage
 	msgType = 0;
     }
-
-    // Apply 
+    msgType |= msg->hdr & 0x1f;
+    return (PDMessageType) msgType;
 }
 void thread_rx_policy(void *unused_arg) {
     pd_frame *cFrame = malloc(sizeof(pd_frame));
@@ -122,7 +122,10 @@ void thread_rx_policy(void *unused_arg) {
     while(true) {
 	xQueueReceive(queue_policy, cFrame, portMAX_DELAY);
 	timestamp_now = time_us_32();
+	if((cFrame->frametype & 0x7) == 3)
+	    printf("MsgType: %X | ", pdf_get_sop_msg_type(cFrame));
 	printf("%u:%u - %s Header: %X %X:%X:%X\n", cFrame->timestamp_us, (timestamp_now - cFrame->timestamp_us), sopFrameTypeNames[cFrame->frametype & 0x7], cFrame->hdr, cFrame->obj[0], cFrame->obj[1], cFrame->obj[2]);
+
     }
 }
 int main() {
