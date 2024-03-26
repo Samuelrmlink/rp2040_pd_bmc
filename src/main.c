@@ -89,16 +89,6 @@ void thread_rx_process(void* unused_arg) {
 	}
     }
 }
-static const char* const sopFrameTypeNames[] = {
-    NULL,
-    "Hard Rst",
-    "Cable Rst",
-    "SOP",
-    "SOP'",
-    "SOP\"",
-    "SOP' Dbg",
-    "SOP\" Dbg"
-};
 PDMessageType pdf_get_sop_msg_type(pd_frame *msg) {
     uint8_t msgType = 0;
     if(msg->hdr & 0x8000) {		// Extended message
@@ -122,9 +112,7 @@ void thread_rx_policy(void *unused_arg) {
     while(true) {
 	xQueueReceive(queue_policy, cFrame, portMAX_DELAY);
 	timestamp_now = time_us_32();
-	if((cFrame->frametype & 0x7) == 3)
-	    printf("MsgType: %X | ", pdf_get_sop_msg_type(cFrame));
-	printf("%u:%u - %s Header: %X %X:%X:%X\n", cFrame->timestamp_us, (timestamp_now - cFrame->timestamp_us), sopFrameTypeNames[cFrame->frametype & 0x7], cFrame->hdr, cFrame->obj[0], cFrame->obj[1], cFrame->obj[2]);
+	printf("%u:%u - %s Header: %X %s | %X:%X:%X\n", cFrame->timestamp_us, (timestamp_now - cFrame->timestamp_us), sopFrameTypeNames[cFrame->frametype & 0x7], cFrame->hdr, pdMsgTypeNames[pdf_get_sop_msg_type(cFrame)], cFrame->obj[0], cFrame->obj[1], cFrame->obj[2]);
 
     }
 }

@@ -3,6 +3,18 @@
 
 #include <stdio.h>
 
+// USB-PD Frame Type
+static const char* const sopFrameTypeNames[] = {
+    NULL,
+    "Hard Rst",
+    "Cable Rst",
+    "SOP",
+    "SOP'",
+    "SOP\"",
+    "SOP' Dbg",
+    "SOP\" Dbg"
+};
+
 // USB-PD Message Type
 typedef enum {
     // Control messages (no extended bit in header && no data objects)
@@ -65,5 +77,54 @@ typedef enum {
     extMsgEprSinkCap		= 0x92,
     extMsgVendorDefinedExt	= 0x9e
 } PDMessageType;
+
+// USB-PD Message Type - strings array
+static const char* const pdMsgTypeNames[] = {
+    [(int)controlMsgGoodCrc]		= "GoodCRC",
+    [(int)controlMsgGotoMin]		= "GotoMin",
+    [(int)controlMsgAccept]		= "Accept",
+    [(int)controlMsgReject]		= "Reject",
+    [(int)controlMsgPing]		= "Ping",
+    [(int)controlMsgPsReady]		= "PS_Ready",
+    [(int)controlMsgGetSourceCap]	= "Get_Source_Cap",
+    [(int)controlMsgGetSinkCap]		= "Get_Sink_Cap",
+    [(int)controlMsgDataRoleSwap ]	= "Data_Role_Swap ",
+    [(int)controlMsgPowerRoleSwap ]	= "Power_Role_Swap ",
+    [(int)controlMsgVconnSwap]		= "VCONN_Swap",
+    [(int)controlMsgWait]		= "Wait",
+    [(int)controlMsgSoftReset]		= "Soft_Reset",
+    [(int)controlMsgDataReset]		= "Data_Reset",
+    [(int)controlMsgDataResetComplete]	= "Data_Reset_Complete",
+    [(int)controlMsgNotSupported]	= "Not_Supported",
+    [(int)controlMsgGetSourceCapExt]	= "Get_Source_Cap_Ext",
+    [(int)controlMsgGetStatus]		= "Get_Status",
+    [(int)controlMsgFastRoleSwap]	= "Fast_Role_Swap",
+    [(int)controlMsgGetPpsStatus]	= "Get_PPS_Status",
+    [(int)controlMsgGetCountryCodes]	= "Get_Country_Codes",
+    [(int)controlMsgGetSinkCapExt]	= "Get_Sink_Cap_Ext",
+    [(int)dataMsgSourceCap]		= "Source Capabilities",
+    [(int)dataMsgRequest]		= "Request",
+    [(int)dataMsgBist]			= "BIST",
+    [(int)dataMsgSinkCap]		= "Sink Capabilities",
+    [(int)dataMsgBatteryStatus]		= "Battery_Status",
+    [(int)dataMsgAlert]			= "Alert",
+    [(int)dataMsgGetCountryInfo]	= "Get_Country_Info",
+    [(int)dataMsgEnterUsb]		= "Enter_USB",
+    [(int)dataMsgEprRequest]		= "EPR_Request",
+    [(int)dataMsgEprMode]		= "EPR_Mode",
+    [(int)dataMsgSourceInfo]		= "Source_Info",
+    [(int)dataMsgRevision]		= "Revision",
+    [(int)dataMsgVendorDefined]		= "Vendor_Defined",
+    [(int)extMsgSourceCapExt]		= "Source_Cap_Ext",
+    [(int)extMsgStatus]			= "Status",
+    [(int)extMsgGetBatteryCap]		= "Get_Battery_Cap",
+    [(int)extMsgGetBatteryStatus]	= "Get_Battery_Status",
+    [(int)extMsgBatteryCap]		= "Battery_Cap",
+    [(int)extMsgGetManufacturerInfo]	= "Get_Manufacturer_Info",
+    [(int)extMsgManufacturerInfo]	= "Manufacturer_Info",
+    [(int)extMsgSecurityRequest]	= "Security_Request",
+    [(int)extMsgSecurityResponse]	= "Security_Response",
+    [(int)extMsgFirmwareUpdateRequest]	= "Firmware_Update_Request",
+};
 
 #endif
