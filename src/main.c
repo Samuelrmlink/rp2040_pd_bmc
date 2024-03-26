@@ -43,7 +43,12 @@ void bmc_rx_cb() {
 	pio_interrupt_clear(pio, 0);
     } 
 }
-
+void individual_pin_toggle(uint8_t pin_num) {
+    if(gpio_get(pin_num))
+	gpio_clr_mask(1 << pin_num); // Drive pin low
+    else
+	gpio_set_mask(1 << pin_num); // Drive pin high
+}
 /*
  *	USB-PD PIO data -> pd_frame data structure (as defined in pdb_msg.h header file)
  *
@@ -66,7 +71,7 @@ void thread_rx_process(void* unused_arg) {
 	// Otherwise check the queue without blocking (provide some time)
 	} else {
 	    if(!xQueueReceive(queue_rx_pio, &bmc_d->pioData, 0)) {
-		sleep_us(120);
+		busy_wait_us(120);
 		if(!xQueueReceive(queue_rx_pio, &bmc_d->pioData, 0)) {
 		    // TODO - add PIO flush function here
 		    irq_set_enabled(PIO0_IRQ_0, false);
@@ -111,16 +116,17 @@ void thread_rx_policy(void *unused_arg) {
 
     while(true) {
 	xQueueReceive(queue_policy, cFrame, portMAX_DELAY);
+	individual_pin_toggle(10);
 	timestamp_now = time_us_32();
-	printf("%u:%u - %s Header: %X %s | %X:%X:%X\n", cFrame->timestamp_us, (timestamp_now - cFrame->timestamp_us), sopFrameTypeNames[cFrame->frametype & 0x7], cFrame->hdr, pdMsgTypeNames[pdf_get_sop_msg_type(cFrame)], cFrame->obj[0], cFrame->obj[1], cFrame->obj[2]);
+	//printf("%u:%u - %s Header: %X %s | %X:%X:%X\n", cFrame->timestamp_us, (timestamp_now - cFrame->timestamp_us), sopFrameTypeNames[cFrame->frametype & 0x7], cFrame->hdr, pdMsgTypeNames[pdf_get_sop_msg_type(cFrame)], cFrame->obj[0], cFrame->obj[1], cFrame->obj[2]);
 
     }
 }
 int main() {
     // Initialize IO & PIO
     stdio_init_all();
-    gpio_init(8);
-    gpio_set_dir(8, GPIO_OUT);
+    gpio_init(10);
+    gpio_set_dir(10, GPIO_OUT);
 
     /* Initialize TX FIFO*/
     uint offset_tx = pio_add_program(pio, &differential_manchester_tx_program);

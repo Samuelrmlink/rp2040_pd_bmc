@@ -16,6 +16,7 @@ struct bmcDecode {
     uint8_t pOffset;
     uint32_t crcTmp;
     pd_frame *msg;
+    uint32_t lastMsgTime;
 };
 
 int bmcProcessSymbols(bmcDecode* bmc_d, QueueHandle_t q_validPdf);
