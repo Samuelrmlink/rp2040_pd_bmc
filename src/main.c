@@ -71,7 +71,7 @@ void thread_rx_process(void* unused_arg) {
 	// Otherwise check the queue without blocking (provide some time)
 	} else {
 	    if(!xQueueReceive(queue_rx_pio, &bmc_d->pioData, 0)) {
-		busy_wait_us(120);
+		sleep_us(120);
 		if(!xQueueReceive(queue_rx_pio, &bmc_d->pioData, 0)) {
 		    // TODO - add PIO flush function here
 		    irq_set_enabled(PIO0_IRQ_0, false);
@@ -87,7 +87,7 @@ void thread_rx_process(void* unused_arg) {
         bmcProcessSymbols(bmc_d, queue_rx_validFrame);
         
 	// Check for complete pd_frame data
-	if(xQueueReceive(queue_rx_validFrame, &rxdPdf, 0) && ((rxdPdf->frametype & 0x80) || (rxdPdf->hdr & 0x80))) { // If rxd && CRC is valid or extended frame
+	if(xQueueReceive(queue_rx_validFrame, &rxdPdf, 0) && is_crc_good(rxdPdf)) { // If rxd && CRC is valid
 	    xQueueSendToBack(queue_policy, rxdPdf, portMAX_DELAY);
 	    // Free memory at pointer to avoid memory leak
 	    free(rxdPdf);
@@ -113,13 +113,19 @@ void thread_rx_policy(void *unused_arg) {
     pd_frame_clear(&latestReqDataObj);
     uint32_t timestamp_now = 0;
     PDMessageType msgType;
+    bool analyzer_mode = true;
 
     while(true) {
 	xQueueReceive(queue_policy, cFrame, portMAX_DELAY);
 	individual_pin_toggle(10);
 	timestamp_now = time_us_32();
-	//printf("%u:%u - %s Header: %X %s | %X:%X:%X\n", cFrame->timestamp_us, (timestamp_now - cFrame->timestamp_us), sopFrameTypeNames[cFrame->frametype & 0x7], cFrame->hdr, pdMsgTypeNames[pdf_get_sop_msg_type(cFrame)], cFrame->obj[0], cFrame->obj[1], cFrame->obj[2]);
+	printf("%u:%u - %s Header: %X %s | %X:%X:%X\n", cFrame->timestamp_us, (timestamp_now - cFrame->timestamp_us), sopFrameTypeNames[cFrame->frametype & 0x7], cFrame->hdr, pdMsgTypeNames[pdf_get_sop_msg_type(cFrame)], cFrame->obj[0], cFrame->obj[1], cFrame->obj[2]);
+	if(is_crc_good(cFrame) && (pdf_get_sop_msg_type(cFrame) != controlMsgGoodCrc) && !analyzer_mode) {
+	    // Start generating a GoodCRC response frame
 
+	    // Send the response frame to the TX thread
+
+	}
     }
 }
 int main() {

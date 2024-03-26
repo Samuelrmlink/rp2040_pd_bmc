@@ -69,6 +69,12 @@ void pd_frame_clear(pd_frame *pdf) {
 	pdf->raw_bytes[i] = 0;
     }
 }
+bool is_crc_good(pd_frame *pdf) {
+    if(pdf->frametype & 0x80)
+	return true;
+    else
+	return false;
+}
 void pd_frame_queue_and_reset(bmcDecode* bmc_d, QueueHandle_t q_validPdf) {
     // Send complete pd_frame for evaluation (regardless of CRC validation status)
     xQueueSendToBack(q_validPdf, (void *) &bmc_d->msg, portMAX_DELAY);
