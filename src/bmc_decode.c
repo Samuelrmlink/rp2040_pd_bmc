@@ -76,7 +76,7 @@ bool is_crc_good(pd_frame *pdf) {
 	return false;
 }
 bool is_sop_frame(pd_frame *pdf) {
-    if((pdf->frametype & 0x7) == 3) {
+    if((pdf->frametype & 0x7) == 3)
 	return true;
     else 
 	return false;

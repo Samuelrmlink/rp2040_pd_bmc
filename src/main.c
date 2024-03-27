@@ -129,7 +129,7 @@ void pdf_generate_goodcrc(pd_frame *input_frame, txFrame *tx) {
     tx->crc = crc32_pdframe_calc(tx->pdf);
 }
 void pdf_to_uint32(txFrame *txf) {
-    uint8_t num_obj = (txf->hdr >> 12) & 0x7;
+    uint8_t num_obj = (txf->pdf->hdr >> 12) & 0x7;
     uint16_t data_bits_req = 20		// SOP sequence
 		+(10 * 2)		// Header
 		+(10 * 4 * num_obj)	// Data Objects (extended header is here when chunked)
