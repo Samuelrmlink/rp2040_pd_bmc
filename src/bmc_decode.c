@@ -75,6 +75,12 @@ bool is_crc_good(pd_frame *pdf) {
     else
 	return false;
 }
+bool is_sop_frame(pd_frame *pdf) {
+    if((pdf->frametype & 0x7) == 3) {
+	return true;
+    else 
+	return false;
+}
 void pd_frame_queue_and_reset(bmcDecode* bmc_d, QueueHandle_t q_validPdf) {
     // Send complete pd_frame for evaluation (regardless of CRC validation status)
     xQueueSendToBack(q_validPdf, (void *) &bmc_d->msg, portMAX_DELAY);

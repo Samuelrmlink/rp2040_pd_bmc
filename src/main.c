@@ -106,8 +106,46 @@ PDMessageType pdf_get_sop_msg_type(pd_frame *msg) {
     msgType |= msg->hdr & 0x1f;
     return (PDMessageType) msgType;
 }
+struct txFrame {
+    pd_frame *pdf;
+    uint32_t crc;
+
+    uint8_t num_u32;
+    uint32_t *out;
+};
+typedef struct txFrame txFrame;
+void pdf_generate_goodcrc(pd_frame *input_frame, txFrame *tx) {
+    // Ensure we start with a clean slate
+    pd_frame_clear(tx->pdf);
+
+    // Apply the correct frametype (SOP = 3, SOP' = 4, etc...) - don't transfer the CRC okay bit
+    tx->pdf->frametype = input_frame->frametype & 0x7;
+
+    // Transfer the MsgID, Spec Rev. and apply the GoodCRC Msg Type.
+    // TODO - implement policy states for both current/perferred Power Sink/Source, Data UFP/DFP roles
+    tx->pdf->hdr = (input_frame->hdr & 0xE00) | (input_frame->hdr & 0xC0) | (uint8_t)controlMsgGoodCrc;
+
+    // Generate CRC32
+    tx->crc = crc32_pdframe_calc(tx->pdf);
+}
+void pdf_to_uint32(txFrame *txf) {
+    uint8_t num_obj = (txf->hdr >> 12) & 0x7;
+    uint16_t data_bits_req = 20		// SOP sequence
+		+(10 * 2)		// Header
+		+(10 * 4 * num_obj)	// Data Objects (extended header is here when chunked)
+    		+(10 * 4);		// CRC32
+    uint16_t total_bits_req = data_bits_req + 64;
+    txf->num_u32 = total_bits_req / 32;
+    // Round up if more bits are required
+    if(total_bits_req % 32) { txf->num_u32 += 1; }
+    
+
+}
 void thread_rx_policy(void *unused_arg) {
+    // TODO - implement policy states for both current/perferred Power Sink/Source, Data UFP/DFP roles
     pd_frame *cFrame = malloc(sizeof(pd_frame));
+    txFrame *txf = malloc(sizeof(txFrame));
+    txf->pdf = malloc(sizeof(pd_frame));
     pd_frame latestSrcCap, latestReqDataObj;
     pd_frame_clear(&latestSrcCap);
     pd_frame_clear(&latestReqDataObj);
@@ -120,8 +158,10 @@ void thread_rx_policy(void *unused_arg) {
 	individual_pin_toggle(10);
 	timestamp_now = time_us_32();
 	printf("%u:%u - %s Header: %X %s | %X:%X:%X\n", cFrame->timestamp_us, (timestamp_now - cFrame->timestamp_us), sopFrameTypeNames[cFrame->frametype & 0x7], cFrame->hdr, pdMsgTypeNames[pdf_get_sop_msg_type(cFrame)], cFrame->obj[0], cFrame->obj[1], cFrame->obj[2]);
-	if(is_crc_good(cFrame) && (pdf_get_sop_msg_type(cFrame) != controlMsgGoodCrc) && !analyzer_mode) {
+	if(is_crc_good(cFrame) && (pdf_get_sop_msg_type(cFrame) != controlMsgGoodCrc) && is_sop_frame(cFrame) && !analyzer_mode) {
 	    // Start generating a GoodCRC response frame
+	    pdf_generate_goodcrc(cFrame, txf);
+	    pdf_to_uint32(txf);
 
 	    // Send the response frame to the TX thread
 
