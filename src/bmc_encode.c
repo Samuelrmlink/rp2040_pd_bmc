@@ -26,9 +26,9 @@ void pdf_to_uint32(txFrame *txf) {
     if(total_bits_req % 32) { txf->num_u32 += 1; }
 
     // Allocate memory for u32 values
-    tx->out = malloc(sizeof(uint32_t) * txf->num_u32);
+    txf->out = malloc(sizeof(uint32_t) * txf->num_u32);
     //printf("Total bits required: %u\nNum u32:%u\n", total_bits_req, txf->num_u32);
 
     // Start building the uint32 array
-    uint16_t 
+    
 }

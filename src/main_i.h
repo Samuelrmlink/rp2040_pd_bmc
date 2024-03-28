@@ -22,5 +22,6 @@
 #include "crc32.h"
 #include "bmc_decode.h"
 #include "pd_message.h"
+#include "bmc_encode.h"
 
 #endif
