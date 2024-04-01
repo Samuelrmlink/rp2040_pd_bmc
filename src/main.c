@@ -137,8 +137,8 @@ void thread_rx_policy(void *unused_arg) {
 int main() {
     // Initialize IO & PIO
     stdio_init_all();
-    gpio_init(10);
-    gpio_set_dir(10, GPIO_OUT);
+    gpio_init(10 | 8);
+    gpio_set_dir(10 | 8, GPIO_OUT);
 
     /* Initialize TX FIFO*/
     uint offset_tx = pio_add_program(pio, &differential_manchester_tx_program);
@@ -158,7 +158,7 @@ int main() {
 
     pio_set_irq0_source_enabled(pio, pis_interrupt0, true);
     irq_set_exclusive_handler(PIO0_IRQ_0, bmc_rx_cb);
-    irq_set_enabled(PIO0_IRQ_0, true);
+    //irq_set_enabled(PIO0_IRQ_0, true);
 
     // Setup tasks
     BaseType_t status_task_rx_frame = xTaskCreate(thread_rx_process, "PROC_THREAD", 1024, NULL, 1, &tskhdl_pd_rxf);
@@ -169,6 +169,39 @@ int main() {
 	queue_rx_pio = xQueueCreate(1000, sizeof(rx_data));
 	queue_rx_validFrame = xQueueCreate(10, sizeof(pd_frame));
 	queue_policy = xQueueCreate(10, sizeof(pd_frame));
+
+    pio_sm_set_enabled(pio, SM_TX, true);
+    while(true) {
+        //printf("%08x\n", pio_sm_get_blocking(pio, SM_RX));
+        printf("T");
+        gpio_set_mask(1 << 10);
+        busy_wait_us(3);
+        pio_sm_put_blocking(pio, SM_TX, 0xaaaaaaa0);
+        pio_sm_put_blocking(pio, SM_TX, 0xaaaaaaaa);
+        pio_sm_put_blocking(pio, SM_TX, 0x5d31b18a);
+        pio_sm_put_blocking(pio, SM_TX, 0xb4bc94fa);
+        pio_sm_put_blocking(pio, SM_TX, 0x93aef7de);
+        pio_sm_put_blocking(pio, SM_TX, 0xd7e9294a);
+        pio_sm_set_enabled(pio, SM_TX, true);
+        busy_wait_us(590);
+        gpio_clr_mask(1 << 10);
+        busy_wait_us(10000);
+        //individual_pin_toggle(10);
+
+        //sleep_us(6500);
+        /*
+        //pio_sm_put_blocking(pio, SM_TX, 0x00000000);
+        gpio_set_mask(1 << 10); // Drive pin high - enabling tx pulldown
+        // TX pullup will be control by PIO interface (pin 8)
+        pio_sm_set_enabled(pio, SM_TX, true);
+        sleep_us(650);
+        pio_sm_set_enabled(pio, SM_TX, false);
+        gpio_clr_mask(1 << 10);
+        sleep_ms(1000);
+        printf("t");
+        */
+    }
+    printf("Exited loop\n");
 	
 	// Start the scheduler
 	vTaskStartScheduler();
