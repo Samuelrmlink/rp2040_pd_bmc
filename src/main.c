@@ -176,16 +176,16 @@ int main() {
         printf("T");
         gpio_set_mask(1 << 10);
         busy_wait_us(3);
-        pio_sm_put_blocking(pio, SM_TX, 0xaaaaaaa0);
-        pio_sm_put_blocking(pio, SM_TX, 0xaaaaaaaa);
-        pio_sm_put_blocking(pio, SM_TX, 0x5d31b18a);
-        pio_sm_put_blocking(pio, SM_TX, 0xb4bc94fa);
-        pio_sm_put_blocking(pio, SM_TX, 0x93aef7de);
-        pio_sm_put_blocking(pio, SM_TX, 0xd7e9294a);
+        pio_sm_put_blocking(pio, SM_TX, 0x55555555);
+        pio_sm_put_blocking(pio, SM_TX, 0x55555555);//0
+        pio_sm_put_blocking(pio, SM_TX, 0x2e98d8c5);//0
+        pio_sm_put_blocking(pio, SM_TX, 0x5a5e4a7d);//0
+        pio_sm_put_blocking(pio, SM_TX, 0x49d77bef);//0
+        pio_sm_put_blocking(pio, SM_TX, 0x6bf494a5);//0
         pio_sm_set_enabled(pio, SM_TX, true);
         busy_wait_us(590);
         gpio_clr_mask(1 << 10);
-        busy_wait_us(10000);
+        busy_wait_us(1000000);
         //individual_pin_toggle(10);
 
         //sleep_us(6500);
