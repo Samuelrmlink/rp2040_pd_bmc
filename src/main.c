@@ -176,12 +176,12 @@ int main() {
         printf("T");
         gpio_set_mask(1 << 10);
         busy_wait_us(3);
-        pio_sm_put_blocking(pio, SM_TX, 0x55555555);
-        pio_sm_put_blocking(pio, SM_TX, 0x55555555);//0
-        pio_sm_put_blocking(pio, SM_TX, 0x2e98d8c5);//0
-        pio_sm_put_blocking(pio, SM_TX, 0x5a5e4a7d);//0
-        pio_sm_put_blocking(pio, SM_TX, 0x49d77bef);//0
-        pio_sm_put_blocking(pio, SM_TX, 0x6bf494a5);//0
+        pio_sm_put_blocking(pio, SM_TX, 0xAAAAAAA8);
+        pio_sm_put_blocking(pio, SM_TX, 0xAAAAAAAA);//1
+        pio_sm_put_blocking(pio, SM_TX, 0x974c6c62);//1
+        pio_sm_put_blocking(pio, SM_TX, 0xad2f25e3);//1
+        pio_sm_put_blocking(pio, SM_TX, 0xa4ebbdf7);//1
+        pio_sm_put_blocking(pio, SM_TX, 0x35fa4a52);//1
         pio_sm_set_enabled(pio, SM_TX, true);
         busy_wait_us(590);
         gpio_clr_mask(1 << 10);
