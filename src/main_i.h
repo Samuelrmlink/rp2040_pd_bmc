@@ -17,6 +17,7 @@
 #include "hardware/irq.h"
 #include "hardware/timer.h"
 #include "bmc.pio.h"
+#include "4b5b.h"
 #include "pdb_msg.h"
 //#include "bmc_test.h"
 #include "crc32.h"

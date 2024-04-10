@@ -18,6 +18,8 @@ struct bmcEncode {
 
     uint8_t procStage;
     uint32_t procSubStage;
+    uint32_t remainBits;
+    uint8_t numRemainBits;
 
 };
 

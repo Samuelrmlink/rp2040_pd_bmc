@@ -1,61 +1,6 @@
 #include "main_i.h"
-int8_t bmcDecode4b5b(uint8_t fiveB) {
-   int8_t ret; 
-    switch(fiveB & 0x1F) {
-	case (0b11110) :// 0x0
-	    ret = 0x0;
-	    break;
-	case (0b01001) :// 0x1
-	    ret = 0x1;
-	    break;
-	case (0b10100) :// 0x2
-	    ret = 0x2;
-	    break;
-	case (0b10101) :// 0x3
-	    ret = 0x3;
-	    break;
-	case (0b01010) :// 0x4
-	    ret = 0x4;
-	    break;
-	case (0b01011) :// 0x5
-	    ret = 0x5;
-	    break;
-	case (0b01110) :// 0x6
-	    ret = 0x6;
-	    break;
-	case (0b01111) :// 0x7
-	    ret = 0x7;
-	    break;
-	case (0b10010) :// 0x8
-	    ret = 0x8;
-	    break;
-	case (0b10011) :// 0x9
-	    ret = 0x9;
-	    break;
-	case (0b10110) :// 0xA
-	    ret = 0xA;
-	    break;
-	case (0b10111) :// 0xB
-	    ret = 0xB;
-	    break;
-	case (0b11010) :// 0xC
-	    ret = 0xC;
-	    break;
-	case (0b11011) :// 0xD
-	    ret = 0xD;
-	    break;
-	case (0b11100) :// 0xE
-	    ret = 0xE;
-	    break;
-	case (0b11101) :// 0xF
-	    ret = 0xF;
-	    break;
-	default :	// Error condition - invalid symbol (possible K-code symbol or data corruption)
-	    ret = 1 << 7 | fiveB;
-	    break;
-    }
-    return ret;
-}
+#include "4b5b.h"
+
 void bmc_decode_clear(bmcDecode* bmc_d) {
     bmc_d->procStage = 0;
     bmc_d->procSubStage = 0;
@@ -193,7 +138,7 @@ int bmcProcessSymbols(bmcDecode* bmc_d, QueueHandle_t q_validPdf) {
 		break;
 	    case (2) :// PD Header
 		// Process one symbol
-		bmc_d->msg->hdr |= bmcDecode4b5b(bmc_d->procBuf & 0x1F) << (4 * bmc_d->procSubStage);
+		bmc_d->msg->hdr |= bmc5bTo4b[bmc_d->procBuf & 0x1F] << (4 * bmc_d->procSubStage);
 		bmc_d->procBuf >>= 5;
 		bmc_d->pOffset -= 5;
 		if(bmc_d->procSubStage == 3) { // If full header has been received
@@ -210,7 +155,7 @@ int bmcProcessSymbols(bmcDecode* bmc_d, QueueHandle_t q_validPdf) {
 		} else bmc_d->procSubStage++;  // Increment & wait for next symbol in PD header
 		break;
 	    case (3) :// Extended Header (if applicable)
-		bmc_d->msg->obj[0] |= bmcDecode4b5b(bmc_d->procBuf & 0x1F) << 4 * (bmc_d->procSubStage % 8);
+		bmc_d->msg->obj[0] |= bmc5bTo4b[bmc_d->procBuf & 0x1F] << 4 * (bmc_d->procSubStage % 8);
 		bmc_d->procBuf >>= 5;
 		bmc_d->pOffset -= 5;
 		bmc_d->procSubStage++;
@@ -227,7 +172,7 @@ int bmcProcessSymbols(bmcDecode* bmc_d, QueueHandle_t q_validPdf) {
 		}
 		break;
 	    case (4) :// Data Objects (if applicable)
-		bmc_d->msg->obj[bmc_d->procSubStage / 8] |= bmcDecode4b5b(bmc_d->procBuf & 0x1F) << 4 * (bmc_d->procSubStage % 8);
+		bmc_d->msg->obj[bmc_d->procSubStage / 8] |= bmc5bTo4b[bmc_d->procBuf & 0x1F] << 4 * (bmc_d->procSubStage % 8);
 		bmc_d->procBuf >>= 5;
 		bmc_d->pOffset -= 5;
 		bmc_d->procSubStage++;
@@ -239,7 +184,7 @@ int bmcProcessSymbols(bmcDecode* bmc_d, QueueHandle_t q_validPdf) {
 		}
 		break;
 	    case (5) :// CRC32
-		bmc_d->crcTmp |= bmcDecode4b5b(bmc_d->procBuf & 0x1F) << (4 * bmc_d->procSubStage);
+		bmc_d->crcTmp |= bmc5bTo4b[bmc_d->procBuf & 0x1F] << (4 * bmc_d->procSubStage);
 		bmc_d->procBuf >>= 5;
 		bmc_d->pOffset -= 5;
 		bmc_d->procSubStage++;

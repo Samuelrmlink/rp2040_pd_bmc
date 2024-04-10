@@ -121,7 +121,6 @@ void thread_rx_policy(void *unused_arg) {
 
     while(true) {
 	xQueueReceive(queue_policy, cFrame, portMAX_DELAY);
-	individual_pin_toggle(10);
 	timestamp_now = time_us_32();
 	printf("%u:%u - %s Header: %X %s | %X:%X:%X\n", cFrame->timestamp_us, (timestamp_now - cFrame->timestamp_us), sopFrameTypeNames[cFrame->frametype & 0x7], cFrame->hdr, pdMsgTypeNames[pdf_get_sop_msg_type(cFrame)], cFrame->obj[0], cFrame->obj[1], cFrame->obj[2]);
 	if(is_crc_good(cFrame) && (pdf_get_sop_msg_type(cFrame) != controlMsgGoodCrc) && is_sop_frame(cFrame) && !analyzer_mode) {
@@ -158,7 +157,7 @@ int main() {
 
     pio_set_irq0_source_enabled(pio, pis_interrupt0, true);
     irq_set_exclusive_handler(PIO0_IRQ_0, bmc_rx_cb);
-    //irq_set_enabled(PIO0_IRQ_0, true);
+    irq_set_enabled(PIO0_IRQ_0, true);
 
     // Setup tasks
     BaseType_t status_task_rx_frame = xTaskCreate(thread_rx_process, "PROC_THREAD", 1024, NULL, 1, &tskhdl_pd_rxf);
@@ -170,7 +169,9 @@ int main() {
 	queue_rx_validFrame = xQueueCreate(10, sizeof(pd_frame));
 	queue_policy = xQueueCreate(10, sizeof(pd_frame));
 
+/*
     pio_sm_set_enabled(pio, SM_TX, true);
+    irq_set_enabled(PIO0_IRQ_0, false);
     while(true) {
         //printf("%08x\n", pio_sm_get_blocking(pio, SM_RX));
         printf("T");
@@ -186,22 +187,8 @@ int main() {
         busy_wait_us(590);
         gpio_clr_mask(1 << 10);
         busy_wait_us(1000000);
-        //individual_pin_toggle(10);
-
-        //sleep_us(6500);
-        /*
-        //pio_sm_put_blocking(pio, SM_TX, 0x00000000);
-        gpio_set_mask(1 << 10); // Drive pin high - enabling tx pulldown
-        // TX pullup will be control by PIO interface (pin 8)
-        pio_sm_set_enabled(pio, SM_TX, true);
-        sleep_us(650);
-        pio_sm_set_enabled(pio, SM_TX, false);
-        gpio_clr_mask(1 << 10);
-        sleep_ms(1000);
-        printf("t");
-        */
     }
-    printf("Exited loop\n");
+*/
 	
 	// Start the scheduler
 	vTaskStartScheduler();
