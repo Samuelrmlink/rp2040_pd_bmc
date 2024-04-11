@@ -20,6 +20,7 @@ void pdf_to_uint32(txFrame *txf) {
 		+(10 * 2)		// Header
 		+(10 * 4 * num_obj)	// Data Objects (extended header is here when chunked)
     		+(10 * 4);		// CRC32
+		+5;			// EOP symbol
     uint16_t total_bits_req = data_bits_req + 64; // 64 for preamble
     txf->num_u32 = total_bits_req / 32;
     // Round up if more bits are required
