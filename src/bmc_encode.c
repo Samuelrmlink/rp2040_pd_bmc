@@ -50,7 +50,7 @@ void pdf_to_uint32(txFrame *txf) {
 
     // Ensure a clean slate
     for(int i = 0; i < txf->num_u32; i++) {
-      txf->out = 0;
+      txf->out[i] = 0;
     }
 
 
