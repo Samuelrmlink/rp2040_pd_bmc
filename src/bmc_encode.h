@@ -10,6 +10,7 @@ struct txFrame {
 };
 typedef struct txFrame txFrame;
 
+/*
 struct bmcEncode {
     pd_frame *pdf;
     uint32_t crc;
@@ -22,5 +23,6 @@ struct bmcEncode {
     uint8_t numRemainBits;
 
 };
+*/
 
 #endif

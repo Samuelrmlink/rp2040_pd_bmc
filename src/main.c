@@ -189,6 +189,15 @@ int main() {
         busy_wait_us(1000000);
     }
 */
+    // Test raw frame generation - TODO: remove
+    pd_frame *cFrame = malloc(sizeof(pd_frame));
+    txFrame *txf = malloc(sizeof(txFrame));
+    txf->pdf = malloc(sizeof(pd_frame));
+    pdf_generate_goodcrc(cFrame, txf);
+    pdf_to_uint32(txf);
+    for(int i = 0; i < txf->num_u32; i++) {
+        printf("%X\n", *(txf->out));
+    }
 	
 	// Start the scheduler
 	vTaskStartScheduler();
