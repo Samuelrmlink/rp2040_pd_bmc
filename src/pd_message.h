@@ -3,7 +3,22 @@
 
 #include <stdio.h>
 
-// USB-PD Frame Type
+// USB-PD Frame Type Mask
+#define PDF_TYPE_MASK 0x7
+
+// USB-PD Frame Type - strings array
+typedef enum {
+    PdfTypeInvalid,
+    PdfTypeHardReset,
+    PdfTypeCableReset,
+    PdfTypeSop,
+    PdfTypeSopP,
+    PdfTypeSopDp,
+    PdfTypeSopPDbg,
+    PdfTypeSopDpDbg
+} PDFrameType;
+
+// USB-PD Frame Type - strings array
 static const char* const sopFrameTypeNames[] = {
     NULL,
     "Hard Rst",

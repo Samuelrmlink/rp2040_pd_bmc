@@ -1,6 +1,8 @@
 #ifndef _BMC_4B5B_H
 #define _BMC_4B5B_H
 
+#define NUM_BITS_ORDERED_SET 20
+
 typedef enum {
     // Data Symbols
     symHex0	= 0b11110,
@@ -28,6 +30,37 @@ typedef enum {
     symKcodeEop	= 0b01101,
     symKcodeS3	= 0b00110
 } BMC5bSymbols;
+
+typedef enum {
+    ordsetHardReset =   symKcodeR1 |
+                        symKcodeR1 << 5 |
+                        symKcodeR1 << 10 |
+                        symKcodeR2 << 15,
+    ordsetCableReset =  symKcodeR1 |
+                        symKcodeS1 << 5 |
+                        symKcodeR1 << 10 |
+                        symKcodeS3 << 15,
+    ordsetSop =         symKcodeS1 |
+                        symKcodeS1 << 5 |
+                        symKcodeS1 << 10 |
+                        symKcodeS2 << 15,
+    ordsetSopP =        symKcodeS1 |
+                        symKcodeS1 << 5 |
+                        symKcodeS3 << 10 |
+                        symKcodeS3 << 15,
+    ordsetSopDp =       symKcodeS1 |
+                        symKcodeS3 << 5 |
+                        symKcodeS1 << 10 |
+                        symKcodeS3 << 15,
+    ordsetSopPDbg =     symKcodeS1 |
+                        symKcodeR2 << 5 |
+                        symKcodeR2 << 10 |
+                        symKcodeS3 << 15,
+    ordsetSopDpDbg =    symKcodeS1 |
+                        symKcodeR2 << 5 |
+                        symKcodeS3 << 10 |
+                        symKcodeS2 << 15,
+} BMC5bOrderedSets;
 
 static const uint8_t const bmc4bTo5b[] = { 
     symHex0, symHex1, symHex2, symHex3, 

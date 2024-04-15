@@ -14,12 +14,12 @@ void pdf_generate_goodcrc(pd_frame *input_frame, txFrame *tx) {
     // Generate CRC32
     tx->crc = crc32_pdframe_calc(tx->pdf);
 }
-void tx_raw_buf_write(uint8_t input_bits, uint8_t num_input_bits, uint32_t *buf, uint16_t *buf_position) {
+void static tx_raw_buf_write(uint32_t input_bits, uint8_t num_input_bits, uint32_t *buf, uint16_t *buf_position) {
   uint8_t obj_offset = *buf_position / 32;
   uint8_t bit_offset = *buf_position % 32;
-  uint8_t obj_empty_bits = 32 - bit_offset; 
+  uint8_t obj_empty_bits = 32 - bit_offset;
   if(num_input_bits > obj_empty_bits) {
-    buf[obj_offset] |= (input_bits & (0xFF >> (8 - obj_empty_bits))) << bit_offset;
+    buf[obj_offset] |= (input_bits & (0xFFFFFFFF >> (32 - obj_empty_bits))) << bit_offset;
     *buf_position += obj_empty_bits;
     // Don't write the bits to the buffer twice (remove from input variables)
     input_bits >>= obj_empty_bits;
@@ -28,17 +28,20 @@ void tx_raw_buf_write(uint8_t input_bits, uint8_t num_input_bits, uint32_t *buf,
     obj_offset = *buf_position / 32;
     bit_offset = *buf_position % 32;
   }
-  buf[obj_offset] |= (input_bits & (0xFF >> (8 - num_input_bits))) << bit_offset;
+  buf[obj_offset] |= (input_bits & (0xFFFFFFFF >> (32 - num_input_bits))) << bit_offset;
   *buf_position += num_input_bits;
 }
 void pdf_to_uint32(txFrame *txf) {
     uint16_t current_bit_num = 0;
     uint8_t num_obj = (txf->pdf->hdr >> 12) & 0x7;
-    uint16_t data_bits_req = 20		// SOP sequence
-		+(10 * 2)		// Header
-		+(10 * 4 * num_obj)	// Data Objects (extended header is here when chunked)
-    		+(10 * 4);		// CRC32
-		+5;			// EOP symbol
+    uint16_t data_bits_req = NUM_BITS_ORDERED_SET;		// SOP sequence
+    // Add bits for SOP* frames (if not HardReset, CableReset, etc.)
+    if(txf->pdf->frametype >= PdfTypeSop) {
+      data_bits_req +=  (10 * 2)		// Header
+      +(10 * 4 * num_obj)	// Data Objects (extended header is here when chunked)
+      +(10 * 4)		// CRC32
+      +5;			// EOP symbol
+    }
     uint16_t total_bits_req = data_bits_req + 64; // 64 for preamble
     txf->num_u32 = total_bits_req / 32;
     // Round up if more bits are required
@@ -59,12 +62,27 @@ void pdf_to_uint32(txFrame *txf) {
     // Ensure we are an even number of bits from the Ordered Set
     if((ordered_set_startbit - current_bit_num) % 2) { current_bit_num++; }
     // Loop - write preamble into buffer
+        tx_raw_buf_write((uint32_t)ordsetHardReset, (uint8_t)NUM_BITS_ORDERED_SET, txf->out, &current_bit_num);
     while(true) {
-      tx_raw_buf_write(2, 2, txf->out, &current_bit_num);
+      //tx_raw_buf_write(TX_VALUE_PREAMBLE_ADVANCE, NUM_BITS_PREAMBLE_ADVANCE, txf->out, &current_bit_num);
       // Break out of loop when we hit the first bit of the Ordered Set
       if(current_bit_num == ordered_set_startbit) { break; }
     }
 
+    if(txf->pdf->frametype < PdfTypeSop) { // Frametype is invalid, Hard Reset, or Soft Reset (not SOP, SOP', SOP", etc..)
 
-    
+      switch(txf->pdf->frametype & PDF_TYPE_MASK) {
+        // TODO - Implement TX cases listed below
+        case(PdfTypeInvalid) :
+        // For now - fall through to sending a Hard Reset in this case
+        case(PdfTypeHardReset) :
+        //tx_raw_buf_write((uint32_t)ordsetHardReset, (uint8_t)NUM_BITS_ORDERED_SET, txf->out, &current_bit_num);
+        break;
+        case(PdfTypeCableReset) :
+        //tx_raw_buf_write((uint32_t)ordsetCableReset, (uint8_t)NUM_BITS_ORDERED_SET, txf->out, &current_bit_num);
+        break;
+      }
+      // EOP/CRC is not written in this case - return function
+      return;
+    }
 }

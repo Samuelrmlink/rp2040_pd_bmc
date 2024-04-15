@@ -195,6 +195,7 @@ int main() {
     txf->pdf = malloc(sizeof(pd_frame));
     pdf_generate_goodcrc(cFrame, txf);
     pdf_to_uint32(txf);
+    printf("TEST\n");
     for(int i = 0; i < txf->num_u32; i++) {
         printf("%X\n", txf->out[i]);
     }

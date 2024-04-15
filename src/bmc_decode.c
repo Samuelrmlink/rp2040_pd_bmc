@@ -102,27 +102,27 @@ int bmcProcessSymbols(bmcDecode* bmc_d, QueueHandle_t q_validPdf) {
 
 		if(internal_stage == 3) {
 		    switch(bmc_d->procSubStage & 0xFFFFF) {
-	    		case (0b11001001110011100111) : // Hard Reset
+	    		case (ordsetHardReset) : // Hard Reset
 			    bmc_d->msg->frametype = 1;
 			    bmc_d->procStage = 0;
 			    break;
-			case (0b00110001111100000111) : // Cable Reset
+				case (ordsetCableReset) : // Cable Reset
 			    bmc_d->msg->frametype = 2;
 			    bmc_d->procStage = 0;
 			    break;
-	    		case (0b10001110001100011000) : // SOP
+	    		case (ordsetSop) : // SOP
 			    bmc_d->msg->frametype = 3;
 			    break;
-	    		case (0b00110001101100011000) : // SOP'
+	    		case (ordsetSopP) : // SOP'
 			    bmc_d->msg->frametype = 4;
 			    break;
-	    		case (0b00110110000011011000) : // SOP''
+	    		case (ordsetSopDp) : // SOP''
 			    bmc_d->msg->frametype = 5;
 			    break;
-	    		case (0b00110110011100111000) : // SOP' Debug
+	    		case (ordsetSopPDbg) : // SOP' Debug
 			    bmc_d->msg->frametype = 6;
 			    break;
-	    		case (0b10001001101100111000) : // SOP'' Debug
+	    		case (ordsetSopDpDbg) : // SOP'' Debug
 			    bmc_d->msg->frametype = 7;
 			    break;
 			default:

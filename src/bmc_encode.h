@@ -1,6 +1,9 @@
 #ifndef _BMC_ENCODE_H
 #define _BMC_ENCODE_H
 
+#define TX_VALUE_PREAMBLE_ADVANCE 2 // 0b10
+#define NUM_BITS_PREAMBLE_ADVANCE 2
+
 struct txFrame {
     pd_frame *pdf;
     uint32_t crc;
