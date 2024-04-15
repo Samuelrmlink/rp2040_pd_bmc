@@ -23,7 +23,7 @@ void static tx_raw_buf_write(uint32_t input_bits, uint8_t num_input_bits, uint32
     *buf_position += obj_empty_bits;
     // Don't write the bits to the buffer twice (remove from input variables)
     input_bits >>= obj_empty_bits;
-    num_input_bits -= num_input_bits;
+    num_input_bits -= obj_empty_bits;
     // Update values generated from buf_position ptr
     obj_offset = *buf_position / 32;
     bit_offset = *buf_position % 32;
@@ -62,10 +62,10 @@ void pdf_to_uint32(txFrame *txf) {
     // Ensure we are an even number of bits from the Ordered Set
     if((ordered_set_startbit - current_bit_num) % 2) { current_bit_num++; }
     // Loop - write preamble into buffer
-        tx_raw_buf_write((uint32_t)ordsetHardReset, (uint8_t)NUM_BITS_ORDERED_SET, txf->out, &current_bit_num);
     while(true) {
-      //tx_raw_buf_write(TX_VALUE_PREAMBLE_ADVANCE, NUM_BITS_PREAMBLE_ADVANCE, txf->out, &current_bit_num);
+      tx_raw_buf_write(TX_VALUE_PREAMBLE_ADVANCE, NUM_BITS_PREAMBLE_ADVANCE, txf->out, &current_bit_num);
       // Break out of loop when we hit the first bit of the Ordered Set
+      //printf("%X\n", ordered_set_startbit);
       if(current_bit_num == ordered_set_startbit) { break; }
     }
 
@@ -76,10 +76,12 @@ void pdf_to_uint32(txFrame *txf) {
         case(PdfTypeInvalid) :
         // For now - fall through to sending a Hard Reset in this case
         case(PdfTypeHardReset) :
-        //tx_raw_buf_write((uint32_t)ordsetHardReset, (uint8_t)NUM_BITS_ORDERED_SET, txf->out, &current_bit_num);
+        tx_raw_buf_write((uint32_t)ordsetHardReset, (uint8_t)NUM_BITS_ORDERED_SET, txf->out, &current_bit_num);
         break;
         case(PdfTypeCableReset) :
         //tx_raw_buf_write((uint32_t)ordsetCableReset, (uint8_t)NUM_BITS_ORDERED_SET, txf->out, &current_bit_num);
+        break;
+        default :
         break;
       }
       // EOP/CRC is not written in this case - return function
