@@ -69,9 +69,11 @@ void pdf_to_uint32(txFrame *txf) {
       if(current_bit_num == ordered_set_startbit) { break; }
     }
 
-    if(txf->pdf->frametype < PdfTypeSop) { // Frametype is invalid, Hard Reset, or Soft Reset (not SOP, SOP', SOP", etc..)
-
-      switch(txf->pdf->frametype & PDF_TYPE_MASK) {
+    // Write Ordered Set into buffer
+    tx_raw_buf_write(bmcFrameType[txf->pdf->frametype & PDF_TYPE_MASK], (uint8_t)NUM_BITS_ORDERED_SET, txf->out, &current_bit_num);
+    // Frametype is invalid, Hard Reset, or Soft Reset (not SOP, SOP', SOP", etc..)
+    if(txf->pdf->frametype < PdfTypeSop) {
+      /*switch(txf->pdf->frametype & PDF_TYPE_MASK) {
         // TODO - Implement TX cases listed below
         case(PdfTypeInvalid) :
         // For now - fall through to sending a Hard Reset in this case
@@ -83,7 +85,7 @@ void pdf_to_uint32(txFrame *txf) {
         break;
         default :
         break;
-      }
+      }*/
       // EOP/CRC is not written in this case - return function
       return;
     }
