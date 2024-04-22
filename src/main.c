@@ -193,9 +193,11 @@ int main() {
     pd_frame *cFrame = malloc(sizeof(pd_frame));
     txFrame *txf = malloc(sizeof(txFrame));
     txf->pdf = malloc(sizeof(pd_frame));
+    cFrame->frametype = PdfTypeSop;
     pdf_generate_goodcrc(cFrame, txf);
     //txf->pdf->frametype = PdfTypeHardReset;
     pdf_to_uint32(txf);
+    printf("Pdf%u Hdr: %X\n", txf->pdf->frametype & PDF_TYPE_MASK, txf->pdf->hdr);
     for(int i = 0; i < txf->num_u32; i++) {
         printf("%X\n", txf->out[i]);
     }

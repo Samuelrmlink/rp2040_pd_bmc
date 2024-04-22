@@ -5,7 +5,7 @@ void pdf_generate_goodcrc(pd_frame *input_frame, txFrame *tx) {
     pd_frame_clear(tx->pdf);
 
     // Apply the correct frametype (SOP = 3, SOP' = 4, etc...) - don't transfer the CRC okay bit
-    tx->pdf->frametype = input_frame->frametype & 0x7;
+    tx->pdf->frametype = input_frame->frametype & PDF_TYPE_MASK;
 
     // Transfer the MsgID, Spec Rev. and apply the GoodCRC Msg Type.
     // TODO - implement policy states for both current/perferred Power Sink/Source, Data UFP/DFP roles
@@ -73,20 +73,22 @@ void pdf_to_uint32(txFrame *txf) {
     tx_raw_buf_write(bmcFrameType[txf->pdf->frametype & PDF_TYPE_MASK], (uint8_t)NUM_BITS_ORDERED_SET, txf->out, &current_bit_num);
     // Frametype is invalid, Hard Reset, or Soft Reset (not SOP, SOP', SOP", etc..)
     if(txf->pdf->frametype < PdfTypeSop) {
-      /*switch(txf->pdf->frametype & PDF_TYPE_MASK) {
-        // TODO - Implement TX cases listed below
-        case(PdfTypeInvalid) :
-        // For now - fall through to sending a Hard Reset in this case
-        case(PdfTypeHardReset) :
-        tx_raw_buf_write((uint32_t)ordsetHardReset, (uint8_t)NUM_BITS_ORDERED_SET, txf->out, &current_bit_num);
-        break;
-        case(PdfTypeCableReset) :
-        //tx_raw_buf_write((uint32_t)ordsetCableReset, (uint8_t)NUM_BITS_ORDERED_SET, txf->out, &current_bit_num);
-        break;
-        default :
-        break;
-      }*/
       // EOP/CRC is not written in this case - return function
       return;
     }
+
+
+    // Include Header
+    for(int i = 0; i < 4; i++) {
+      tx_raw_buf_write(bmc4bTo5b[(txf->pdf->hdr >> (i * 4)) & 0xF], (uint8_t)NUM_BITS_SYMBOL, txf->out, &current_bit_num);
+    }
+    // Include Extended Header (if applicable - again - only if ext hdr exists && is unchunked - otherwise ext hdr is rolled into data objects field)
+
+    // For loop - # for i < num_data_obj (as defined in header)
+    for(int i = 0; i < ((txf->pdf->hdr >> 12) & 0x7) * 8; i++) {
+      tx_raw_buf_write(bmc4bTo5b[(txf->pdf->hdr >> (i * 4)) & 0xF], (uint8_t)NUM_BITS_SYMBOL, txf->out, &current_bit_num);
+    }
+
+    // EOP
+    tx_raw_buf_write(symKcodeEop, (uint8_t)NUM_BITS_SYMBOL, txf->out, &current_bit_num);
 }

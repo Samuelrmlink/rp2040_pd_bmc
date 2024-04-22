@@ -2,6 +2,7 @@
 #define _BMC_4B5B_H
 
 #define NUM_BITS_ORDERED_SET 20
+#define NUM_BITS_SYMBOL 5
 
 typedef enum {
     // Data Symbols
