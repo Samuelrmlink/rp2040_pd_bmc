@@ -89,6 +89,11 @@ void pdf_to_uint32(txFrame *txf) {
       tx_raw_buf_write(bmc4bTo5b[(txf->pdf->hdr >> (i * 4)) & 0xF], (uint8_t)NUM_BITS_SYMBOL, txf->out, &current_bit_num);
     }
 
+    // CRC32
+    for(int i = 0; i < 8; i++) {
+      tx_raw_buf_write(bmc4bTo5b[(txf->crc >> (i * 4)) & 0xF], (uint8_t)NUM_BITS_SYMBOL, txf->out, &current_bit_num);
+    }
+
     // EOP
     tx_raw_buf_write(symKcodeEop, (uint8_t)NUM_BITS_SYMBOL, txf->out, &current_bit_num);
 }

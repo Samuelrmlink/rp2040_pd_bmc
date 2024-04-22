@@ -197,7 +197,7 @@ int main() {
     pdf_generate_goodcrc(cFrame, txf);
     //txf->pdf->frametype = PdfTypeHardReset;
     pdf_to_uint32(txf);
-    printf("Pdf%u Hdr: %X\n", txf->pdf->frametype & PDF_TYPE_MASK, txf->pdf->hdr);
+    printf("Pdf%u Hdr: %X Crc:%X\n", txf->pdf->frametype & PDF_TYPE_MASK, txf->pdf->hdr, txf->crc);
     for(int i = 0; i < txf->num_u32; i++) {
         printf("%X\n", txf->out[i]);
     }
