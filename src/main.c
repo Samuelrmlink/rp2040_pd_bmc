@@ -117,18 +117,44 @@ void thread_rx_policy(void *unused_arg) {
     pd_frame_clear(&latestReqDataObj);
     uint32_t timestamp_now = 0;
     PDMessageType msgType;
-    bool analyzer_mode = true;
+    bool analyzer_mode = false;
 
     while(true) {
 	xQueueReceive(queue_policy, cFrame, portMAX_DELAY);
 	timestamp_now = time_us_32();
-	printf("%u:%u - %s Header: %X %s | %X:%X:%X\n", cFrame->timestamp_us, (timestamp_now - cFrame->timestamp_us), sopFrameTypeNames[cFrame->frametype & 0x7], cFrame->hdr, pdMsgTypeNames[pdf_get_sop_msg_type(cFrame)], cFrame->obj[0], cFrame->obj[1], cFrame->obj[2]);
-	if(is_crc_good(cFrame) && (pdf_get_sop_msg_type(cFrame) != controlMsgGoodCrc) && is_sop_frame(cFrame) && !analyzer_mode) {
+	//printf("%u:%u - %s Header: %X %s | %X:%X:%X\n", cFrame->timestamp_us, (timestamp_now - cFrame->timestamp_us), sopFrameTypeNames[cFrame->frametype & 0x7], cFrame->hdr, pdMsgTypeNames[pdf_get_sop_msg_type(cFrame)], cFrame->obj[0], cFrame->obj[1], cFrame->obj[2]);
+	if(is_crc_good(cFrame) && (pdf_get_sop_msg_type(cFrame) != controlMsgGoodCrc) && is_sop_frame(cFrame) && !analyzer_mode && (cFrame->hdr != latestSrcCap.hdr)) {
+        /*
 	    // Start generating a GoodCRC response frame
 	    pdf_generate_goodcrc(cFrame, txf);
 	    pdf_to_uint32(txf);
 
 	    // Send the response frame to the TX thread
+        */
+
+    memcpy(&latestSrcCap, cFrame, sizeof(pd_frame));
+    sleep_us(4);
+
+    // Test raw frame generation - TODO: remove
+    pd_frame *cFrame = malloc(sizeof(pd_frame));
+    txFrame *txf = malloc(sizeof(txFrame));
+    txf->pdf = malloc(sizeof(pd_frame));
+    cFrame->frametype = PdfTypeSop;
+    pdf_generate_goodcrc(cFrame, txf);
+    //txf->pdf->frametype = PdfTypeHardReset;
+    pdf_to_uint32(txf);
+    txf->out[0] |= 0x1;
+    //printf("Pdf%u Hdr: %X Crc:%X\n", txf->pdf->frametype & PDF_TYPE_MASK, txf->pdf->hdr, txf->crc);
+    pio_sm_set_enabled(pio, SM_TX, true);
+    irq_set_enabled(PIO0_IRQ_0, false);
+    gpio_set_mask(1 << 10);
+    busy_wait_us(3);
+    for(int i = 0; i < txf->num_u32; i++) {
+        pio_sm_put_blocking(pio, SM_TX, txf->out[i]);
+    }
+    busy_wait_us(95 * txf->num_u32 + 1);
+    gpio_clr_mask(1 << 10);
+
 
 	}
     }
@@ -188,7 +214,7 @@ int main() {
         gpio_clr_mask(1 << 10);
         busy_wait_us(1000000);
     }
-*/
+*//*
     // Test raw frame generation - TODO: remove
     pd_frame *cFrame = malloc(sizeof(pd_frame));
     txFrame *txf = malloc(sizeof(txFrame));
@@ -197,10 +223,20 @@ int main() {
     pdf_generate_goodcrc(cFrame, txf);
     //txf->pdf->frametype = PdfTypeHardReset;
     pdf_to_uint32(txf);
+    txf->out[0] |= 0x1;
     printf("Pdf%u Hdr: %X Crc:%X\n", txf->pdf->frametype & PDF_TYPE_MASK, txf->pdf->hdr, txf->crc);
+    pio_sm_set_enabled(pio, SM_TX, true);
+    irq_set_enabled(PIO0_IRQ_0, false);
+    gpio_set_mask(1 << 10);
+    busy_wait_us(3);
     for(int i = 0; i < txf->num_u32; i++) {
-        printf("%X\n", txf->out[i]);
+        pio_sm_put_blocking(pio, SM_TX, txf->out[i]);
     }
+    busy_wait_us(95 * txf->num_u32 + 1);
+    gpio_clr_mask(1 << 10);
+   for(int i = 0; i < txf->num_u32; i++) {
+        printf("%X\n", txf->out[i]);
+    }*/
 	
 	// Start the scheduler
 	vTaskStartScheduler();
