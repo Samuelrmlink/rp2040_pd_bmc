@@ -152,9 +152,27 @@ void thread_rx_policy(void *unused_arg) {
     for(int i = 0; i < txf->num_u32; i++) {
         pio_sm_put_blocking(pio, SM_TX, txf->out[i]);
     }
+    free(txf->out);
     busy_wait_us(95 * txf->num_u32 + 1);
     gpio_clr_mask(1 << 10);
+    irq_set_enabled(PIO0_IRQ_0, true);
+    sleep_us(100);
 
+
+
+    txf->msgIdOut = 0;
+    pdf_request_from_srccap(&latestSrcCap, txf, 1);
+	pdf_to_uint32(txf);
+	irq_set_enabled(PIO0_IRQ_0, false);
+	gpio_set_mask(1 << 10);
+	busy_wait_us(3);
+	for(int i = 0; i < txf->num_u32; i++) {
+	    pio_sm_put_blocking(pio, SM_TX, txf->out[i]);
+	}
+	free(txf->out);
+	busy_wait_us(95 * txf->num_u32 + 1);
+	gpio_clr_mask(1 << 10);
+	irq_set_enabled(PIO0_IRQ_0, true);
 
 	}
     }

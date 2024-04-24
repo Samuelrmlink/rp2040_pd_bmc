@@ -7,6 +7,7 @@
 struct txFrame {
     pd_frame *pdf;
     uint32_t crc;
+    uint8_t msgIdOut; // Outgoing msgID value (actually only 3 bits - please use tx_msg_inc() to increment)
 
     uint8_t num_u32;
     uint32_t *out;

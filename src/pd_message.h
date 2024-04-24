@@ -142,4 +142,11 @@ static const char* const pdMsgTypeNames[] = {
     [(int)extMsgFirmwareUpdateRequest]	= "Firmware_Update_Request",
 };
 
+struct pd_pdo_accept {
+    uint32_t mV_min;
+    uint32_t mV_max;
+    uint16_t mA_min;
+};
+typedef struct pd_pdo_accept pd_pdo_accept;
+
 #endif

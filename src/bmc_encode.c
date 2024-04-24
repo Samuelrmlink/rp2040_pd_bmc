@@ -1,5 +1,9 @@
 #include "main_i.h"
 
+void tx_msg_inc(uint8_t *msgId) { // Input here is actually only 3 bits - therefore ensure we rollover back to zero following 0x7
+  if(*msgId < 0x7) { (*msgId)++; }
+  else { *msgId = 0; }
+}
 void pdf_generate_goodcrc(pd_frame *input_frame, txFrame *tx) {
     // Ensure we start with a clean slate
     pd_frame_clear(tx->pdf);
@@ -13,6 +17,23 @@ void pdf_generate_goodcrc(pd_frame *input_frame, txFrame *tx) {
 
     // Generate CRC32
     tx->crc = crc32_pdframe_calc(tx->pdf);
+}
+// TODO - move into a "Policy Engine"
+void pdf_request_from_srccap(pd_frame *input_frame, txFrame *tx, uint8_t req_pdo) {
+  // Ensure we start with a clean slate
+  pd_frame_clear(tx->pdf);
+
+  // Setup frametype (SOP) and header (uses hard-coded values for testing currently)
+  tx->pdf->frametype = PdfTypeSop;
+  tx->pdf->hdr = (0x1 << 12) | (tx->msgIdOut << 9) | (0x2 << 6) | 0x2; // TODO - remove magic numbers
+
+  // Setup RDO
+  tx->pdf->obj[0] =	(0x1 << 28) |			// Object position
+			((input_frame->obj[0] & 0x3FF) << 19) |	// Operating current
+			(input_frame->obj[0] & 0x3FF);		// Max current
+  
+  // Generate CRC32
+  tx->crc = crc32_pdframe_calc(tx->pdf);
 }
 void static tx_raw_buf_write(uint32_t input_bits, uint8_t num_input_bits, uint32_t *buf, uint16_t *buf_position) {
   uint8_t obj_offset = *buf_position / 32;
@@ -85,8 +106,10 @@ void pdf_to_uint32(txFrame *txf) {
     // Include Extended Header (if applicable - again - only if ext hdr exists && is unchunked - otherwise ext hdr is rolled into data objects field)
 
     // For loop - # for i < num_data_obj (as defined in header)
-    for(int i = 0; i < ((txf->pdf->hdr >> 12) & 0x7) * 8; i++) {
-      tx_raw_buf_write(bmc4bTo5b[(txf->pdf->hdr >> (i * 4)) & 0xF], (uint8_t)NUM_BITS_SYMBOL, txf->out, &current_bit_num);
+    for(int i = 0; i < ((txf->pdf->hdr >> 12) & 0x7); i++) {
+      for(int x = 0; x < 8; x++) {
+        tx_raw_buf_write(bmc4bTo5b[(txf->pdf->obj[i] >> (x * 4)) & 0xF], (uint8_t)NUM_BITS_SYMBOL, txf->out, &current_bit_num);
+      }
     }
 
     // CRC32
