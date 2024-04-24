@@ -156,13 +156,14 @@ void thread_rx_policy(void *unused_arg) {
     busy_wait_us(95 * txf->num_u32 + 1);
     gpio_clr_mask(1 << 10);
     irq_set_enabled(PIO0_IRQ_0, true);
-    sleep_us(100);
+    sleep_us(1000);
 
 
 
     txf->msgIdOut = 0;
     pdf_request_from_srccap(&latestSrcCap, txf, 1);
 	pdf_to_uint32(txf);
+    txf->out[0] |= 0x1;
 	irq_set_enabled(PIO0_IRQ_0, false);
 	gpio_set_mask(1 << 10);
 	busy_wait_us(3);
@@ -174,6 +175,7 @@ void thread_rx_policy(void *unused_arg) {
 	gpio_clr_mask(1 << 10);
 	irq_set_enabled(PIO0_IRQ_0, true);
 
+	printf("%u:%u - %s Header: %X %s | %X:%X:%X\n", cFrame->timestamp_us, (timestamp_now - cFrame->timestamp_us), sopFrameTypeNames[cFrame->frametype & 0x7], cFrame->hdr, pdMsgTypeNames[pdf_get_sop_msg_type(cFrame)], cFrame->obj[0], cFrame->obj[1], cFrame->obj[2]);
 	}
     }
 }

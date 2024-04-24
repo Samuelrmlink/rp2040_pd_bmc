@@ -29,7 +29,7 @@ void pdf_request_from_srccap(pd_frame *input_frame, txFrame *tx, uint8_t req_pdo
 
   // Setup RDO
   tx->pdf->obj[0] =	(0x1 << 28) |			// Object position
-			((input_frame->obj[0] & 0x3FF) << 19) |	// Operating current
+			((input_frame->obj[0] & 0x3FF) << 10) |	// Operating current
 			(input_frame->obj[0] & 0x3FF);		// Max current
   
   // Generate CRC32
