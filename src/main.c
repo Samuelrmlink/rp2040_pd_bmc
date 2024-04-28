@@ -242,7 +242,7 @@ int main() {
     pdf_generate_source_capabilities_basic(cFrame, txf);
     //txf->pdf->frametype = PdfTypeHardReset;
     pdf_to_uint32(txf);
-    txf->out[0] |= 0x1;
+    //txf->out[0] |= 0x1;
     printf("Pdf%u Hdr: %X Crc:%X\n", txf->pdf->frametype & PDF_TYPE_MASK, txf->pdf->hdr, txf->crc);
     for(int i = 0; i < txf->num_u32; i++) {
         printf("%X\n", txf->out[i]);
@@ -252,7 +252,9 @@ int main() {
     while(true) {
     gpio_set_mask(1 << 10);
     //busy_wait_us(3);
-    for(int i = 0; i < txf->num_u32; i++) {
+    pio_sm_put_blocking(pio, SM_TX, txf->out[0]);
+    pio_sm_exec(pio, SM_TX, pio_encode_out(pio_null, txf->num_zeros));
+    for(int i = 1; i < txf->num_u32; i++) {
         pio_sm_put_blocking(pio, SM_TX, txf->out[i]);
     }
     busy_wait_us(927);
