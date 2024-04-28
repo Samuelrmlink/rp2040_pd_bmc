@@ -13,7 +13,7 @@ void pdf_generate_goodcrc(pd_frame *input_frame, txFrame *tx) {
 
     // Transfer the MsgID, Spec Rev. and apply the GoodCRC Msg Type.
     // TODO - implement policy states for both current/perferred Power Sink/Source, Data UFP/DFP roles
-    tx->pdf->hdr = (input_frame->hdr & 0xE00) | (input_frame->hdr & 0xC0) | (uint8_t)controlMsgGoodCrc;
+    tx->pdf->hdr = (input_frame->hdr & 0xE00) | (input_frame->hdr & 0xC0) | (0x2 << 6) | (uint8_t)controlMsgGoodCrc;
 
     // Generate CRC32
     tx->crc = crc32_pdframe_calc(tx->pdf);

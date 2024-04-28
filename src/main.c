@@ -131,7 +131,7 @@ void thread_rx_policy(void *unused_arg) {
 
 	    // Send the response frame to the TX thread
         */
-
+/**/
     memcpy(&latestSrcCap, cFrame, sizeof(pd_frame));
     sleep_us(4);
 
@@ -153,7 +153,7 @@ void thread_rx_policy(void *unused_arg) {
         pio_sm_put_blocking(pio, SM_TX, txf->out[i]);
     }
     free(txf->out);
-    busy_wait_us(95 * txf->num_u32 + 1);
+    busy_wait_us(110 * txf->num_u32);
     gpio_clr_mask(1 << 10);
     irq_set_enabled(PIO0_IRQ_0, true);
     sleep_us(1000);
@@ -163,7 +163,7 @@ void thread_rx_policy(void *unused_arg) {
     txf->msgIdOut = 0;
     pdf_request_from_srccap(&latestSrcCap, txf, 1);
 	pdf_to_uint32(txf);
-    txf->out[0] |= 0x1;
+    //txf->out[0] |= 0x1;
 	irq_set_enabled(PIO0_IRQ_0, false);
 	gpio_set_mask(1 << 10);
 	busy_wait_us(3);
@@ -171,10 +171,10 @@ void thread_rx_policy(void *unused_arg) {
 	    pio_sm_put_blocking(pio, SM_TX, txf->out[i]);
 	}
 	free(txf->out);
-	busy_wait_us(95 * txf->num_u32 + 1);
+	busy_wait_us(110 * txf->num_u32);
 	gpio_clr_mask(1 << 10);
 	irq_set_enabled(PIO0_IRQ_0, true);
-
+/**/
 	printf("%u:%u - %s Header: %X %s | %X:%X:%X\n", cFrame->timestamp_us, (timestamp_now - cFrame->timestamp_us), sopFrameTypeNames[cFrame->frametype & 0x7], cFrame->hdr, pdMsgTypeNames[pdf_get_sop_msg_type(cFrame)], cFrame->obj[0], cFrame->obj[1], cFrame->obj[2]);
 	}
     }
@@ -188,7 +188,7 @@ int main() {
     /* Initialize TX FIFO*/
     uint offset_tx = pio_add_program(pio, &differential_manchester_tx_program);
     printf("Transmit program loaded at %d\n", offset_tx);
-    differential_manchester_tx_program_init(pio, SM_TX, offset_tx, pin_tx, 125.f / (5.3333));
+    differential_manchester_tx_program_init(pio, SM_TX, offset_tx, pin_tx, 125.f / 5);
     pio_sm_set_enabled(pio, SM_TX, false);
     /*
     pio_sm_put_blocking(pio, SM_TX, 0);
@@ -199,7 +199,7 @@ int main() {
     /* Initialize RX FIFO */
     uint offset_rx = pio_add_program(pio, &differential_manchester_rx_program);
     printf("Receive program loaded at %d\n", offset_rx);
-    differential_manchester_rx_program_init(pio, SM_RX, offset_rx, pin_rx, 125.f / (5.3333));
+    differential_manchester_rx_program_init(pio, SM_RX, offset_rx, pin_rx, 125.f / 5);
 
     pio_set_irq0_source_enabled(pio, pis_interrupt0, true);
     irq_set_exclusive_handler(PIO0_IRQ_0, bmc_rx_cb);
