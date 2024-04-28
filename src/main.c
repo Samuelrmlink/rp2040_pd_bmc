@@ -189,12 +189,7 @@ int main() {
     uint offset_tx = pio_add_program(pio, &differential_manchester_tx_program);
     printf("Transmit program loaded at %d\n", offset_tx);
     differential_manchester_tx_program_init(pio, SM_TX, offset_tx, pin_tx, 125.f / 5);
-    pio_sm_set_enabled(pio, SM_TX, false);
-    /*
-    pio_sm_put_blocking(pio, SM_TX, 0);
-    pio_sm_put_blocking(pio, SM_TX, 0x0ff0a55a);
-    pio_sm_put_blocking(pio, SM_TX, 0x12345678);
-    pio_sm_set_enabled(pio, SM_TX, true);*/
+    pio_sm_set_enabled(pio, SM_TX, true);
     
     /* Initialize RX FIFO */
     uint offset_rx = pio_add_program(pio, &differential_manchester_rx_program);
@@ -215,52 +210,13 @@ int main() {
 	queue_rx_validFrame = xQueueCreate(10, sizeof(pd_frame));
 	queue_policy = xQueueCreate(10, sizeof(pd_frame));
 
-/*
-    pio_sm_set_enabled(pio, SM_TX, true);
-    irq_set_enabled(PIO0_IRQ_0, false);
-    while(true) {
-        //printf("%08x\n", pio_sm_get_blocking(pio, SM_RX));
-        printf("T");
-        gpio_set_mask(1 << 10);
-        busy_wait_us(3);
-        pio_sm_put_blocking(pio, SM_TX, 0x55555555);
-        pio_sm_put_blocking(pio, SM_TX, 0x55555555);//0
-        pio_sm_put_blocking(pio, SM_TX, 0x2e98d8c5);//0
-        pio_sm_put_blocking(pio, SM_TX, 0x5a5e4a7d);//0
-        pio_sm_put_blocking(pio, SM_TX, 0x49d77bef);//0
-        pio_sm_put_blocking(pio, SM_TX, 0x6bf494a5);//0
-        pio_sm_set_enabled(pio, SM_TX, true);
-        busy_wait_us(590);
-        gpio_clr_mask(1 << 10);
-        busy_wait_us(1000000);
-    }
-*/
     // Test raw frame generation - TODO: remove
     pd_frame *cFrame = malloc(sizeof(pd_frame));
     txFrame *txf = malloc(sizeof(txFrame));
     txf->pdf = malloc(sizeof(pd_frame));
     pdf_generate_source_capabilities_basic(cFrame, txf);
-    //txf->pdf->frametype = PdfTypeHardReset;
-    pdf_to_uint32(txf);
-    //txf->out[0] |= 0x1;
-    printf("Pdf%u Hdr: %X Crc:%X\n", txf->pdf->frametype & PDF_TYPE_MASK, txf->pdf->hdr, txf->crc);
-    for(int i = 0; i < txf->num_u32; i++) {
-        printf("%X\n", txf->out[i]);
-    }
-    pio_sm_set_enabled(pio, SM_TX, true);
-    irq_set_enabled(PIO0_IRQ_0, false);
-    while(true) {
-    gpio_set_mask(1 << 10);
-    //busy_wait_us(3);
-    pio_sm_put_blocking(pio, SM_TX, txf->out[0]);
-    pio_sm_exec(pio, SM_TX, pio_encode_out(pio_null, txf->num_zeros));
-    for(int i = 1; i < txf->num_u32; i++) {
-        pio_sm_put_blocking(pio, SM_TX, txf->out[i]);
-    }
-    busy_wait_us(927);
-    gpio_clr_mask(1 << 10);
+    pdf_transmit(txf, pio, SM_TX);
     busy_wait_us(500000);
-    }
 	
 	// Start the scheduler
 	vTaskStartScheduler();

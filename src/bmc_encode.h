@@ -4,6 +4,23 @@
 #define TX_VALUE_PREAMBLE_ADVANCE 2 // 0b10
 #define NUM_BITS_PREAMBLE_ADVANCE 2
 
+struct bmcChannel {
+    // Hardware PIO & state machine handles
+    PIO pio;
+    sm_tx;
+    sm_rx;
+    uint irq;	// Example: PIO0_IRQ_0, etc...
+
+    // Hardware pins
+    uint rx;
+    uint tx_high;
+    uint tx_low;
+    uint adc;
+
+    // Currently unused (TO BE ADDED) - TODO:
+    // connector_orientation
+    // vconn_state
+};
 struct txFrame {
     pd_frame *pdf;
     uint32_t crc;
