@@ -35,6 +35,25 @@ void pdf_request_from_srccap(pd_frame *input_frame, txFrame *tx, uint8_t req_pdo
   // Generate CRC32
   tx->crc = crc32_pdframe_calc(tx->pdf);
 }
+void pdf_generate_source_capabilities_basic(pd_frame *input_frame, txFrame *tx) {
+    // Ensure we start with a clean slate
+    pd_frame_clear(tx->pdf);
+
+    // Setup frametype (SOP) and header (uses hard-coded values for testing currently)
+    tx->pdf->frametype = PdfTypeSop;
+    tx->pdf->hdr = 0x61A1;
+
+    // Add Power Data objects
+    tx->pdf->obj[0] = 0x0801912C;
+    tx->pdf->obj[1] = 0x0002D12C;
+    tx->pdf->obj[2] = 0x0003C0FA;
+    tx->pdf->obj[3] = 0x0004B0C8;
+    tx->pdf->obj[4] = 0xC8DC213C;
+    tx->pdf->obj[5] = 0xC9402128;
+
+    // Generate CRC32
+    tx->crc = crc32_pdframe_calc(tx->pdf);
+}
 void static tx_raw_buf_write(uint32_t input_bits, uint8_t num_input_bits, uint32_t *buf, uint16_t *buf_position) {
   uint8_t obj_offset = *buf_position / 32;
   uint8_t bit_offset = *buf_position % 32;
@@ -57,6 +76,7 @@ void pdf_to_uint32(txFrame *txf) {
     uint8_t num_obj = (txf->pdf->hdr >> 12) & 0x7;
     uint16_t data_bits_req = NUM_BITS_ORDERED_SET;		// SOP sequence
     // Add bits for SOP* frames (if not HardReset, CableReset, etc.)
+    uint8_t follower_zero_bits = 2;
     if(txf->pdf->frametype >= PdfTypeSop) {
       data_bits_req +=  (10 * 2)		// Header
       +(10 * 4 * num_obj)	// Data Objects (extended header is here when chunked)
@@ -79,10 +99,13 @@ void pdf_to_uint32(txFrame *txf) {
 
 
     // Get Ordered Set start bit
-    uint16_t ordered_set_startbit = 32 * txf->num_u32 - data_bits_req;
+    uint16_t ordered_set_startbit = 32 * txf->num_u32 - data_bits_req - follower_zero_bits;
+    /*
     // Ensure we are an even number of bits from the Ordered Set
     if((ordered_set_startbit - current_bit_num) % 2) { current_bit_num++; }
+    */
     // Loop - write preamble into buffer
+    current_bit_num = txf->num_zeros = ordered_set_startbit - 64;
     while(true) {
       tx_raw_buf_write(TX_VALUE_PREAMBLE_ADVANCE, NUM_BITS_PREAMBLE_ADVANCE, txf->out, &current_bit_num);
       // Break out of loop when we hit the first bit of the Ordered Set
@@ -119,4 +142,11 @@ void pdf_to_uint32(txFrame *txf) {
 
     // EOP
     tx_raw_buf_write(symKcodeEop, (uint8_t)NUM_BITS_SYMBOL, txf->out, &current_bit_num);
+
+    // Following zero bits (if applicable)
+    while(follower_zero_bits) {
+      tx_raw_buf_write(0x0, 1, txf->out, &current_bit_num);
+      follower_zero_bits--;
+    }
+    return ordered_set_startbit;
 }

@@ -11,6 +11,7 @@ struct txFrame {
 
     uint8_t num_u32;
     uint32_t *out;
+    uint16_t num_zeros; // Number of zeros (to skip when transmitting via PIO)
 };
 typedef struct txFrame txFrame;
 

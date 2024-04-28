@@ -131,7 +131,7 @@ void thread_rx_policy(void *unused_arg) {
 
 	    // Send the response frame to the TX thread
         */
-/**/
+/*
     memcpy(&latestSrcCap, cFrame, sizeof(pd_frame));
     sleep_us(4);
 
@@ -174,7 +174,7 @@ void thread_rx_policy(void *unused_arg) {
 	busy_wait_us(110 * txf->num_u32);
 	gpio_clr_mask(1 << 10);
 	irq_set_enabled(PIO0_IRQ_0, true);
-/**/
+*/
 	printf("%u:%u - %s Header: %X %s | %X:%X:%X\n", cFrame->timestamp_us, (timestamp_now - cFrame->timestamp_us), sopFrameTypeNames[cFrame->frametype & 0x7], cFrame->hdr, pdMsgTypeNames[pdf_get_sop_msg_type(cFrame)], cFrame->obj[0], cFrame->obj[1], cFrame->obj[2]);
 	}
     }
@@ -234,29 +234,31 @@ int main() {
         gpio_clr_mask(1 << 10);
         busy_wait_us(1000000);
     }
-*//*
+*/
     // Test raw frame generation - TODO: remove
     pd_frame *cFrame = malloc(sizeof(pd_frame));
     txFrame *txf = malloc(sizeof(txFrame));
     txf->pdf = malloc(sizeof(pd_frame));
-    cFrame->frametype = PdfTypeSop;
-    pdf_generate_goodcrc(cFrame, txf);
+    pdf_generate_source_capabilities_basic(cFrame, txf);
     //txf->pdf->frametype = PdfTypeHardReset;
     pdf_to_uint32(txf);
     txf->out[0] |= 0x1;
     printf("Pdf%u Hdr: %X Crc:%X\n", txf->pdf->frametype & PDF_TYPE_MASK, txf->pdf->hdr, txf->crc);
+    for(int i = 0; i < txf->num_u32; i++) {
+        printf("%X\n", txf->out[i]);
+    }
     pio_sm_set_enabled(pio, SM_TX, true);
     irq_set_enabled(PIO0_IRQ_0, false);
+    while(true) {
     gpio_set_mask(1 << 10);
-    busy_wait_us(3);
+    //busy_wait_us(3);
     for(int i = 0; i < txf->num_u32; i++) {
         pio_sm_put_blocking(pio, SM_TX, txf->out[i]);
     }
-    busy_wait_us(95 * txf->num_u32 + 1);
+    busy_wait_us(927);
     gpio_clr_mask(1 << 10);
-   for(int i = 0; i < txf->num_u32; i++) {
-        printf("%X\n", txf->out[i]);
-    }*/
+    busy_wait_us(500000);
+    }
 	
 	// Start the scheduler
 	vTaskStartScheduler();
