@@ -7,8 +7,8 @@
 struct bmcChannel {
     // Hardware PIO & state machine handles
     PIO pio;
-    sm_tx;
-    sm_rx;
+    uint sm_tx;
+    uint sm_rx;
     uint irq;	// Example: PIO0_IRQ_0, etc...
 
     // Hardware pins
@@ -21,6 +21,8 @@ struct bmcChannel {
     // connector_orientation
     // vconn_state
 };
+typedef struct bmcChannel bmcChannel;
+
 struct txFrame {
     pd_frame *pdf;
     uint32_t crc;

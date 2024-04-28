@@ -6,16 +6,8 @@
 
 #include "main_i.h"
 
-// Compiler state machine number
-#define SM_TX 0
-#define SM_RX 1
-
-//Define pins (to be used by PIO for BMC TX/RX)
-const uint pin_tx = 9;
-const uint pin_rx = 6;
-
-// PIO instances
-PIO pio = pio0;
+// Global BMC channel pointers
+bmcChannel *bmc_ch0;
 
 // Queues
 QueueHandle_t queue_rx_pio = NULL;		// PD Frame:	Raw PIO output pipeline (1st stage)
@@ -30,19 +22,59 @@ TaskHandle_t tskhdl_pd_pol = NULL;	// Task handle: USB-PD policy
 void bmc_rx_check() {
     rx_data data;
     // If PIO RX buffer is not empty
-    if(!pio_sm_is_rx_fifo_empty(pio, SM_RX)) {
+    if(!pio_sm_is_rx_fifo_empty(bmc_ch0->pio, bmc_ch0->sm_rx)) {
 	// Receive BMC data from PIO interface
-	data.val = pio_sm_get(pio, SM_RX);
+	data.val = pio_sm_get(bmc_ch0->pio, bmc_ch0->sm_rx);
 	data.time = time_us_32();
 	xQueueSendToBackFromISR(queue_rx_pio, (void *) &data, NULL);
     }
 }
 void bmc_rx_cb() {
     bmc_rx_check();
-    if(pio_interrupt_get(pio, 0)) {
-	pio_interrupt_clear(pio, 0);
+    if(pio_interrupt_get(bmc_ch0->pio, 0)) {
+	pio_interrupt_clear(bmc_ch0->pio, 0);
     } 
 }
+bmcChannel* bmc_channel0_init() {
+    bmcChannel *ch = malloc(sizeof(bmcChannel));
+
+    // Define PIO & state machine handles
+    ch->pio = pio0;
+    ch->sm_tx = 0;
+    ch->sm_rx = 1;
+
+    // Define pins
+    ch->rx = 6;
+    ch->tx_high = 10;
+    ch->tx_low = 9;
+    ch->adc = 26;
+
+    // Define IRQ channel
+    ch->irq = PIO0_IRQ_0;
+
+    // Init GPIO (not including those for PIO)
+    gpio_init(ch->tx_high);
+    gpio_set_dir(ch->tx_high, GPIO_OUT);
+    
+    // Initialize TX FIFO
+    uint offset_tx = pio_add_program(ch->pio, &differential_manchester_tx_program);
+    printf("Transmit program loaded at %d\n", offset_tx);
+    differential_manchester_tx_program_init(ch->pio, ch->sm_tx, offset_tx, ch->tx_low, 125.f / 5);
+    //pio_sm_set_enabled(ch->pio, ch->sm_tx, true);
+    
+    // Initialize RX FIFO
+    uint offset_rx = pio_add_program(ch->pio, &differential_manchester_rx_program);
+    printf("Receive program loaded at %d\n", offset_rx);
+    differential_manchester_rx_program_init(ch->pio, ch->sm_rx, offset_rx, ch->rx, 125.f / 5);
+
+    // Initialize RX IRQ handler
+    pio_set_irq0_source_enabled(ch->pio, pis_interrupt0, true);
+    irq_set_exclusive_handler(ch->irq, bmc_rx_cb);
+    irq_set_enabled(ch->irq, true);
+
+    return ch;
+}
+
 void individual_pin_toggle(uint8_t pin_num) {
     if(gpio_get(pin_num))
 	gpio_clr_mask(1 << pin_num); // Drive pin low
@@ -74,11 +106,11 @@ void thread_rx_process(void* unused_arg) {
 		sleep_us(120);
 		if(!xQueueReceive(queue_rx_pio, &bmc_d->pioData, 0)) {
 		    // TODO - add PIO flush function here
-		    irq_set_enabled(PIO0_IRQ_0, false);
-		    while(pio_sm_is_rx_fifo_empty(pio, SM_RX)) {
-			pio_sm_exec_wait_blocking(pio, SM_RX, pio_encode_in(pio_y, 1));
+		    irq_set_enabled(bmc_ch0->irq, false);
+		    while(pio_sm_is_rx_fifo_empty(bmc_ch0->pio, bmc_ch0->sm_rx)) {
+			pio_sm_exec_wait_blocking(bmc_ch0->pio, bmc_ch0->sm_rx, pio_encode_in(pio_y, 1));
 		    }
-		    irq_set_enabled(PIO0_IRQ_0, true);
+		    irq_set_enabled(bmc_ch0->irq, true);
 		    bmc_rx_check();
 		    continue;
 		}
@@ -131,50 +163,7 @@ void thread_rx_policy(void *unused_arg) {
 
 	    // Send the response frame to the TX thread
         */
-/*
-    memcpy(&latestSrcCap, cFrame, sizeof(pd_frame));
-    sleep_us(4);
-
-    // Test raw frame generation - TODO: remove
-    pd_frame *cFrame = malloc(sizeof(pd_frame));
-    txFrame *txf = malloc(sizeof(txFrame));
-    txf->pdf = malloc(sizeof(pd_frame));
-    cFrame->frametype = PdfTypeSop;
-    pdf_generate_goodcrc(cFrame, txf);
-    //txf->pdf->frametype = PdfTypeHardReset;
-    pdf_to_uint32(txf);
-    txf->out[0] |= 0x1;
-    //printf("Pdf%u Hdr: %X Crc:%X\n", txf->pdf->frametype & PDF_TYPE_MASK, txf->pdf->hdr, txf->crc);
-    pio_sm_set_enabled(pio, SM_TX, true);
-    irq_set_enabled(PIO0_IRQ_0, false);
-    gpio_set_mask(1 << 10);
-    busy_wait_us(3);
-    for(int i = 0; i < txf->num_u32; i++) {
-        pio_sm_put_blocking(pio, SM_TX, txf->out[i]);
-    }
-    free(txf->out);
-    busy_wait_us(110 * txf->num_u32);
-    gpio_clr_mask(1 << 10);
-    irq_set_enabled(PIO0_IRQ_0, true);
-    sleep_us(1000);
-
-
-
-    txf->msgIdOut = 0;
-    pdf_request_from_srccap(&latestSrcCap, txf, 1);
-	pdf_to_uint32(txf);
-    //txf->out[0] |= 0x1;
-	irq_set_enabled(PIO0_IRQ_0, false);
-	gpio_set_mask(1 << 10);
-	busy_wait_us(3);
-	for(int i = 0; i < txf->num_u32; i++) {
-	    pio_sm_put_blocking(pio, SM_TX, txf->out[i]);
-	}
-	free(txf->out);
-	busy_wait_us(110 * txf->num_u32);
-	gpio_clr_mask(1 << 10);
-	irq_set_enabled(PIO0_IRQ_0, true);
-*/
+    //memcpy(&latestSrcCap, cFrame, sizeof(pd_frame));
 	printf("%u:%u - %s Header: %X %s | %X:%X:%X\n", cFrame->timestamp_us, (timestamp_now - cFrame->timestamp_us), sopFrameTypeNames[cFrame->frametype & 0x7], cFrame->hdr, pdMsgTypeNames[pdf_get_sop_msg_type(cFrame)], cFrame->obj[0], cFrame->obj[1], cFrame->obj[2]);
 	}
     }
@@ -182,23 +171,7 @@ void thread_rx_policy(void *unused_arg) {
 int main() {
     // Initialize IO & PIO
     stdio_init_all();
-    gpio_init(10 | 8);
-    gpio_set_dir(10 | 8, GPIO_OUT);
-
-    /* Initialize TX FIFO*/
-    uint offset_tx = pio_add_program(pio, &differential_manchester_tx_program);
-    printf("Transmit program loaded at %d\n", offset_tx);
-    differential_manchester_tx_program_init(pio, SM_TX, offset_tx, pin_tx, 125.f / 5);
-    pio_sm_set_enabled(pio, SM_TX, true);
-    
-    /* Initialize RX FIFO */
-    uint offset_rx = pio_add_program(pio, &differential_manchester_rx_program);
-    printf("Receive program loaded at %d\n", offset_rx);
-    differential_manchester_rx_program_init(pio, SM_RX, offset_rx, pin_rx, 125.f / 5);
-
-    pio_set_irq0_source_enabled(pio, pis_interrupt0, true);
-    irq_set_exclusive_handler(PIO0_IRQ_0, bmc_rx_cb);
-    irq_set_enabled(PIO0_IRQ_0, true);
+    bmc_ch0 = bmc_channel0_init();
 
     // Setup tasks
     BaseType_t status_task_rx_frame = xTaskCreate(thread_rx_process, "PROC_THREAD", 1024, NULL, 1, &tskhdl_pd_rxf);
@@ -215,7 +188,8 @@ int main() {
     txFrame *txf = malloc(sizeof(txFrame));
     txf->pdf = malloc(sizeof(pd_frame));
     pdf_generate_source_capabilities_basic(cFrame, txf);
-    pdf_transmit(txf, pio, SM_TX);
+    //printf("txlow: %u\n", bmc_ch0->tx_low);
+    pdf_transmit(txf, bmc_ch0);
     busy_wait_us(500000);
 	
 	// Start the scheduler

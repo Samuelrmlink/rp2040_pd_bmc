@@ -150,16 +150,17 @@ void pdf_to_uint32(txFrame *txf) {
     }
     return ordered_set_startbit;
 }
-pdf_transmit(txFrame *txf, PIO pio, uint sm) {
+pdf_transmit(txFrame *txf, bmcChannel *ch) {
     pdf_to_uint32(txf);
-    irq_set_enabled(PIO0_IRQ_0, false);
-    gpio_set_mask(1 << 10);// TODO: remove hard-coded values
+    irq_set_enabled(ch->irq, false);
+    gpio_set_mask(1 << ch->tx_high);
     uint64_t timestamp = time_us_64();
-    pio_sm_put_blocking(pio, sm, txf->out[0]);
-    pio_sm_exec(pio, sm, pio_encode_out(pio_null, txf->num_zeros));
+    pio_sm_put_blocking(ch->pio, ch->sm_tx, txf->out[0]);
+    pio_sm_exec(ch->pio, ch->sm_tx, pio_encode_out(pio_null, txf->num_zeros));
     for(int i = 1; i < txf->num_u32; i++) {
-	pio_sm_put_blocking(pio, sm, txf->out[i]);
+	pio_sm_put_blocking(ch->pio, ch->sm_tx, txf->out[i]);
     }
     busy_wait_until(timestamp + 103 * txf->num_u32 - (320 * txf->num_zeros) / 100);
-    gpio_clr_mask(1 << 10);
+    gpio_clr_mask(1 << ch->tx_high);
+    irq_set_enabled(ch->irq, true);
 }
