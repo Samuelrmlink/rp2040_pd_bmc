@@ -21,6 +21,7 @@
 #include "pdb_msg.h"
 //#include "bmc_test.h"
 #include "crc32.h"
+#include "rp2040_bmc.h"
 #include "bmc_decode.h"
 #include "pd_message.h"
 #include "bmc_encode.h"
