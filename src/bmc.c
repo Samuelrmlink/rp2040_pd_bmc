@@ -45,7 +45,7 @@ bmcChannel* bmc_channel0_init() {
     uint offset_tx = pio_add_program(ch->pio, &differential_manchester_tx_program);
     printf("Transmit program loaded at %d\n", offset_tx);
     differential_manchester_tx_program_init(ch->pio, ch->sm_tx, offset_tx, ch->tx_low, 125.f / 5);
-    //pio_sm_set_enabled(ch->pio, ch->sm_tx, true);
+    pio_sm_set_enabled(ch->pio, ch->sm_tx, true);
     
     // Initialize RX FIFO
     uint offset_rx = pio_add_program(ch->pio, &differential_manchester_rx_program);

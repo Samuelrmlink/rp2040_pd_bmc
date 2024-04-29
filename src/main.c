@@ -31,17 +31,19 @@ void thread_rx_policy(void *unused_arg) {
     while(true) {
 	xQueueReceive(queue_policy, cFrame, portMAX_DELAY);
 	timestamp_now = time_us_32();
-	printf("%u:%u - %s Header: %X %s | %X:%X:%X\n", cFrame->timestamp_us, (timestamp_now - cFrame->timestamp_us), sopFrameTypeNames[cFrame->frametype & 0x7], cFrame->hdr, pdMsgTypeNames[pdf_get_sop_msg_type(cFrame)], cFrame->obj[0], cFrame->obj[1], cFrame->obj[2]);
-	if(is_crc_good(cFrame) && (pdf_get_sop_msg_type(cFrame) != controlMsgGoodCrc) && is_sop_frame(cFrame) && !analyzer_mode && (cFrame->hdr != latestSrcCap.hdr)) {
-        /*
-	    // Start generating a GoodCRC response frame
-	    pdf_generate_goodcrc(cFrame, txf);
-	    pdf_to_uint32(txf);
-
-	    // Send the response frame to the TX thread
-        */
-    //memcpy(&latestSrcCap, cFrame, sizeof(pd_frame));
 	//printf("%u:%u - %s Header: %X %s | %X:%X:%X\n", cFrame->timestamp_us, (timestamp_now - cFrame->timestamp_us), sopFrameTypeNames[cFrame->frametype & 0x7], cFrame->hdr, pdMsgTypeNames[pdf_get_sop_msg_type(cFrame)], cFrame->obj[0], cFrame->obj[1], cFrame->obj[2]);
+	if(is_crc_good(cFrame) && (pdf_get_sop_msg_type(cFrame) != controlMsgGoodCrc) && is_sop_frame(cFrame) && !analyzer_mode && (cFrame->hdr != latestSrcCap.hdr)) {
+	    // Send a GoodCRC response frame
+	    pdf_generate_goodcrc(cFrame, txf);
+        //txf->out[0] |= 0x2;
+	    pdf_transmit(txf, bmc_ch0);
+
+	    // If Source Capabilities
+        if(pdf_get_sop_msg_type(cFrame) == dataMsgSourceCap) {
+            memcpy(&latestSrcCap, cFrame, sizeof(pd_frame));
+        }
+    // Clear the cFrame variable
+    pd_frame_clear(cFrame);
 	}
     }
 }

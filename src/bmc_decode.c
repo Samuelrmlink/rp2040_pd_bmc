@@ -1,31 +1,7 @@
 #include "main_i.h"
 #include "4b5b.h"
 
-void bmc_decode_clear(bmcDecode* bmc_d) {
-    bmc_d->procStage = 0;
-    bmc_d->procSubStage = 0;
-    bmc_d->pioData.val = 0;
-    bmc_d->procBuf = 0;
-    bmc_d->pOffset = 0;
-    bmc_d->crcTmp = 0;
-}
-void pd_frame_clear(pd_frame *pdf) {
-    for(uint8_t i = 0; i < 56; i++) {
-	pdf->raw_bytes[i] = 0;
-    }
-}
-bool is_crc_good(pd_frame *pdf) {
-    if(pdf->frametype & 0x80)
-	return true;
-    else
-	return false;
-}
-bool is_sop_frame(pd_frame *pdf) {
-    if((pdf->frametype & 0x7) == 3)
-	return true;
-    else 
-	return false;
-}
+
 void pd_frame_queue_and_reset(bmcDecode* bmc_d, QueueHandle_t q_validPdf) {
     // Send complete pd_frame for evaluation (regardless of CRC validation status)
     xQueueSendToBack(q_validPdf, (void *) &bmc_d->msg, portMAX_DELAY);

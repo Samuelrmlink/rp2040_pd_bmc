@@ -161,6 +161,9 @@ pdf_transmit(txFrame *txf, bmcChannel *ch) {
 	pio_sm_put_blocking(ch->pio, ch->sm_tx, txf->out[i]);
     }
     busy_wait_until(timestamp + 103 * txf->num_u32 - (320 * txf->num_zeros) / 100);
+    if(pio_sm_get_pc(ch->pio, ch->sm_tx) == 27) { // THIS IS A HACK - 27 is the PIO instruction that (at the time of this hack) leaves the tx line pulled high
+      pio_sm_exec(ch->pio, ch->sm_tx, pio_encode_jmp(22) | pio_encode_sideset(1, 1));
+    }
     gpio_clr_mask(1 << ch->tx_high);
     irq_set_enabled(ch->irq, true);
 }
