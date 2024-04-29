@@ -31,7 +31,7 @@ void thread_rx_policy(void *unused_arg) {
     while(true) {
 	xQueueReceive(queue_policy, cFrame, portMAX_DELAY);
 	timestamp_now = time_us_32();
-	//printf("%u:%u - %s Header: %X %s | %X:%X:%X\n", cFrame->timestamp_us, (timestamp_now - cFrame->timestamp_us), sopFrameTypeNames[cFrame->frametype & 0x7], cFrame->hdr, pdMsgTypeNames[pdf_get_sop_msg_type(cFrame)], cFrame->obj[0], cFrame->obj[1], cFrame->obj[2]);
+	printf("%u:%u - %s Header: %X %s | %X:%X:%X\n", cFrame->timestamp_us, (timestamp_now - cFrame->timestamp_us), sopFrameTypeNames[cFrame->frametype & 0x7], cFrame->hdr, pdMsgTypeNames[pdf_get_sop_msg_type(cFrame)], cFrame->obj[0], cFrame->obj[1], cFrame->obj[2]);
 	if(is_crc_good(cFrame) && (pdf_get_sop_msg_type(cFrame) != controlMsgGoodCrc) && is_sop_frame(cFrame) && !analyzer_mode && (cFrame->hdr != latestSrcCap.hdr)) {
         /*
 	    // Start generating a GoodCRC response frame
@@ -41,7 +41,7 @@ void thread_rx_policy(void *unused_arg) {
 	    // Send the response frame to the TX thread
         */
     //memcpy(&latestSrcCap, cFrame, sizeof(pd_frame));
-	printf("%u:%u - %s Header: %X %s | %X:%X:%X\n", cFrame->timestamp_us, (timestamp_now - cFrame->timestamp_us), sopFrameTypeNames[cFrame->frametype & 0x7], cFrame->hdr, pdMsgTypeNames[pdf_get_sop_msg_type(cFrame)], cFrame->obj[0], cFrame->obj[1], cFrame->obj[2]);
+	//printf("%u:%u - %s Header: %X %s | %X:%X:%X\n", cFrame->timestamp_us, (timestamp_now - cFrame->timestamp_us), sopFrameTypeNames[cFrame->frametype & 0x7], cFrame->hdr, pdMsgTypeNames[pdf_get_sop_msg_type(cFrame)], cFrame->obj[0], cFrame->obj[1], cFrame->obj[2]);
 	}
     }
 }
@@ -59,7 +59,7 @@ int main() {
 	queue_rx_pio = xQueueCreate(1000, sizeof(rx_data));
 	queue_rx_validFrame = xQueueCreate(10, sizeof(pd_frame));
 	queue_policy = xQueueCreate(10, sizeof(pd_frame));
-
+/*
     // Test raw frame generation - TODO: remove
     pd_frame *cFrame = malloc(sizeof(pd_frame));
     txFrame *txf = malloc(sizeof(txFrame));
@@ -68,6 +68,8 @@ int main() {
     //printf("txlow: %u\n", bmc_ch0->tx_low);
     pdf_transmit(txf, bmc_ch0);
     busy_wait_us(500000);
+*/
+    irq_set_enabled(bmc_ch0->irq, true);
 	
 	// Start the scheduler
 	vTaskStartScheduler();
