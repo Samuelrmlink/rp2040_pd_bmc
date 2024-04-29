@@ -150,5 +150,6 @@ struct pd_pdo_accept {
 typedef struct pd_pdo_accept pd_pdo_accept;
 
 PDMessageType pdf_get_sop_msg_type(pd_frame *msg);
+uint8_t optimal_pdo(pd_frame *pdf, uint16_t req_mvolts);
 
 #endif

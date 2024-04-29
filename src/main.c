@@ -27,9 +27,12 @@ void thread_rx_policy(void *unused_arg) {
     uint32_t timestamp_now = 0;
     PDMessageType msgType;
     bool analyzer_mode = false;
+    bool check_srccap = false;
+    uint16_t req_mvolt = 9000; // Very basic voltage request - TODO: remove
+    uint8_t tmpindex;
 
     while(true) {
-	xQueueReceive(queue_policy, cFrame, portMAX_DELAY);
+	xQueueReceive(queue_policy, cFrame, 10);
 	timestamp_now = time_us_32();
 	//printf("%u:%u - %s Header: %X %s | %X:%X:%X\n", cFrame->timestamp_us, (timestamp_now - cFrame->timestamp_us), sopFrameTypeNames[cFrame->frametype & 0x7], cFrame->hdr, pdMsgTypeNames[pdf_get_sop_msg_type(cFrame)], cFrame->obj[0], cFrame->obj[1], cFrame->obj[2]);
 	if(is_crc_good(cFrame) && (pdf_get_sop_msg_type(cFrame) != controlMsgGoodCrc) && is_sop_frame(cFrame) && !analyzer_mode && (cFrame->hdr != latestSrcCap.hdr)) {
@@ -41,10 +44,21 @@ void thread_rx_policy(void *unused_arg) {
 	    // If Source Capabilities
         if(pdf_get_sop_msg_type(cFrame) == dataMsgSourceCap) {
             memcpy(&latestSrcCap, cFrame, sizeof(pd_frame));
+            check_srccap = true;
         }
     // Clear the cFrame variable
     pd_frame_clear(cFrame);
-	}
+    free(txf->out);
+	} else if(latestSrcCap.hdr && check_srccap) {
+        check_srccap = false;
+        tmpindex = optimal_pdo(&latestSrcCap, req_mvolt);
+        if(tmpindex) {
+            pdf_request_from_srccap(&latestSrcCap, txf, tmpindex);
+            printf("%X:%u:%X %X\n", txf->pdf, txf->num_u32, txf->pdf->hdr, txf->pdf->obj[0]);
+            pdf_transmit(txf, bmc_ch0);
+            printf("op:%u\n", optimal_pdo(&latestSrcCap, req_mvolt));
+        }
+    }
     }
 }
 int main() {

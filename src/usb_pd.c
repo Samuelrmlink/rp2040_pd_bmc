@@ -44,3 +44,30 @@ bool is_src_cap(pd_frame *pdf) {
         return false;
     }
 }
+uint8_t optimal_pdo(pd_frame *pdf, uint16_t req_mvolts) {
+    uint8_t ret = 0;
+    // We are already assuming for this function that a valid Source Cap message is being passed in
+    for(int i = 1; i <= ((pdf->hdr >> 12) & 0x7); i++) {
+        if(((pdf->obj[i - 1] >> 10) & 0x3FF) * 50 == req_mvolts) {
+            ret = i;
+        }
+    }
+    return ret;
+}
+/*
+void pdf_generate_request(pd_frame *pdf, txFrame *txf, uint8_t req_index) {
+  // Ensure we start with a clean slate
+  pd_frame_clear(tx->pdf);
+
+  // Setup frametype (SOP) and header (uses hard-coded values for testing currently)
+  tx->pdf->frametype = PdfTypeSop;
+  tx->pdf->hdr = (0x1 << 12) | (tx->msgIdOut << 9) | (0x2 << 6) | 0x2; // TODO - remove magic numbers
+
+  // Setup RDO
+  tx->pdf->obj[0] =	(0x1 << 28) |			// Object position
+			((input_frame->obj[0] & 0x3FF) << 10) |	// Operating current
+			(input_frame->obj[0] & 0x3FF);		// Max current
+  
+  // Generate CRC32
+  tx->crc = crc32_pdframe_calc(tx->pdf);
+}*/
