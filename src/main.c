@@ -18,47 +18,47 @@ TaskHandle_t tskhdl_pd_pol = NULL;	// Task handle: USB-PD policy
 
 void thread_rx_policy(void *unused_arg) {
     // TODO - implement policy states for both current/perferred Power Sink/Source, Data UFP/DFP roles
-    pd_frame *cFrame = malloc(sizeof(pd_frame));
+    policyEngineMsg peMsg;
+    //pd_frame *cFrame = malloc(sizeof(pd_frame));
     txFrame *txf = malloc(sizeof(txFrame));
     txf->pdf = malloc(sizeof(pd_frame));
     pd_frame latestSrcCap, latestReqDataObj;
     pd_frame_clear(&latestSrcCap);
     pd_frame_clear(&latestReqDataObj);
-    uint32_t timestamp_now = 0;
-    PDMessageType msgType;
     bool analyzer_mode = false;
-    bool check_srccap = false;
     uint16_t req_mvolt = 9000; // Very basic voltage request - TODO: remove
     uint8_t tmpindex;
 
     while(true) {
-	xQueueReceive(queue_policy, cFrame, 10);
-	timestamp_now = time_us_32();
-	//printf("%u:%u - %s Header: %X %s | %X:%X:%X\n", cFrame->timestamp_us, (timestamp_now - cFrame->timestamp_us), sopFrameTypeNames[cFrame->frametype & 0x7], cFrame->hdr, pdMsgTypeNames[pdf_get_sop_msg_type(cFrame)], cFrame->obj[0], cFrame->obj[1], cFrame->obj[2]);
-	if(is_crc_good(cFrame) && (pdf_get_sop_msg_type(cFrame) != controlMsgGoodCrc) && is_sop_frame(cFrame) && !analyzer_mode && (cFrame->hdr != latestSrcCap.hdr)) {
-	    // Send a GoodCRC response frame
-	    pdf_generate_goodcrc(cFrame, txf);
-        //txf->out[0] |= 0x2;
-	    pdf_transmit(txf, bmc_ch0);
+	    xQueueReceive(queue_policy, &peMsg, portMAX_DELAY);
+        if(peMsg.msgType == peMsgPdFrame) {
+            // Analyzer Mode
+            if(analyzer_mode) {
+    	    printf("%u - %s Header: %X %s\n", peMsg.pdf->timestamp_us, sopFrameTypeNames[peMsg.pdf->frametype & 0x7], peMsg.pdf->hdr, pdMsgTypeNames[pdf_get_sop_msg_type(peMsg.pdf)]);
+            // PD Sink Mode - TODO: add more/better operational modes
+    	    } else if((pdf_get_sop_msg_type(peMsg.pdf) != controlMsgGoodCrc) && is_sop_frame(peMsg.pdf) && !analyzer_mode && (peMsg.pdf->hdr != latestSrcCap.hdr)) {
+	            // Send a GoodCRC response frame
+	            pdf_generate_goodcrc(peMsg.pdf, txf);
+	            pdf_transmit(txf, bmc_ch0);
+                pd_frame_clear(txf->pdf);
+                free(txf->out);
 
-	    // If Source Capabilities
-        if(pdf_get_sop_msg_type(cFrame) == dataMsgSourceCap) {
-            memcpy(&latestSrcCap, cFrame, sizeof(pd_frame));
-            check_srccap = true;
+	            // If Source Capabilities
+                if(pdf_get_sop_msg_type(peMsg.pdf) == dataMsgSourceCap) {
+                    memcpy(&latestSrcCap, peMsg.pdf, sizeof(pd_frame));
+                    tmpindex = optimal_pdo(&latestSrcCap, req_mvolt);
+                    if(!tmpindex) {     // If no acceptable PDO is found - just request the first one (always 5v)
+                        tmpindex = 1;
+                        pdf_request_from_srccap(&latestSrcCap, txf, tmpindex);
+                    } else {
+                        pdf_request_from_srccap(&latestSrcCap, txf, tmpindex);
+                    }
+                    pdf_transmit(txf, bmc_ch0);
+                }
+	        }
+            // Cleanup - wipe the pd_frame received (whether we've done anything with it or not)
+            free(peMsg.pdf);
         }
-    // Clear the cFrame variable
-    pd_frame_clear(cFrame);
-    free(txf->out);
-	} else if(latestSrcCap.hdr && check_srccap) {
-        check_srccap = false;
-        tmpindex = optimal_pdo(&latestSrcCap, req_mvolt);
-        if(tmpindex) {
-            pdf_request_from_srccap(&latestSrcCap, txf, tmpindex);
-            printf("%X:%u:%X %X\n", txf->pdf, txf->num_u32, txf->pdf->hdr, txf->pdf->obj[0]);
-            pdf_transmit(txf, bmc_ch0);
-            printf("op:%u\n", optimal_pdo(&latestSrcCap, req_mvolt));
-        }
-    }
     }
 }
 int main() {
@@ -74,7 +74,7 @@ int main() {
 	// Setup the queues
 	queue_rx_pio = xQueueCreate(1000, sizeof(rx_data));
 	queue_rx_validFrame = xQueueCreate(10, sizeof(pd_frame));
-	queue_policy = xQueueCreate(10, sizeof(pd_frame));
+	queue_policy = xQueueCreate(10, sizeof(policyEngineMsg));
 /*
     // Test raw frame generation - TODO: remove
     pd_frame *cFrame = malloc(sizeof(pd_frame));

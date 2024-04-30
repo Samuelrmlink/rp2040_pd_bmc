@@ -2,9 +2,9 @@
 #define _PD_POLICY_ENGINE_H
 
 typedef enum {
-    peMsgPdFrame;
-    peMsgRdoPrimary;
-    peMsgRdoSecondary;
+    peMsgPdFrame,
+    peMsgRdoPrimary,
+    peMsgRdoSecondary
     // TODO - add more
 } peMsgType;
 
@@ -12,7 +12,8 @@ struct policyEngineMsg {
     peMsgType msgType;
     pd_frame *pdf;
     
-}
+};
+typedef struct policyEngineMsg policyEngineMsg;
 
 
 

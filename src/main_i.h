@@ -24,6 +24,7 @@
 #include "rp2040_bmc.h"
 #include "bmc_decode.h"
 #include "pd_message.h"
+#include "policy_engine.h"
 #include "bmc_encode.h"
 
 #endif

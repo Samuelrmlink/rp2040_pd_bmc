@@ -78,6 +78,7 @@ void thread_rx_process(void* unused_arg) {
     bmcDecode *bmc_d = malloc(sizeof(bmcDecode));
     bmc_d->msg = malloc(sizeof(pd_frame));
     pd_frame *rxdPdf = NULL;
+    policyEngineMsg pMsg;
 
     // Clear variables
     bmc_decode_clear(bmc_d);
@@ -108,9 +109,13 @@ void thread_rx_process(void* unused_arg) {
         
 	// Check for complete pd_frame data
 	if(xQueueReceive(queue_rx_validFrame, &rxdPdf, 0) && is_crc_good(rxdPdf)) { // If rxd && CRC is valid
-	    xQueueSendToBack(queue_policy, rxdPdf, portMAX_DELAY);
+	    pMsg.msgType = peMsgPdFrame;
+	    pMsg.pdf = rxdPdf;
+	    xQueueSendToBack(queue_policy, &pMsg, portMAX_DELAY);
+	    /*
 	    // Free memory at pointer to avoid memory leak
 	    free(rxdPdf);
+	    */
 	}
     }
 }
