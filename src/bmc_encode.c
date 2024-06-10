@@ -151,8 +151,23 @@ void pdf_to_uint32(txFrame *txf) {
     }
     return ordered_set_startbit;
 }
+bool bmc_rx_active(bmcChannel *chan) {
+   uint prev = pio_sm_get_pc(chan->pio, chan->sm_rx);
+   bool rx_line_active = false;
+   for(int i = 0; i < 35; i++) {
+    if(pio_sm_get_pc(chan->pio, chan->sm_rx) != prev) {
+      rx_line_active = true;
+      break;
+    }
+    busy_wait_us(1);
+   }
+   return rx_line_active;
+}
 pdf_transmit(txFrame *txf, bmcChannel *ch) {
     pdf_to_uint32(txf);
+    while(bmc_rx_active(ch->pio)) {
+      sleep_us(20);
+    }
     irq_set_enabled(ch->irq, false);
     gpio_set_mask(1 << ch->tx_high);
     uint64_t timestamp = time_us_64();
