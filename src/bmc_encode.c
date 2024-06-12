@@ -165,7 +165,7 @@ bool bmc_rx_active(bmcChannel *chan) {
 }
 pdf_transmit(txFrame *txf, bmcChannel *ch) {
     pdf_to_uint32(txf);
-    while(bmc_rx_active(ch->pio)) {
+    while(bmc_rx_active(ch)) {
       sleep_us(20);
     }
     irq_set_enabled(ch->irq, false);
