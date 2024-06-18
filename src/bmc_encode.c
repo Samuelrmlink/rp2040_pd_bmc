@@ -149,7 +149,6 @@ void pdf_to_uint32(txFrame *txf) {
       tx_raw_buf_write(0x0, 1, txf->out, &current_bit_num);
       follower_zero_bits--;
     }
-    return ordered_set_startbit;
 }
 bool bmc_rx_active(bmcChannel *chan) {
    uint prev = pio_sm_get_pc(chan->pio, chan->sm_rx);
@@ -163,7 +162,7 @@ bool bmc_rx_active(bmcChannel *chan) {
    }
    return rx_line_active;
 }
-pdf_transmit(txFrame *txf, bmcChannel *ch) {
+void pdf_transmit(txFrame *txf, bmcChannel *ch) {
     pdf_to_uint32(txf);
     while(bmc_rx_active(ch)) {
       sleep_us(20);

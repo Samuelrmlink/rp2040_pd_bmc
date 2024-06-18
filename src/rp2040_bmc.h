@@ -29,6 +29,22 @@ extern bmcChannel *bmc_ch0;
  *	bmc_decode.c
  *
  */
+void bmc_rx_check();
+void bmc_rx_cb();
+bmcChannel* bmc_channel0_init();
+void individual_pin_toggle(uint8_t pin_num);
+
+void pd_frame_queue_and_reset(bmcDecode* bmc_d, QueueHandle_t q_validPdf);
+int bmcProcessSymbols(bmcDecode* bmc_d, QueueHandle_t q_validPdf);
+
+void tx_msg_inc(uint8_t *msgId);
+void pdf_generate_goodcrc(pd_frame *input_frame, txFrame *tx);
+void pdf_request_from_srccap(pd_frame *input_frame, txFrame *tx, uint8_t req_pdo);
+void pdf_generate_source_capabilities_basic(pd_frame *input_frame, txFrame *tx);
+void static tx_raw_buf_write(uint32_t input_bits, uint8_t num_input_bits, uint32_t *buf, uint16_t *buf_position);
+void pdf_to_uint32(txFrame *txF);
+bool bmc_rx_active(bmcChannel *chan);
+void pdf_transmit(txFrame *txf, bmcChannel *ch);
 
 
 /* 
