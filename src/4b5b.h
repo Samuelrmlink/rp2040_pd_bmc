@@ -65,7 +65,7 @@ typedef enum {
 
 // Returns the 20 bit Ordered Set
 static const uint32_t const bmcFrameType[] = {
-    NULL,		// PdfTypeInvalid
+    0,			// PdfTypeInvalid
     ordsetHardReset,	// PdfTypeHardReset
     ordsetCableReset,	// PdfTypeCableReset
     ordsetSop,		// PdfTypeSop

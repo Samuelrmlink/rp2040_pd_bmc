@@ -21,9 +21,28 @@ struct bmcChannel {
     // vconn_state
 };
 typedef struct bmcChannel bmcChannel;
-
 extern bmcChannel *bmc_ch0;
 
+/*
+ *	bmc.c
+ *	bmc_encode.c
+ *	bmc_decode.c
+ *
+ */
+
+
+/* 
+ *	usb_pd.c
+ *
+ */
+void bmc_decode_clear(bmcDecode* bmc_d);
+void pd_frame_clear(pd_frame* pdf);
+bool is_crc_good(pd_frame *pdf);
+bool is_sop_frame(pd_frame *pdf);
+PDMessageType pdf_get_sop_msg_type(pd_frame *msg);
+bool is_src_cap(pd_frame *pdf);
+uint8_t optimal_pdo(pd_frame *pdf, uint16_t req_mvolts);
+//void pdf_generate_request(pd_frame *pdf, txFrame *txf, uint8_t req_index);
 
 
 void bmc_rx_check();
