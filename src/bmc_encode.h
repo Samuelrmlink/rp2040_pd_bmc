@@ -15,19 +15,13 @@ struct txFrame {
 };
 typedef struct txFrame txFrame;
 
-/*
-struct bmcEncode {
-    pd_frame *pdf;
-    uint32_t crc;
-    uint8_t num_u32;
-    uint32_t *out;
-
-    uint8_t procStage;
-    uint32_t procSubStage;
-    uint32_t remainBits;
-    uint8_t numRemainBits;
-
-};
-*/
+void tx_msg_inc(uint8_t *msgId);
+void pdf_generate_goodcrc(pd_frame *input_frame, txFrame *tx);
+void pdf_request_from_srccap(pd_frame *input_frame, txFrame *tx, uint8_t req_pdo);
+void pdf_generate_source_capabilities_basic(pd_frame *input_frame, txFrame *tx);
+void static tx_raw_buf_write(uint32_t input_bits, uint8_t num_input_bits, uint32_t *buf, uint16_t *buf_position);
+void pdf_to_uint32(txFrame *txf);
+bool bmc_rx_active(bmcChannel *chan);
+void pdf_transmit(txFrame *txf, bmcChannel *ch);
 
 #endif

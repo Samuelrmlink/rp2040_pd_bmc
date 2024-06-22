@@ -75,17 +75,7 @@ int main() {
 	queue_rx_pio = xQueueCreate(1000, sizeof(rx_data));
 	queue_rx_validFrame = xQueueCreate(10, sizeof(pd_frame));
 	queue_policy = xQueueCreate(10, sizeof(policyEngineMsg));
-/*
-    // Test raw frame generation - TODO: remove
-    pd_frame *cFrame = malloc(sizeof(pd_frame));
-    txFrame *txf = malloc(sizeof(txFrame));
-    txf->pdf = malloc(sizeof(pd_frame));
-    pdf_generate_source_capabilities_basic(cFrame, txf);
-    //printf("txlow: %u\n", bmc_ch0->tx_low);
-    pdf_transmit(txf, bmc_ch0);
-    busy_wait_us(500000);
-*/
-    irq_set_enabled(bmc_ch0->irq, true);
+	irq_set_enabled(bmc_ch0->irq, true);
 	
 	// Start the scheduler
 	vTaskStartScheduler();
