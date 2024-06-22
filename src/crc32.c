@@ -39,5 +39,5 @@ uint32_t crc32_pdframe_calc(pd_frame* pdf) {
     
     num_bytes += num_obj * 4;
 
-    return crc32_calc(&tmpval, num_bytes);
+    return crc32_calc((uint8_t *) &tmpval, num_bytes);
 }

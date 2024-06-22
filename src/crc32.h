@@ -10,5 +10,6 @@ static const uint32_t crc32_lookup[26] = {
     0x9B64C2B0, 0x86D3D2D4, 0xA00AE278, 0xBDBDF21C
 };
 uint32_t crc32_calc(uint8_t *data, int length);
+uint32_t crc32_pdframe_calc(pd_frame* pdf);
 
 #endif
