@@ -3,24 +3,6 @@
 
 #include "main_i.h"
 
-struct bmcChannel {
-    // Hardware PIO & state machine handles
-    PIO pio;
-    uint sm_tx;
-    uint sm_rx;
-    uint irq;	// Example: PIO0_IRQ_0, etc...
-
-    // Hardware pins
-    uint rx;
-    uint tx_high;
-    uint tx_low;
-    uint adc;
-
-    // Currently unused (TO BE ADDED) - TODO:
-    // connector_orientation
-    // vconn_state
-};
-typedef struct bmcChannel bmcChannel;
 extern bmcChannel *bmc_ch0;
 
 /*

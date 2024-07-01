@@ -15,6 +15,25 @@ struct txFrame {
 };
 typedef struct txFrame txFrame;
 
+struct bmcChannel {
+    // Hardware PIO & state machine handles
+    PIO pio;
+    uint sm_tx;
+    uint sm_rx;
+    uint irq;	// Example: PIO0_IRQ_0, etc...
+
+    // Hardware pins
+    uint rx;
+    uint tx_high;
+    uint tx_low;
+    uint adc;
+
+    // Currently unused (TO BE ADDED) - TODO:
+    // connector_orientation
+    // vconn_state
+};
+typedef struct bmcChannel bmcChannel;
+
 void tx_msg_inc(uint8_t *msgId);
 void pdf_generate_goodcrc(pd_frame *input_frame, txFrame *tx);
 void pdf_request_from_srccap(pd_frame *input_frame, txFrame *tx, uint8_t req_pdo);
