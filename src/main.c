@@ -54,6 +54,7 @@ void thread_rx_policy(void *unused_arg) {
                         pdf_request_from_srccap(&latestSrcCap, txf, tmpindex);
                     }
                     pdf_transmit(txf, bmc_ch0);
+                    latestSrcCap.hdr = 0;
                 }
 	        }
             // Cleanup - wipe the pd_frame received (whether we've done anything with it or not)

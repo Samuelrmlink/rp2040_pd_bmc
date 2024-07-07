@@ -45,6 +45,7 @@ int bmcProcessSymbols(bmcDecode* bmc_d, QueueHandle_t q_validPdf) {
 	// Switch depending on process stage
 	switch(bmc_d->procStage & 0xF) {
 	    case (0) :// Preamble
+		bmc_d->procSubStage = (uint8_t) bmc_d->pOffset;	// We'll check this later to see if processing is stuck
 		while(((bmc_d->procBuf & 0b11) != 0b10) && ((bmc_d->procBuf & 0x1F) != 0x7) && ((bmc_d->procBuf & 0x1F) != 0x18) && (bmc_d->pOffset > 4)) {
 		    bmc_d->procBuf >>= 1;
 		    bmc_d->pOffset -= 1;
@@ -62,6 +63,13 @@ int bmcProcessSymbols(bmcDecode* bmc_d, QueueHandle_t q_validPdf) {
 		if(((bmc_d->procBuf & 0x3FF) == 0b0011100111) || ((bmc_d->procBuf & 0x3FF) == 0b1100000111) || ((bmc_d->procBuf & 0x1F) == 0x18)) {
 		    bmc_d->procSubStage = 0;
 		    bmc_d->procStage++;
+		} else if(bmc_d->pOffset == (uint8_t) bmc_d->procSubStage) {
+			// We are stuck - no operation was done
+			// Let's get unstuck - TODO: implement proper anti-discard checks for valid ordered sets
+			while(((bmc_d->procBuf & 0b11) != 0b10) && (bmc_d->pOffset > 4)) {
+				bmc_d->procBuf >>= 1;
+				bmc_d->pOffset -= 1;
+			}
 		}
 	        break;
 	    case (1) :// Ordered set
