@@ -66,6 +66,7 @@ int main() {
     // Initialize IO & PIO
     stdio_init_all();
     bmc_ch0 = bmc_channel0_init();
+    usb_init();
 
     // Setup tasks
     BaseType_t status_task_rx_frame = xTaskCreate(thread_rx_process, "PROC_THREAD", 1024, NULL, 1, &tskhdl_pd_rxf);

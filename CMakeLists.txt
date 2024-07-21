@@ -34,7 +34,7 @@ target_include_directories(FreeRTOS PUBLIC
 )
 
 # Add bmc_pd source code
-file(GLOB_RECURSE SOURCES "src/*.c")
+file(GLOB_RECURSE SOURCES "src/*.c*" "src/cli/*.c*")
 add_executable(bmc_pd ${SOURCES})
 
 # Add bmc RP2 PIO interface
@@ -55,3 +55,30 @@ pico_add_extra_outputs(bmc_pd)
 # Enable console output
 pico_enable_stdio_usb(bmc_pd 1)
 pico_enable_stdio_uart(bmc_pd 1)
+
+# Build Date
+string(TIMESTAMP FW_BUILD_DATE "%Y-%m-%d")
+# Commit
+execute_process(
+    COMMAND git rev-parse --short HEAD
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE FW_GIT_COMMIT
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+# Branch
+execute_process(
+    COMMAND git rev-parse --abbrev-ref HEAD
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE FW_GIT_BRANCH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+# Tag
+execute_process(
+    COMMAND git describe --tags --abbrev=0
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE FW_GIT_TAG
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if("${FW_GIT_TAG}" STREQUAL "")
+    set(FW_GIT_TAG "none")
+endif()
