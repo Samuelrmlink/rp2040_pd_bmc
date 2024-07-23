@@ -82,3 +82,10 @@ execute_process(
 if("${FW_GIT_TAG}" STREQUAL "")
     set(FW_GIT_TAG "none")
 endif()
+set(INFO_FLAGS
+    -DFW_BUILD_DATE="${FW_BUILD_DATE}"
+    -DFW_GIT_COMMIT="${FW_GIT_COMMIT}"
+    -DFW_GIT_BRANCH="${FW_GIT_BRANCH}"
+    -DFW_GIT_TAG="${FW_GIT_TAG}"
+)
+set_property(SOURCE "src/cli/cli_command_device_info.cpp" APPEND PROPERTY COMPILE_OPTIONS ${INFO_FLAGS})

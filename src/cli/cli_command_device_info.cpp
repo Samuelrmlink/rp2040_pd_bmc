@@ -1,12 +1,8 @@
 #include "cli_commands.h"
 #include <pico/unique_id.h>
 
-#define FW_BUILD_DATE "Test Date"
-#define FW_GIT_COMMIT "12345"
-#define FW_GIT_BRANCH "test"
-#define FW_GIT_TAG "tag"
-
 void cli_device_info(Cli* cli, std::string& args) {
+    cli_printf(cli, "github: https://github.com/Samuelrmlink/rp2040_pd_bmc" EOL);
     const size_t len = 2 * PICO_UNIQUE_BOARD_ID_SIZE_BYTES + 1;
     char id[len];
     pico_get_unique_board_id_string(id, len);

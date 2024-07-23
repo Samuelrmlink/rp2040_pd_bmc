@@ -26,6 +26,7 @@
 #include "pd_message.h"
 #include "rp2040_bmc.h"
 #include "policy_engine.h"
+#include "usb.h"
 #include "cli/cli.h"
 
 #endif
