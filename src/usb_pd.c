@@ -47,7 +47,8 @@ bool is_src_cap(pd_frame *pdf) {
 bool eval_pdo_fixed(uint32_t pdo_obj, pdo_accept_criteria req) {
     // We know this is a fixed PDO - not Augmented, Battery, etc..
     uint32_t pdo_mV = ((pdo_obj >> 10) & 0x3FF) * 50;
-    if(pdo_mV <= req.mV_max && pdo_mV >= req.mV_min) {
+    uint16_t pdo_mA_max = (pdo_obj & 0x3FF) * 10;
+    if(pdo_mV <= req.mV_max && pdo_mV >= req.mV_min && pdo_mA_max >= req.mA_min) {
 	return true;
     } else {
 	return false;

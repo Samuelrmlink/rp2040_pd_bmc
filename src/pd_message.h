@@ -152,6 +152,7 @@ struct pdo_accept_criteria {
     uint32_t mV_min;
     uint32_t mV_max;
     uint16_t mA_min;
+    uint16_t mA_max;
 };
 typedef struct pdo_accept_criteria pdo_accept_criteria;
 

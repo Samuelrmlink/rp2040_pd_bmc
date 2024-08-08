@@ -19,9 +19,18 @@ void pdf_generate_goodcrc(pd_frame *input_frame, txFrame *tx) {
     tx->crc = crc32_pdframe_calc(tx->pdf);
 }
 // TODO - move into a "Policy Engine"
-void pdf_request_from_srccap(pd_frame *input_frame, txFrame *tx, uint8_t req_pdo) {
+void pdf_request_from_srccap_fixed(pd_frame *input_frame, txFrame *tx, uint8_t req_pdo, pdo_accept_criteria req) {
   // Ensure we start with a clean slate
   pd_frame_clear(tx->pdf);
+
+  // Get PDO maximum current
+  uint16_t mA_max = (input_frame->obj[req_pdo - 1] & 0x3FF) * 10;
+
+  // Replace maximum current value if requested value is lower
+  if(req.mA_max < mA_max) {
+	mA_max = req.mA_max;
+  }
+
 
   // Setup frametype (SOP) and header (uses hard-coded values for testing currently)
   tx->pdf->frametype = PdfTypeSop;
@@ -29,9 +38,10 @@ void pdf_request_from_srccap(pd_frame *input_frame, txFrame *tx, uint8_t req_pdo
   tx->pdf->hdr = (0x1 << 12) | (tx->msgIdOut << 9) | (0x2 << 6) | 0x2; // TODO - remove magic numbers
 
   // Setup RDO
+  uint16_t pdo_mA_max = (input_frame->obj[req_pdo - 1] & 0x3FF);
   tx->pdf->obj[0] =	(req_pdo << 28) |			// Object position
-			((input_frame->obj[req_pdo - 1] & 0x3FF) << 10) |	// Operating current
-			(input_frame->obj[req_pdo - 1] & 0x3FF);		// Max current
+			(((mA_max / 10) & 0x3FF) << 10) |	// Operating current
+			((mA_max / 10) & 0x3FF);				// Max current
   
   // Generate CRC32
   tx->crc = crc32_pdframe_calc(tx->pdf);
