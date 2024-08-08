@@ -35,7 +35,7 @@ void thread_rx_policy(void *unused_arg) {
     uint8_t tmpindex;
 
     while(true) {
-	    xQueueReceive(queue_policy, &peMsg, portMAX_DELAY);
+	xQueueReceive(queue_policy, &peMsg, portMAX_DELAY);
         if(peMsg.msgType == peMsgPdFrame) {
             // Analyzer Mode
             if(analyzer_mode) {

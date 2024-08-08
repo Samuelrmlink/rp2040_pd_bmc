@@ -54,6 +54,25 @@ bool eval_pdo_fixed(uint32_t pdo_obj, pdo_accept_criteria req) {
 	return false;
     }
 }
+bool eval_pdo_augmented(uint32_t pdo_obj, pdo_accept_criteria req) {
+    if(!((pdo_obj >> 28) & 0x3)) {		// SPR PPS
+	// Get PPS PDO values
+	uint32_t pdo_mV_max = ((pdo_obj >> 17) & 0xFF) * 100;
+	uint32_t pdo_mV_min = ((pdo_obj >> 8) & 0xFF) * 100;
+	uint16_t pdo_mA_max = (pdo_obj & 0x7F) * 50;
+
+	// Compare PDO values with the criteria
+	if(pdo_mV_max >= req.mV_max && pdo_mV_max >= req.mV_min && pdo_mA_max >= req.mA_min) {
+	    return true;
+	}
+    } else if(((pdo_obj >> 28) & 0x3) == 0x2) {	// EPR
+	// TODO: Implement
+	return false;
+    } else {
+	// Invalid
+	return false;
+    }
+}
 uint8_t optimal_pdo(pd_frame *pdf, pdo_accept_criteria power_req) {
     uint8_t ret = 0;
     // We are already assuming for this function that a valid Source Cap message is being passed in
@@ -65,6 +84,10 @@ uint8_t optimal_pdo(pd_frame *pdf, pdo_accept_criteria power_req) {
 		}
 		break;
 	    case (pdoTypeAugmented) :
+		if(eval_pdo_augmented(pdf->obj[i - 1], power_req)) {
+		    ret = i;
+		}
+		break;
 	    case (pdoTypeBattery) :
 	    case (pdoTypeVariable) :
 		break;

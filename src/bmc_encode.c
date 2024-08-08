@@ -38,7 +38,6 @@ void pdf_request_from_srccap_fixed(pd_frame *input_frame, txFrame *tx, uint8_t r
   tx->pdf->hdr = (0x1 << 12) | (tx->msgIdOut << 9) | (0x2 << 6) | 0x2; // TODO - remove magic numbers
 
   // Setup RDO
-  uint16_t pdo_mA_max = (input_frame->obj[req_pdo - 1] & 0x3FF);
   tx->pdf->obj[0] =	(req_pdo << 28) |			// Object position
 			(((mA_max / 10) & 0x3FF) << 10) |	// Operating current
 			((mA_max / 10) & 0x3FF);				// Max current
