@@ -39,7 +39,7 @@ bool is_crc_good(pd_frame *pdf);
 bool is_sop_frame(pd_frame *pdf);
 PDMessageType pdf_get_sop_msg_type(pd_frame *msg);
 bool is_src_cap(pd_frame *pdf);
-uint8_t optimal_pdo(pd_frame *pdf, uint16_t req_mvolts);
+uint8_t optimal_pdo(pd_frame *pdf, pdo_accept_criteria power_req);
 //void pdf_generate_request(pd_frame *pdf, txFrame *txf, uint8_t req_index);
 void thread_rx_process(void* unused_arg);
 

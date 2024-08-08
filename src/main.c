@@ -26,7 +26,11 @@ void thread_rx_policy(void *unused_arg) {
     pd_frame_clear(&latestSrcCap);
     pd_frame_clear(&latestReqDataObj);
     bool analyzer_mode = false;
-    uint16_t req_mvolt = 9000; // Very basic voltage request - TODO: remove
+    pdo_accept_criteria power_req = {
+        .mV_min = 5000,
+        .mV_max = 10000,
+        .mA_min = 0
+    };
     uint8_t tmpindex;
 
     while(true) {
@@ -46,7 +50,7 @@ void thread_rx_policy(void *unused_arg) {
 	            // If Source Capabilities
                 if(pdf_get_sop_msg_type(peMsg.pdf) == dataMsgSourceCap) {
                     memcpy(&latestSrcCap, peMsg.pdf, sizeof(pd_frame));
-                    tmpindex = optimal_pdo(&latestSrcCap, req_mvolt);
+                    tmpindex = optimal_pdo(&latestSrcCap, power_req);
                     if(!tmpindex) {     // If no acceptable PDO is found - just request the first one (always 5v)
                         tmpindex = 1;
                         pdf_request_from_srccap(&latestSrcCap, txf, tmpindex);

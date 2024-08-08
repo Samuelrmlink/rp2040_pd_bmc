@@ -44,24 +44,31 @@ bool is_src_cap(pd_frame *pdf) {
         return false;
     }
 }
-bool eval_pdo_fixed(uint32_t pdo_obj, uint16_t req_mvolts) {
+bool eval_pdo_fixed(uint32_t pdo_obj, pdo_accept_criteria req) {
     // We know this is a fixed PDO - not Augmented, Battery, etc..
-    if(((pdo_obj >> 10) & 0x3FF) * 50 == req_mvolts) { return true; }
-    else { return false; }
+    uint32_t pdo_mV = ((pdo_obj >> 10) & 0x3FF) * 50;
+    if(pdo_mV <= req.mV_max && pdo_mV >= req.mV_min) {
+	return true;
+    } else {
+	return false;
+    }
 }
-uint8_t optimal_pdo(pd_frame *pdf, uint16_t req_mvolts) {
+uint8_t optimal_pdo(pd_frame *pdf, pdo_accept_criteria power_req) {
     uint8_t ret = 0;
     // We are already assuming for this function that a valid Source Cap message is being passed in
     for(int i = 1; i <= ((pdf->hdr >> 12) & 0x7); i++) {
 	switch((pdf->obj[i - 1] >> 30) & 0x3) {
 	    case (pdoTypeFixed) :
-		if(eval_pdo_fixed(pdf->obj[i - 1], req_mvolts)) {
+		if(eval_pdo_fixed(pdf->obj[i - 1], power_req)) {
 		    ret = i;
 		}
 		break;
 	    case (pdoTypeAugmented) :
 	    case (pdoTypeBattery) :
 	    case (pdoTypeVariable) :
+		break;
+	    default :
+		//TODO - Implement error handling
 		break;
 	}
         /*
