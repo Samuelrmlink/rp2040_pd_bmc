@@ -141,6 +141,12 @@ static const char* const pdMsgTypeNames[] = {
     [(int)extMsgSecurityResponse]	= "Security_Response",
     [(int)extMsgFirmwareUpdateRequest]	= "Firmware_Update_Request",
 };
+typedef enum {
+    pdoTypeFixed
+    pdoTypeBattery
+    pdoTypeVariable
+    pdoTypeAugmented
+} pdoTypes;
 
 struct pd_pdo_accept {
     uint32_t mV_min;
