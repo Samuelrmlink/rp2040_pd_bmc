@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include "cli.h"
+#include <pico/unique_id.h>
 
 typedef void (*CliCallback)(Cli* cli, std::string& args);
 

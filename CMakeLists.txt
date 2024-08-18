@@ -5,8 +5,6 @@ include(pico_sdk_import.cmake)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
-set(FREERTOS_CFG_DIRECTORY "${CMAKE_SOURCE_DIR}/FreeRTOS-Config")
-set(FREERTOS_SRC_DIRECTORY "${CMAKE_SOURCE_DIR}/FreeRTOS-Kernel")
 
 # Define this project
 project(rp2040_bmc_pd C CXX ASM)
@@ -14,24 +12,7 @@ project(rp2040_bmc_pd C CXX ASM)
 # Initialize the Pico SDK
 pico_sdk_init()
 
-# Add FreeRTOS as a library
-add_library(FreeRTOS STATIC
-    ${FREERTOS_SRC_DIRECTORY}/event_groups.c
-    ${FREERTOS_SRC_DIRECTORY}/list.c
-    ${FREERTOS_SRC_DIRECTORY}/queue.c
-    ${FREERTOS_SRC_DIRECTORY}/stream_buffer.c
-    ${FREERTOS_SRC_DIRECTORY}/tasks.c
-    ${FREERTOS_SRC_DIRECTORY}/timers.c
-    ${FREERTOS_SRC_DIRECTORY}/portable/MemMang/heap_3.c
-    ${FREERTOS_SRC_DIRECTORY}/portable/GCC/ARM_CM0/port.c
-)
-
-# Build FreeRTOS
-target_include_directories(FreeRTOS PUBLIC
-    ${FREERTOS_CFG_DIRECTORY}/
-    ${FREERTOS_SRC_DIRECTORY}/include
-    ${FREERTOS_SRC_DIRECTORY}/portable/GCC/ARM_CM0
-)
+include(FreeRTOS-Config/FreeRTOS_Kernel_import.cmake)
 
 # Add bmc_pd source code
 file(GLOB_RECURSE SOURCES "src/*.c*" "src/cli/*.c*")
@@ -41,7 +22,8 @@ add_executable(bmc_pd ${SOURCES})
 pico_generate_pio_header(bmc_pd ${CMAKE_CURRENT_LIST_DIR}/src/bmc.pio)
 
 # Link libraries used for this application
-target_link_libraries(bmc_pd PRIVATE pico_stdlib hardware_pio hardware_dma FreeRTOS)
+target_link_libraries(bmc_pd PRIVATE pico_stdlib pico_unique_id hardware_pio hardware_dma pico_async_context_freertos FreeRTOS-Kernel-Heap4)
+target_include_directories(bmc_pd PRIVATE ${CMAKE_CURRENT_LIST_DIR}/FreeRTOS-Config)
 
 # Add debug & other compiler options
 add_compile_options(-Wall
@@ -53,8 +35,13 @@ add_compile_options(-Wall
 pico_add_extra_outputs(bmc_pd)
 
 # Enable console output
-pico_enable_stdio_usb(bmc_pd 1)
+if(NOT(PICO_PLATFORM STREQUAL "rp2350-riscv"))
+    pico_enable_stdio_usb(bmc_pd 1)
+endif()
 pico_enable_stdio_uart(bmc_pd 1)
+
+# Passthrough PICO_PLATFORM to compiler
+set(FW_PLATFORM "${PICO_PLATFORM}")
 
 # Build Date
 string(TIMESTAMP FW_BUILD_DATE "%Y-%m-%d")
@@ -82,7 +69,9 @@ execute_process(
 if("${FW_GIT_TAG}" STREQUAL "")
     set(FW_GIT_TAG "none")
 endif()
+
 set(INFO_FLAGS
+    -DFW_PLATFORM="${FW_PLATFORM}"
     -DFW_BUILD_DATE="${FW_BUILD_DATE}"
     -DFW_GIT_COMMIT="${FW_GIT_COMMIT}"
     -DFW_GIT_BRANCH="${FW_GIT_BRANCH}"
