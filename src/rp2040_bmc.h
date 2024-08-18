@@ -21,7 +21,8 @@ int bmcProcessSymbols(bmcDecode* bmc_d, QueueHandle_t q_validPdf);
 
 void tx_msg_inc(uint8_t *msgId);
 void pdf_generate_goodcrc(pd_frame *input_frame, txFrame *tx);
-void pdf_request_from_srccap(pd_frame *input_frame, txFrame *tx, uint8_t req_pdo);
+void pdf_request_from_srccap_fixed(pd_frame *input_frame, txFrame *tx, uint8_t req_pdo, pdo_accept_criteria req);
+void pdf_request_from_srccap_augmented(pd_frame *input_frame, txFrame *tx, uint8_t req_pdo, pdo_accept_criteria req);
 void pdf_generate_source_capabilities_basic(pd_frame *input_frame, txFrame *tx);
 void static tx_raw_buf_write(uint32_t input_bits, uint8_t num_input_bits, uint32_t *buf, uint16_t *buf_position);
 void pdf_to_uint32(txFrame *txF);
@@ -39,7 +40,7 @@ bool is_crc_good(pd_frame *pdf);
 bool is_sop_frame(pd_frame *pdf);
 PDMessageType pdf_get_sop_msg_type(pd_frame *msg);
 bool is_src_cap(pd_frame *pdf);
-uint8_t optimal_pdo(pd_frame *pdf, uint16_t req_mvolts);
+uint8_t optimal_pdo(pd_frame *pdf, pdo_accept_criteria power_req);
 //void pdf_generate_request(pd_frame *pdf, txFrame *txf, uint8_t req_index);
 void thread_rx_process(void* unused_arg);
 

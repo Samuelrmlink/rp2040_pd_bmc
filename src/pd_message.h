@@ -141,15 +141,21 @@ static const char* const pdMsgTypeNames[] = {
     [(int)extMsgSecurityResponse]	= "Security_Response",
     [(int)extMsgFirmwareUpdateRequest]	= "Firmware_Update_Request",
 };
+typedef enum {
+    pdoTypeFixed,
+    pdoTypeBattery,
+    pdoTypeVariable,
+    pdoTypeAugmented
+} pdoTypes;
 
-struct pd_pdo_accept {
+struct pdo_accept_criteria {
     uint32_t mV_min;
     uint32_t mV_max;
     uint16_t mA_min;
+    uint16_t mA_max;
 };
-typedef struct pd_pdo_accept pd_pdo_accept;
+typedef struct pdo_accept_criteria pdo_accept_criteria;
 
 PDMessageType pdf_get_sop_msg_type(pd_frame *msg);
-uint8_t optimal_pdo(pd_frame *pdf, uint16_t req_mvolts);
 
 #endif
