@@ -3,6 +3,7 @@
 
 void cli_gpio(Cli* cli, std::string& args);
 void cli_device_info(Cli* cli, std::string& args);
+void cli_usbpd(Cli* cli, std::string& args);
 
 void cli_help(Cli* cli, std::string& args) {
     size_t max_len = 0;
@@ -58,6 +59,11 @@ const CliItem cli_items[] = {
         .name = "gpio",
         .desc = "gpio control",
         .callback = cli_gpio,
+    },
+    {
+	.name = "usbpd",
+	.desc = "USB Power Delivery",
+	.callback = cli_usbpd,
     },
 };
 
