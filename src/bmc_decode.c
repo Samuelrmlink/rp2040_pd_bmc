@@ -17,6 +17,14 @@ void pd_frame_queue_and_reset(bmcDecode* bmc_d, QueueHandle_t q_validPdf) {
     // Reset PD msg
     pd_frame_clear(bmc_d->msg);
 }
+// Returns the number of unchunked extended bytes (chunked extended frames, or non-extended frames will return 0)
+uint8_t pdf_extended_unchunked_bytes(pd_frame *pdf) {
+    if((pdf->hdr >> 15) && !(pdf->extended_hdr >> 15)) {
+        return (pdf->extended_hdr & 0xFF);
+    } else {
+        return 0;
+    }
+}
 int bmcProcessSymbols(bmcDecode* bmc_d, QueueHandle_t q_validPdf) {
     uint8_t internal_stage;
     uint8_t input_offset = 0;
@@ -126,11 +134,11 @@ int bmcProcessSymbols(bmcDecode* bmc_d, QueueHandle_t q_validPdf) {
 		bmc_d->procBuf >>= 5;
 		bmc_d->pOffset -= 5;
 		if(bmc_d->procSubStage == 3) { // If full header has been received
-		    if((bmc_d->msg->hdr >> 15) & 0x1) {
-			bmc_d->procStage++; // Extended header follows
+		    if(pdf_extended_unchunked_bytes(bmc_d->msg)) {
+			bmc_d->procStage++; // Unchunked extended header follows
 			bmc_d->procSubStage = 0;
 		    } else if((bmc_d->msg->hdr >> 12) & 0x7) {
-			bmc_d->procStage += 2; // Data objects follow
+			bmc_d->procStage += 2; // Data objects follow (Could include a chunked extended header)
 			bmc_d->procSubStage = 0;
 		    } else {
 			bmc_d->procStage += 3; // No data objects - control message
@@ -138,21 +146,19 @@ int bmcProcessSymbols(bmcDecode* bmc_d, QueueHandle_t q_validPdf) {
 		    }
 		} else bmc_d->procSubStage++;  // Increment & wait for next symbol in PD header
 		break;
-	    case (3) :// Extended Header (if applicable)
-		bmc_d->msg->obj[0] |= bmc5bTo4b[bmc_d->procBuf & 0x1F] << 4 * (bmc_d->procSubStage % 8);
+	    case (3) :// Unchunked Extended Header (this is skipped over if extended header is chunked)
+		if(bmc_d->procSubStage < 4) {	// Only 4 symbols (2 bytes) to get the extended header
+		    bmc_d->msg->extended_hdr |= bmc5bTo4b[bmc_d->procBuf & 0x1F] << (4 * bmc_d->procSubStage);
+		} else {
+		    bmc_d->msg->data[bmc_d->procSubStage - 4] = bmc5bTo4b[bmc_d->procBuf & 0x1F];
+		}
 		bmc_d->procBuf >>= 5;
 		bmc_d->pOffset -= 5;
 		bmc_d->procSubStage++;
 		// Once Extended Header has been received
-		if(bmc_d->procSubStage == 4) {
-		    if(bmc_d->msg->obj[0] >> 15) { // Chunked bit is set
-			// Continue process in the next stage
-			bmc_d->procStage++;
-			// Don't change the procSubStage to ensure continution of the first
-			// data object. (With extended header as part of that first object.)
-		    } else {
-			// TODO - implement unchunked extended messages
-		    }
+		if((bmc_d->procSubStage >= 4) && (bmc_d->procSubStage - 4 == pdf_extended_unchunked_bytes(bmc_d->msg) - 1)) {
+		    bmc_d->procStage += 2;
+		    bmc_d->procSubStage = 0;
 		}
 		break;
 	    case (4) :// Data Objects (if applicable)

@@ -93,7 +93,7 @@ typedef union {
 	} __attribute__((packed));
 	uint32_t timestamp_us;
 	uint16_t hdr;
-	uint16_t _unassigned4;
+	uint16_t extended_hdr;
 	union {
 	    uint32_t obj[11];
 	    uint8_t data[44];

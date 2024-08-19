@@ -19,6 +19,7 @@ struct bmcDecode {
     uint32_t lastMsgTime;
 };
 
+uint8_t pdf_extended_unchunked_bytes(pd_frame *pdf);
 int bmcProcessSymbols(bmcDecode* bmc_d, QueueHandle_t q_validPdf);
 
 #endif
