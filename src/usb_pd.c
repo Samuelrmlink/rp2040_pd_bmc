@@ -26,16 +26,16 @@ bool is_sop_frame(pd_frame *pdf) {
 	return false;
 }
 PDMessageType pdf_get_sop_msg_type(pd_frame *msg) {
-    uint8_t msgType = 0;
+    uint8_t frmType = 0;
     if(msg->hdr & 0x8000) {		// Extended message
-	msgType = 1 << 7;
+	frmType = 1 << 7;
     } else if(msg->hdr & 0x7000) {	// Data message
-	msgType = 1 << 6;
+	frmType = 1 << 6;
     } else {				// Control messsage
-	msgType = 0;
+	frmType = 0;
     }
-    msgType |= msg->hdr & 0x1f;
-    return (PDMessageType) msgType;
+    frmType |= msg->hdr & 0x1f;
+    return (PDMessageType) frmType;
 }
 bool is_src_cap(pd_frame *pdf) {
     if(((pdf->frametype & 0x7) == PdfTypeSop) && (pdf_get_sop_msg_type(pdf) == dataMsgSourceCap)) {
