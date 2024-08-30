@@ -14,16 +14,10 @@ void pd_frame_clear(pd_frame *pdf) {
     }
 }
 bool is_crc_good(pd_frame *pdf) {
-    if(pdf->frametype & 0x80)
-	return true;
-    else
-	return false;
+    return (bool)(pdf->frametype & 0x80);
 }
-bool is_sop_frame(pd_frame *pdf) {
-    if((pdf->frametype & 0x7) == 3)
-	return true;
-    else 
-	return false;
+bool check_sop_type(uint8_t type, pd_frame *pdf) {
+    return (bool)((pdf->frametype & 0x7) == type);
 }
 PDMessageType pdf_get_sop_msg_type(pd_frame *msg) {
     uint8_t frmType = 0;

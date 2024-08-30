@@ -75,6 +75,17 @@ static const uint32_t const bmcFrameType[] = {
     ordsetSopDpDbg	// PdfTypeSopDpDbg
 };
 
+typedef enum {
+    pdfTypeInvalid,	    // 0
+    pdfTypeHardReset,	// 1
+    pdfTypeCableReset,	// 2
+    pdfTypeSop,		    // 3
+    pdfTypeSopP,	    // 4
+    pdfTypeSopDp,	    // 5
+    pdfTypeSopPDbg,	    // 6
+    pdfTypeSopDpDbg	    // 7
+} pdfTypes;
+
 static const uint8_t const bmc4bTo5b[] = { 
     symHex0, symHex1, symHex2, symHex3, 
     symHex4, symHex5, symHex6, symHex7, 

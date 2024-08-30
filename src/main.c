@@ -41,7 +41,7 @@ void thread_rx_policy(void *unused_arg) {
             if(analyzer_mode) {
     	    printf("%u - %s Header: %X %s\n", peMsg.pdf->timestamp_us, sopFrameTypeNames[peMsg.pdf->frametype & 0x7], peMsg.pdf->hdr, pdMsgTypeNames[pdf_get_sop_msg_type(peMsg.pdf)]);
             // PD Sink Mode - TODO: add more/better operational modes
-    	    } else if((pdf_get_sop_msg_type(peMsg.pdf) != controlMsgGoodCrc) && is_sop_frame(peMsg.pdf) && !analyzer_mode && (peMsg.pdf->hdr != latestSrcCap.hdr)) {
+    	    } else if((pdf_get_sop_msg_type(peMsg.pdf) != controlMsgGoodCrc) && check_sop_type(pdfTypeSop, peMsg.pdf)) {
 	            // Send a GoodCRC response frame
 	            pdf_generate_goodcrc(peMsg.pdf, txf);
 	            pdf_transmit(txf, bmc_ch0);

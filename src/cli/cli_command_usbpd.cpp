@@ -28,16 +28,16 @@ static const CliUsbpdShowOption cli_usbpd_show_options[] = {
 static const size_t cli_usbpd_show_options_count = 
     sizeof(cli_usbpd_show_options) / sizeof(cli_usbpd_show_options[0]);
 void cli_usbpd_show(Cli *cli, std::vector<std::string>& argv) {
-    if(argv.size() < 1) {
+    if(argv.size() < 2) {
 	// Print help information
 	cli_usbpd_show_help(cli);
 	return;
     }
-    cli_printf(cli, "TEST-remove" EOL);
+    cli_printf(cli, "TEST-remove: %u" EOL, argv.size());
 
     for(size_t i = 0; i < cli_usbpd_show_options_count; i++) {
 	const CliUsbpdShowOption *cl = &cli_usbpd_show_options[i];
-	if(cl->option == argv[0]) {
+	if(cl->option == argv[1]) {
 	    cl->cb(cli);
 	}
     }

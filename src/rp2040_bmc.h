@@ -37,7 +37,7 @@ void pdf_transmit(txFrame *txf, bmcChannel *ch);
 void bmc_decode_clear(bmcDecode* bmc_d);
 void pd_frame_clear(pd_frame* pdf);
 bool is_crc_good(pd_frame *pdf);
-bool is_sop_frame(pd_frame *pdf);
+bool check_sop_type(uint8_t type, pd_frame *pdf);
 PDMessageType pdf_get_sop_msg_type(pd_frame *msg);
 bool is_src_cap(pd_frame *pdf);
 uint8_t optimal_pdo(pd_frame *pdf, pdo_accept_criteria power_req);
