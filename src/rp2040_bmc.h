@@ -25,7 +25,7 @@ void pdf_request_from_srccap_fixed(pd_frame *input_frame, txFrame *tx, uint8_t r
 void pdf_request_from_srccap_augmented(pd_frame *input_frame, txFrame *tx, uint8_t req_pdo, pdo_accept_criteria req);
 void pdf_generate_source_capabilities_basic(pd_frame *input_frame, txFrame *tx);
 void static tx_raw_buf_write(uint32_t input_bits, uint8_t num_input_bits, uint32_t *buf, uint16_t *buf_position);
-void pdf_to_uint32(txFrame *txF);
+void pdf_to_uint32(txFrame *txf);
 bool bmc_rx_active(bmcChannel *chan);
 void pdf_transmit(txFrame *txf, bmcChannel *ch);
 
