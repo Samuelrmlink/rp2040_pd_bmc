@@ -54,9 +54,9 @@ void thread_rx_policy(void *unused_arg) {
                     tmpindex = optimal_pdo(&latestSrcCap, power_req);
                     if(!tmpindex) {     // If no acceptable PDO is found - just request the first one (always 5v)
                         tmpindex = 1;
-                        pdf_request_from_srccap_fixed(&latestSrcCap, txf, tmpindex, power_req);
+                        pdf_request_from_srccap(&latestSrcCap, txf, tmpindex, power_req);
                     } else {
-                        pdf_request_from_srccap_fixed(&latestSrcCap, txf, tmpindex, power_req);
+                        pdf_request_from_srccap(&latestSrcCap, txf, tmpindex, power_req);
                     }
                     pdf_transmit(txf, bmc_ch0);
                     latestSrcCap.hdr = 0;
