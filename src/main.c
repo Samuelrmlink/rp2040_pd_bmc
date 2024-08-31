@@ -16,12 +16,16 @@ TaskHandle_t tskhdl_pd_rxf = NULL;	// Task handle: RX frame receiver
 TaskHandle_t tskhdl_pd_pol = NULL;	// Task handle: USB-PD policy
 
 
+pe_outbound_pdf(txFrame *tx_out) {
+    policyEngineMsg msg;
+    msg.msgType = peMsgPdFrameOut;
+    msg.txf = tx_out;
+    xQueueSendToBack(queue_policy, &msg, portMAX_DELAY);
+}
+
 void thread_rx_policy(void *unused_arg) {
     // TODO - implement policy states for both current/perferred Power Sink/Source, Data UFP/DFP roles
     policyEngineMsg peMsg;
-    //pd_frame *cFrame = malloc(sizeof(pd_frame));
-    txFrame *txf = malloc(sizeof(txFrame));
-    txf->pdf = malloc(sizeof(pd_frame));
     pd_frame latestSrcCap, latestReqDataObj;
     pd_frame_clear(&latestSrcCap);
     pd_frame_clear(&latestReqDataObj);
@@ -30,40 +34,49 @@ void thread_rx_policy(void *unused_arg) {
         .mV_min = 5000,
         .mV_max = 10240,
         .mA_min = 0,
-	.mA_max = 2000
+        .mA_max = 2000
     };
     uint8_t tmpindex;
 
     while(true) {
 	xQueueReceive(queue_policy, &peMsg, portMAX_DELAY);
-        if(peMsg.msgType == peMsgPdFrame) {
+        if(peMsg.msgType == peMsgPdFrameIn) {
             // Analyzer Mode
             if(analyzer_mode) {
     	    printf("%u - %s Header: %X %s\n", peMsg.pdf->timestamp_us, sopFrameTypeNames[peMsg.pdf->frametype & 0x7], peMsg.pdf->hdr, pdMsgTypeNames[pdf_get_sop_msg_type(peMsg.pdf)]);
             // PD Sink Mode - TODO: add more/better operational modes
-    	    } else if((pdf_get_sop_msg_type(peMsg.pdf) != controlMsgGoodCrc) && check_sop_type(pdfTypeSop, peMsg.pdf)) {
-	            // Send a GoodCRC response frame
-	            pdf_generate_goodcrc(peMsg.pdf, txf);
-	            pdf_transmit(txf, bmc_ch0);
-                pd_frame_clear(txf->pdf);
-                free(txf->out);
+    	    } else {
+                // Prep the TX response structure
+                txFrame txf;
+                txf.pdf = malloc(sizeof(pd_frame));
 
-	            // If Source Capabilities
+                // Generate and transmit GoodCRC (if applicable)
+                if((pdf_get_sop_msg_type(peMsg.pdf) != controlMsgGoodCrc) && check_sop_type(pdfTypeSop, peMsg.pdf)) {
+                    pdf_generate_goodcrc(peMsg.pdf, &txf);
+                    pe_outbound_pdf(&txf);
+                }
+
+                // If Source Capabilities
                 if(pdf_get_sop_msg_type(peMsg.pdf) == dataMsgSourceCap) {
                     memcpy(&latestSrcCap, peMsg.pdf, sizeof(pd_frame));
                     tmpindex = optimal_pdo(&latestSrcCap, power_req);
                     if(!tmpindex) {     // If no acceptable PDO is found - just request the first one (always 5v)
                         tmpindex = 1;
-                        pdf_request_from_srccap(&latestSrcCap, txf, tmpindex, power_req);
+                        pdf_request_from_srccap(&latestSrcCap, &txf, tmpindex, power_req);
                     } else {
-                        pdf_request_from_srccap(&latestSrcCap, txf, tmpindex, power_req);
+                        pdf_request_from_srccap(&latestSrcCap, &txf, tmpindex, power_req);
                     }
-                    pdf_transmit(txf, bmc_ch0);
+                    pe_outbound_pdf(&txf);
+
                     latestSrcCap.hdr = 0;
                 }
-	        }
+
+            }
+
             // Cleanup - wipe the pd_frame received (whether we've done anything with it or not)
             free(peMsg.pdf);
+        } else if(peMsg.msgType == peMsgPdFrameOut) {
+            pe_transmit(peMsg.txf, bmc_ch0);
         }
     }
 }

@@ -159,7 +159,7 @@ void thread_rx_process(void* unused_arg) {
         
 	// Check for complete pd_frame data
 	if(xQueueReceive(queue_rx_validFrame, &rxdPdf, 0) && is_crc_good(rxdPdf)) { // If rxd && CRC is valid
-	    pMsg.msgType = peMsgPdFrame;
+	    pMsg.msgType = peMsgPdFrameIn;
 	    pMsg.pdf = rxdPdf;
 	    xQueueSendToBack(queue_policy, &pMsg, portMAX_DELAY);
 	    /*
