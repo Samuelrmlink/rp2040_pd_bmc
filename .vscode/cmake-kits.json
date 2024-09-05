@@ -1,7 +1,16 @@
 [
-  {
-    "name": "Pico ARM GCC",
-    "description": "Pico SDK Toolchain with GCC arm-none-eabi",
-    "toolchainFile": "${env:PICO_SDK_PATH}/cmake/preload/toolchains/pico_arm_gcc.cmake"
-  }
+    {
+        "name": "Pico",
+        "compilers": {
+            "C": "${userHome}/.pico-sdk/toolchain/13_2_Rel1/bin/arm-none-eabi-gcc",
+            "CXX": "${userHome}/.pico-sdk/toolchain/13_2_Rel1/bin/arm-none-eabi-gcc"
+        },
+        "toolchainFile": "${env:HOME}/.pico-sdk/sdk/2.0.0/cmake/preload/toolchains/pico_arm_cortex_m0plus_gcc.cmake",
+        "environmentVariables": {
+            "PATH": "${command:raspberry-pi-pico.getEnvPath};${env:PATH}"
+        },
+        "cmakeSettings": {
+            "Python3_EXECUTABLE": "${command:raspberry-pi-pico.getPythonPath}"
+        }
+    }
 ]
