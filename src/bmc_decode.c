@@ -17,14 +17,6 @@ void pd_frame_queue_and_reset(bmcDecode* bmc_d, QueueHandle_t q_validPdf) {
     // Reset PD msg
     pd_frame_clear(bmc_d->msg);
 }
-// Returns the number of unchunked extended bytes (chunked extended frames, or non-extended frames will return 0)
-uint8_t pdf_extended_unchunked_bytes(pd_frame *pdf) {
-    if((pdf->hdr >> 15) && !(pdf->extended_hdr >> 15)) {
-        return (pdf->extended_hdr & 0xFF);
-    } else {
-        return 0;
-    }
-}
 int bmcProcessSymbols(bmcDecode* bmc_d, QueueHandle_t q_validPdf) {
     uint8_t internal_stage;
     uint8_t input_offset = 0;

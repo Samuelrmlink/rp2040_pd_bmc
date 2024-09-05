@@ -84,6 +84,9 @@ int main() {
     // Initialize IO & PIO
     stdio_init_all();
     bmc_ch0 = bmc_channel0_init();
+    bmcRx pdq_rx;
+    pdq_rx.rollover_obj = 12;
+    pdq_rx.pdf_ptr = malloc(sizeof(pd_frame) * pdq_rx.rollover_obj);
     usb_init();
 
     // Setup tasks

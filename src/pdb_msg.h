@@ -82,21 +82,21 @@ typedef union {
 typedef union {
     uint8_t raw_bytes[56];
     struct {
+	uint32_t timestamp_us;          // raw_bytes[0..3]
 	union {
-	    uint32_t misc_attributes;
+	    uint32_t ordered_set;       // raw_bytes[4..7]
 	    struct {
-		uint8_t _unassigned1;
-		uint8_t _unassigned2;
-		uint8_t _unassigned3;
-		uint8_t frametype;
+		uint8_t kcode1;                 // raw_bytes[4]
+		uint8_t kcode2;                 // raw_bytes[5]
+		uint8_t kcode3;                 // raw_bytes[6]
+		uint8_t kcode4;                 // raw_bytes[7]
 	    } __attribute__((packed));
 	} __attribute__((packed));
-	uint32_t timestamp_us;
-	uint16_t hdr;
-	uint16_t extended_hdr;
+	uint16_t hdr;                   // raw_bytes[8..9]
+	uint16_t extended_hdr;          // raw_bytes[10..11]
 	union {
-	    uint32_t obj[11];
-	    uint8_t data[44];
+	    uint32_t obj[11];           // raw_bytes[12..55]
+	    uint8_t data[44];           // raw_bytes[12..55]
 	} __attribute__((packed));
     } __attribute__((packed));
 } __attribute__((packed)) pd_frame;

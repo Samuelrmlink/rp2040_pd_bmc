@@ -22,7 +22,7 @@
 //#include "bmc_test.h"
 #include "crc32.h"
 #include "pd_message.h"
-#include "bmc_decode.h"
+#include "bmc_rx.h"
 #include "bmc_encode.h"
 #include "rp2040_bmc.h"
 #include "policy_engine.h"
