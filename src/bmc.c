@@ -15,10 +15,16 @@ void bmc_rx_check() {
     }
 }
 */
+void bmc_process_symbols(bmcRx *rx) {
+    
+}
 void bmc_rx_check() {
     extern bmcRx pdq_rx;
+    uint32_t buf;
     if(!pio_sm_is_rx_fifo_empty(bmc_ch0->pio, bmc_ch0->sm_rx)) {
-        (pdq_rx->pdf_ptr[pdq_rx->obj_offset])->raw_bytes[pdq_rx->byte_offset] |= pio_sm_get(bmc_ch0->pio, bmc_ch0->sm_rx) << pdq_rx->even_symbol;
+        buf = pio_sm_get(bmc_ch0->pio, bmc_ch0->sm_rx);
+        bmcProcessSymbols(&pdq_rx, buf);
+        //(pdq_rx->pdfPtr[pdq_rx->objOffset])->raw_bytes[pdq_rx->byteOffset] |= pio_sm_get(bmc_ch0->pio, bmc_ch0->sm_rx) << pdq_rx->evenSymbol;
     }
 }
 void bmc_rx_cb() {
