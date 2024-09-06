@@ -15,8 +15,34 @@ void bmc_rx_check() {
     }
 }
 */
-void bmc_process_symbols(bmcRx *rx) {
+uint32_t bmc_get_timestamp(bmcRx *rx) {
+    return (rx->pdf_ptr)[rx->objOffset]->timestamp_us;
+}
+void bmc_locate_sof(bmcRx *rx, uint32_t in) {
+    // Loop for a bit to search for the first K-code
+    for(uint8_t i = 0; i < 80; i++) {
+
+        if( ((((rx->pdfPtr)[rx->objOffset]->scrapBits | in << (rx->pdfPtr)[rx->objOffset]->afterScrapOffset)) & 0x1F) == symKcodeS1 ||     // K-Code S1 (starting symbol for ordsetSop*) ---or---
+            ((((rx->pdfPtr)[rx->objOffset]->scrapBits | in << (rx->pdfPtr)[rx->objOffset]->afterScrapOffset)) & 0x1F) == symKcodeR1) {     // K-code R1 (starting symbol for ordsetHardReset, ordsetCableReset)
+            // Save the timestamp
+            (rx->pdfPtr)[rx->objOffset]->timestamp_us = bmc_get_timestamp(rx);
+        } else {
+            // If we have scraps leftover we'll consume those first
+            if((rx->pdfPtr)[rx->objOffset]->afterScrapOffset) {
+                (rx->pdfPtr)[rx->objOffset]->afterScrapOffset -= 1;
+                (rx->pdfPtr)[rx->objOffset]->scrapBits >>= 1;
+            } else {
+                // We have no scrap bits
+                (rx->pdfPtr)[rx->objOffset]->inputOffset += 1;
+            }
+        }
+    }
     
+}
+void bmc_process_symbols(bmcRx *rx, uint32_t pio_raw) {
+    if(!bmc_get_timestamp) {    // No timestamp would mean that we are still in the preamble stage
+        
+    }
 }
 void bmc_rx_check() {
     extern bmcRx pdq_rx;
