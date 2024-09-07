@@ -90,26 +90,34 @@ static const uint8_t const bmc4bTo5b[] = {
     symHex0, symHex1, symHex2, symHex3, 
     symHex4, symHex5, symHex6, symHex7, 
     symHex8, symHex9, symHexA, symHexB, 
-    symHexC, symHexD, symHexE, symHexF 
+    symHexC, symHexD, symHexE, symHexF, 
+    symKcodeS1, symKcodeS2, symKcodeR1,
+    symKcodeR2, symKcodeEop, symKcodeS3
 };
 
 static const uint8_t const bmc5bTo4b[] = {
-    [(uint8_t)symHex0]	= 0x0,
-    [(uint8_t)symHex1]	= 0x1,
-    [(uint8_t)symHex2]	= 0x2,
-    [(uint8_t)symHex3]	= 0x3,
-    [(uint8_t)symHex4]	= 0x4,
-    [(uint8_t)symHex5]	= 0x5,
-    [(uint8_t)symHex6]	= 0x6,
-    [(uint8_t)symHex7]	= 0x7,
-    [(uint8_t)symHex8]	= 0x8,
-    [(uint8_t)symHex9]	= 0x9,
-    [(uint8_t)symHexA]	= 0xA,
-    [(uint8_t)symHexB]	= 0xB,
-    [(uint8_t)symHexC]	= 0xC,
-    [(uint8_t)symHexD]	= 0xD,
-    [(uint8_t)symHexE]	= 0xE,
-    [(uint8_t)symHexF]	= 0xF
+    [(uint8_t)symHex0]	    = 0x0,
+    [(uint8_t)symHex1]	    = 0x1,
+    [(uint8_t)symHex2]	    = 0x2,
+    [(uint8_t)symHex3]	    = 0x3,
+    [(uint8_t)symHex4]	    = 0x4,
+    [(uint8_t)symHex5]	    = 0x5,
+    [(uint8_t)symHex6]	    = 0x6,
+    [(uint8_t)symHex7]	    = 0x7,
+    [(uint8_t)symHex8]	    = 0x8,
+    [(uint8_t)symHex9]	    = 0x9,
+    [(uint8_t)symHexA]	    = 0xA,
+    [(uint8_t)symHexB]	    = 0xB,
+    [(uint8_t)symHexC]	    = 0xC,
+    [(uint8_t)symHexD]	    = 0xD,
+    [(uint8_t)symHexE]	    = 0xE,
+    [(uint8_t)symHexF]	    = 0xF,
+    [(uint8_t)symKcodeS1]	= 0x10,
+    [(uint8_t)symKcodeS2]	= 0x11,
+    [(uint8_t)symKcodeR1]	= 0x12,
+    [(uint8_t)symKcodeR2]	= 0x13,
+    [(uint8_t)symKcodeEop]	= 0x14,
+    [(uint8_t)symKcodeS3]	= 0x15
 };
 
 #endif

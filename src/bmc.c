@@ -15,41 +15,61 @@ void bmc_rx_check() {
     }
 }
 */
-uint32_t bmc_get_timestamp(bmcRx *rx) {
-    return (rx->pdf_ptr)[rx->objOffset]->timestamp_us;
+bmcRx* bmc_rx_setup() {
+    bmcRx *rx = malloc(sizeof(bmcRx));
+    rx->rolloverObj = 12;
+    rx->pdfPtr = malloc(sizeof(pd_frame) * rx->rolloverObj);
+    rx->objOffset = 0;
+    rx->byteOffset = 0;
+    rx->evenSymbol = false;
+    rx->scrapBits = 0;
+    rx->afterScrapOffset = 0;
+    rx->inputOffset = 0;
+    return rx;
 }
-void bmc_locate_sof(bmcRx *rx, uint32_t in) {
+uint32_t bmc_get_timestamp(bmcRx *rx) {
+    return (rx->pdfPtr)[rx->objOffset].timestamp_us;
+}
+void bmc_locate_sof(bmcRx *rx, uint32_t *in) {
     // While loop ONLY runs if scrapBits are present (therefore we have a full input buffer) or there are at least 5 bits in the input buffer
-    while((rx->pdfPtr)[rx->objOffset]->scrapBits || (rx->pdfPtr)[rx->objOffset]->inputOffset <= 27) {
-        if( ((((rx->pdfPtr)[rx->objOffset]->scrapBits | in << (rx->pdfPtr)[rx->objOffset]->afterScrapOffset)) & 0x1F) == symKcodeS1 ||     // K-Code S1 (starting symbol for ordsetSop*) ---or---
-            ((((rx->pdfPtr)[rx->objOffset]->scrapBits | in << (rx->pdfPtr)[rx->objOffset]->afterScrapOffset)) & 0x1F) == symKcodeR1) {     // K-code R1 (starting symbol for ordsetHardReset, ordsetCableReset)
+    while(rx->inputOffset <= 27) {
+        if( ((rx->scrapBits | (*in >> rx->inputOffset) << rx->afterScrapOffset) & 0x1F) == symKcodeS1 ||     // K-Code S1 (starting symbol for ordsetSop*) ---or---
+            ((rx->scrapBits | (*in >> rx->inputOffset) << rx->afterScrapOffset) & 0x1F) == symKcodeR1) {     // K-code R1 (starting symbol for ordsetHardReset, ordsetCableReset)
             // Save the timestamp
-            (rx->pdfPtr)[rx->objOffset]->timestamp_us = time_us_32();
+            (rx->pdfPtr)[rx->objOffset].timestamp_us = time_us_32();
             // Exit - we've found the Start-of-frame
+            break;
+        } else if(rx->inputOffset > 27) {
+            rx->scrapBits = *in >> rx->inputOffset;
+            rx->afterScrapOffset = 32 - rx->inputOffset;
         } else {
             // If we have scraps leftover we'll consume those first
-            if((rx->pdfPtr)[rx->objOffset]->afterScrapOffset) {
-                (rx->pdfPtr)[rx->objOffset]->afterScrapOffset -= 1;
-                (rx->pdfPtr)[rx->objOffset]->scrapBits >>= 1;
+            if(rx->afterScrapOffset) {
+                rx->afterScrapOffset -= 1;
+                rx->scrapBits >>= 1;
             } else {
                 // Try offsetting another bit
-                (rx->pdfPtr)[rx->objOffset]->inputOffset += 1;
+                rx->inputOffset += 1;
             }
         }
     }
 }
-void bmc_process_symbols(bmcRx *rx, uint32_t pio_raw) {
-    if(!bmc_get_timestamp) {    // No timestamp would mean that we are still in the preamble stage
-        bmc_locate_sof(rx);
+/*
+bmc_load_symbols(bmcRx *rx, pio_raw) {
+       
+}*/
+void bmc_process_symbols(bmcRx *rx, uint32_t *pio_raw) {
+    if(!bmc_get_timestamp(rx)) {    // No timestamp would mean that we are still in the preamble stage
+        rx->inputOffset = 0;
+        bmc_locate_sof(rx, pio_raw);
+        //printf(": %X", (rx->pdfPtr)[rx->rolloverObj].ordered_set);
     }
 }
 void bmc_rx_check() {
-    extern bmcRx pdq_rx;
-    uint32_t buf;
+    extern bmcRx *pdq_rx;
     if(!pio_sm_is_rx_fifo_empty(bmc_ch0->pio, bmc_ch0->sm_rx)) {
-        buf = pio_sm_get(bmc_ch0->pio, bmc_ch0->sm_rx);
-        bmcProcessSymbols(&pdq_rx, buf);
-        //(pdq_rx->pdfPtr[pdq_rx->objOffset])->raw_bytes[pdq_rx->byteOffset] |= pio_sm_get(bmc_ch0->pio, bmc_ch0->sm_rx) << pdq_rx->evenSymbol;
+        uint32_t buf = pio_sm_get(bmc_ch0->pio, bmc_ch0->sm_rx);
+        bmc_process_symbols(pdq_rx, &buf);
     }
 }
 void bmc_rx_cb() {

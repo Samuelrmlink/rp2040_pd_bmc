@@ -11,13 +11,15 @@ extern bmcChannel *bmc_ch0;
  *	bmc_encode.c
  *
  */
+void bmc_clear_rx_init(bmcRx *rx);
+uint32_t bmc_get_timestamp(bmcRx *rx);
+void bmc_locate_sof(bmcRx *rx, uint32_t *in);
+void bmc_process_symbols(bmcRx *rx, uint32_t *pio_raw);
 void bmc_rx_check();
 void bmc_rx_cb();
 bmcChannel* bmc_channel0_init();
 void individual_pin_toggle(uint8_t pin_num);
 
-void pd_frame_queue_and_reset(bmcDecode* bmc_d, QueueHandle_t q_validPdf);
-int bmcProcessSymbols(bmcDecode* bmc_d, QueueHandle_t q_validPdf);
 
 void tx_msg_inc(uint8_t *msgId);
 void pdf_generate_goodcrc(pd_frame *input_frame, txFrame *tx);
@@ -34,7 +36,6 @@ void pdf_transmit(txFrame *txf, bmcChannel *ch);
  *	usb_pd.c
  *
  */
-void bmc_decode_clear(bmcDecode* bmc_d);
 void pd_frame_clear(pd_frame* pdf);
 bool is_crc_good(pd_frame *pdf);
 bool check_sop_type(uint8_t type, pd_frame *pdf);

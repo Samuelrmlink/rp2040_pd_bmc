@@ -1,5 +1,5 @@
 #include "main_i.h"
-
+/*
 void tx_msg_inc(uint8_t *msgId) { // Input here is actually only 3 bits - therefore ensure we rollover back to zero following 0x7
   if(*msgId < 0x7) { (*msgId)++; }
   else { *msgId = 0; }
@@ -153,10 +153,10 @@ void pdf_to_uint32(txFrame *txf) {
 
     // Get Ordered Set start bit
     uint16_t ordered_set_startbit = 32 * txf->num_u32 - data_bits_req - follower_zero_bits;
-    /*
-    // Ensure we are an even number of bits from the Ordered Set
-    if((ordered_set_startbit - current_bit_num) % 2) { current_bit_num++; }
-    */
+      
+//  // Ensure we are an even number of bits from the Ordered Set
+//  if((ordered_set_startbit - current_bit_num) % 2) { current_bit_num++; }
+      
     // Loop - write preamble into buffer
     current_bit_num = txf->num_zeros = ordered_set_startbit - 64;
     while(true) {
@@ -168,7 +168,7 @@ void pdf_to_uint32(txFrame *txf) {
 
     // Write Ordered Set into buffer
     tx_raw_buf_write(bmcFrameType[txf->pdf->frametype & PDF_TYPE_MASK], (uint8_t)NUM_BITS_ORDERED_SET, txf->out, &current_bit_num);
-    // Frametype is invalid, Hard Reset, or Soft Reset (not SOP, SOP', SOP", etc..)
+    // Frametype is invalid, Hard Reset, or Soft Reset (not SOP, SOP', SOP\", etc..)
     if(txf->pdf->frametype < PdfTypeSop) {
       // EOP/CRC is not written in this case - return function
       return;
@@ -234,3 +234,4 @@ void pdf_transmit(txFrame *txf, bmcChannel *ch) {
     gpio_clr_mask(1 << ch->tx_high);
     irq_set_enabled(ch->irq, true);
 }
+*/

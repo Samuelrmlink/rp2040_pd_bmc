@@ -1,7 +1,7 @@
 #include "main_i.h"
 #include "4b5b.h"
 
-
+/*
 void pd_frame_queue_and_reset(bmcDecode* bmc_d, QueueHandle_t q_validPdf) {
     // Send complete pd_frame for evaluation (regardless of CRC validation status)
     xQueueSendToBack(q_validPdf, (void *) &bmc_d->msg, portMAX_DELAY);
@@ -18,8 +18,7 @@ void pd_frame_queue_and_reset(bmcDecode* bmc_d, QueueHandle_t q_validPdf) {
     pd_frame_clear(bmc_d->msg);
 }
 int bmcProcessSymbols(bmcDecode* bmc_d, QueueHandle_t q_validPdf) {
-    uint8_t internal_stage;
-    uint8_t input_offset = 0;
+//    uint8_t internal_stage;
     bool breakout = false;
     // Ensure that no full symbols are present in the process buffer (design assumption)
     if(bmc_d->pOffset > 4) {
@@ -198,3 +197,4 @@ int bmcProcessSymbols(bmcDecode* bmc_d, QueueHandle_t q_validPdf) {
 	}
     }
 }
+*/

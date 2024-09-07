@@ -7,22 +7,23 @@
 #include "main_i.h"
 
 // Queues
-QueueHandle_t queue_rx_pio = NULL;		// PD Frame:	Raw PIO output pipeline (1st stage)
-QueueHandle_t queue_rx_validFrame = NULL;	// PD Frame:	Valid USB-PD frame	(2nd stage)
+//QueueHandle_t queue_rx_pio = NULL;		// PD Frame:	Raw PIO output pipeline (1st stage)
+//QueueHandle_t queue_rx_validFrame = NULL;	// PD Frame:	Valid USB-PD frame	(2nd stage)
 QueueHandle_t queue_policy = NULL;		// PD Frame:	Input to policy thread	(3rd stage)
 
 // Task Handles (Thread Handles)
-TaskHandle_t tskhdl_pd_rxf = NULL;	// Task handle: RX frame receiver
+//TaskHandle_t tskhdl_pd_rxf = NULL;	// Task handle: RX frame receiver
 TaskHandle_t tskhdl_pd_pol = NULL;	// Task handle: USB-PD policy
 
-
+/*
 pe_outbound_pdf(txFrame *tx_out) {
     policyEngineMsg msg;
     msg.msgType = peMsgPdFrameOut;
     msg.txf = tx_out;
     xQueueSendToBack(queue_policy, &msg, portMAX_DELAY);
 }
-
+*/
+/*
 void thread_rx_policy(void *unused_arg) {
     // TODO - implement policy states for both current/perferred Power Sink/Source, Data UFP/DFP roles
     policyEngineMsg peMsg;
@@ -80,29 +81,35 @@ void thread_rx_policy(void *unused_arg) {
         }
     }
 }
+*/
+bmcRx *pdq_rx;
+
 int main() {
     // Initialize IO & PIO
     stdio_init_all();
     bmc_ch0 = bmc_channel0_init();
-    bmcRx pdq_rx;
-    pdq_rx.rollover_obj = 12;
-    pdq_rx.pdf_ptr = malloc(sizeof(pd_frame) * pdq_rx.rollover_obj);
+    pdq_rx = bmc_rx_setup();
+    pd_frame_clear(&((pdq_rx->pdfPtr)[0])); // TODO - currently only clears the first object
     usb_init();
 
+//    BaseType_t status_task_printtest = xTaskCreate(thread_print_test, "TEST_THREAD", 1024, NULL, 2, &tskhdl_pd_pol);
+
+/*
     // Setup tasks
-    BaseType_t status_task_rx_frame = xTaskCreate(thread_rx_process, "PROC_THREAD", 1024, NULL, 1, &tskhdl_pd_rxf);
+//    BaseType_t status_task_rx_frame = xTaskCreate(thread_rx_process, "PROC_THREAD", 1024, NULL, 1, &tskhdl_pd_rxf);
     BaseType_t status_task_policy = xTaskCreate(thread_rx_policy, "POLICY_THREAD", 1024, NULL, 2, &tskhdl_pd_pol);
 
     if(status_task_rx_frame == pdPASS) {
 	// Setup the queues
-	queue_rx_pio = xQueueCreate(1000, sizeof(rx_data));
-	queue_rx_validFrame = xQueueCreate(10, sizeof(pd_frame));
-	queue_policy = xQueueCreate(10, sizeof(policyEngineMsg));
-	irq_set_enabled(bmc_ch0->irq, true);
+//	queue_rx_pio = xQueueCreate(1000, sizeof(rx_data));
+//	queue_rx_validFrame = xQueueCreate(10, sizeof(pd_frame));
+//	queue_policy = xQueueCreate(10, sizeof(policyEngineMsg));
+	*/irq_set_enabled(bmc_ch0->irq, true);
 	
 	// Start the scheduler
-	vTaskStartScheduler();
+	vTaskStartScheduler();/*
     } else {
 	printf("Unable to start task scheduler.\n");
     }
+*/
 }

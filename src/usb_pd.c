@@ -5,6 +5,7 @@ void pd_frame_clear(pd_frame *pdf) {
 	pdf->raw_bytes[i] = 0;
     }
 }
+/*
 bool is_crc_good(pd_frame *pdf) {
     return (bool)(pdf->frametype & 0x80);
 }
@@ -30,6 +31,7 @@ bool is_src_cap(pd_frame *pdf) {
         return false;
     }
 }
+*/
 bool eval_pdo_fixed(uint32_t pdo_obj, pdo_accept_criteria req) {
     // We know this is a fixed PDO - not Augmented, Battery, etc..
     uint32_t pdo_mV = ((pdo_obj >> 10) & 0x3FF) * 50;
