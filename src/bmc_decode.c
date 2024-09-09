@@ -125,7 +125,7 @@ int bmcProcessSymbols(bmcDecode* bmc_d, QueueHandle_t q_validPdf) {
 		bmc_d->procBuf >>= 5;
 		bmc_d->pOffset -= 5;
 		if(bmc_d->procSubStage == 3) { // If full header has been received
-		    if(pdf_extended_unchunked_bytes(bmc_d->msg)) {
+		    if(bmc_extended_unchunked_bytes(bmc_d->msg)) {
 			bmc_d->procStage++; // Unchunked extended header follows
 			bmc_d->procSubStage = 0;
 		    } else if((bmc_d->msg->hdr >> 12) & 0x7) {
@@ -147,7 +147,7 @@ int bmcProcessSymbols(bmcDecode* bmc_d, QueueHandle_t q_validPdf) {
 		bmc_d->pOffset -= 5;
 		bmc_d->procSubStage++;
 		// Once Extended Header has been received
-		if((bmc_d->procSubStage >= 4) && (bmc_d->procSubStage - 4 == pdf_extended_unchunked_bytes(bmc_d->msg) - 1)) {
+		if((bmc_d->procSubStage >= 4) && (bmc_d->procSubStage - 4 == bmc_extended_unchunked_bytes(bmc_d->msg) - 1)) {
 		    bmc_d->procStage += 2;
 		    bmc_d->procSubStage = 0;
 		}

@@ -30,18 +30,26 @@ bmcRx* bmc_rx_setup() {
 uint32_t bmc_get_timestamp(bmcRx *rx) {
     return (rx->pdfPtr)[rx->objOffset].timestamp_us;
 }
+// Returns the number of unchunked extended bytes (chunked extended frames, or non-extended frames will return 0)
+uint8_t bmc_extended_unchunked_bytes(pd_frame *pdf) {
+    if((pdf->hdr >> 15) && !(pdf->extended_hdr >> 15)) {
+        return (pdf->extended_hdr & 0xFF);
+    } else {
+        return 0;
+    }
+}
+
 void bmc_locate_sof(bmcRx *rx, uint32_t *in) {
-    // While loop ONLY runs if scrapBits are present (therefore we have a full input buffer) or there are at least 5 bits in the input buffer
+    // While loop ONLY runs if there are at least 5 bits in the input buffer
     while(rx->inputOffset <= 27) {
         if( ((rx->scrapBits | (*in >> rx->inputOffset) << rx->afterScrapOffset) & 0x1F) == symKcodeS1 ||     // K-Code S1 (starting symbol for ordsetSop*) ---or---
             ((rx->scrapBits | (*in >> rx->inputOffset) << rx->afterScrapOffset) & 0x1F) == symKcodeR1) {     // K-code R1 (starting symbol for ordsetHardReset, ordsetCableReset)
             // Save the timestamp
             (rx->pdfPtr)[rx->objOffset].timestamp_us = time_us_32();
+            // Set Ordered Set starting offset
+            rx->byteOffset = 4;
             // Exit - we've found the Start-of-frame
             break;
-        } else if(rx->inputOffset > 27) {
-            rx->scrapBits = *in >> rx->inputOffset;
-            rx->afterScrapOffset = 32 - rx->inputOffset;
         } else {
             // If we have scraps leftover we'll consume those first
             if(rx->afterScrapOffset) {
@@ -53,16 +61,56 @@ void bmc_locate_sof(bmcRx *rx, uint32_t *in) {
             }
         }
     }
+    if(rx->inputOffset > 27) {
+        rx->scrapBits = *in >> rx->inputOffset;
+        rx->afterScrapOffset = 32 - rx->inputOffset;
+    }
 }
-/*
-bmc_load_symbols(bmcRx *rx, pio_raw) {
-       
-}*/
+// Returns 5 bits (combined from both scrap and pio_raw)
+uint8_t bmc_pull_5b(bmcRx *rx, uint32_t *pio_raw) {
+    uint8_t decode_4b = bmc5bTo4b((rx->scrapBits | (*pio_raw >> rx->inputOffset) << rx->afterScrapOffset));
+    // Increment offset to account for bits consumed from pio_raw
+    rx->inputOffset += 5 - rx->afterScrapOffset;
+    // We can reset to zero since the scrapBits variable never holds more than 4 bits
+    rx->scrapBits = 0;
+    rx->afterScrapOffset = 0;
+}
+void bmc_load_symbols(bmcRx *rx, uint32_t *pio_raw) {
+    // While loop ONLY runs if there are at least 5 bits in the input buffer
+    while(rx->inputOffset <= 27) {
+        uint8_t decode_4b = bmc_pull_5b(rx, pio_raw);
+        if(decode_4b == symKcodeEop) {
+            // End of packet symbol
+            return true;
+        }
+        // Skip past padding (put there for ARM Cortex-M alignment purposes)
+        if(rx->byteOffset == 8) {
+            // Skip to hdr field offset
+            rx->byteOffset = 10;
+        }
+        // Transfer symbol
+        (rx->pdfPtr)[rx->objOffset]->raw_bytes[rx->byteOffset] |= decode_4b << (4 * rx->evenSymbol);
+        if(rx->evenSymbol) {
+            rx->evenSymbol = false;
+            rx->byteOffset++;
+        } else {
+            rx->evenSymbol = true;
+        }
+    }
+    if(rx->inputOffset > 27) {
+        rx->scrapBits = *in >> rx->inputOffset;
+        rx->afterScrapOffset = 32 - rx->inputOffset;
+    }
+}
 void bmc_process_symbols(bmcRx *rx, uint32_t *pio_raw) {
     if(!bmc_get_timestamp(rx)) {    // No timestamp would mean that we are still in the preamble stage
-        rx->inputOffset = 0;
+        //rx->inputOffset = 0;
         bmc_locate_sof(rx, pio_raw);
-        //printf(": %X", (rx->pdfPtr)[rx->rolloverObj].ordered_set);
+    }
+    if(bmc_load_symbols(rx, pio_raw)) {
+        // End of frame
+        rx->objOffset++;
+        rx->evenSymbol = false;
     }
 }
 void bmc_rx_check() {

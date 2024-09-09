@@ -17,7 +17,7 @@ uint32_t crc32_pdframe_calc(pd_frame* pdf) {
     uint8_t tmpval[48] = { pdf->hdr & 0xFF, pdf->hdr >> 8};
 
     // Extended Header
-    uint8_t num_ext_bytes = pdf_extended_unchunked_bytes(pdf);
+    uint8_t num_ext_bytes = bmc_extended_unchunked_bytes(pdf);
     if(num_ext_bytes) {
         tmpval[num_bytes]	= pdf->extended_hdr & 0xFF;
         tmpval[num_bytes + 1]	= pdf->extended_hdr >> 8;
