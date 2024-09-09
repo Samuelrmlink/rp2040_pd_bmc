@@ -65,5 +65,9 @@
             "preLaunchTask": "Flash",
             "svdPath": "${userHome}/.pico-sdk/sdk/2.0.0/src/${command:raspberry-pi-pico.getChip}/hardware_regs/${command:raspberry-pi-pico.getChip}.svd"
         },
+        "liveWatch": {
+            "enabled": true,
+            "samplesPerSecond": 4
+        }
     ]
 }
