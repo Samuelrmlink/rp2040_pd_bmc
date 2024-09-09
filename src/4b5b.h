@@ -32,6 +32,7 @@ typedef enum {
     symKcodeS3	= 0b00110
 } BMC5bSymbols;
 
+/*
 typedef enum {
     ordsetHardReset =   symKcodeR1 |
                         symKcodeR1 << 5 |
@@ -62,6 +63,7 @@ typedef enum {
                         symKcodeS3 << 10 |
                         symKcodeS2 << 15,
 } BMC5bOrderedSets;
+*/
 
 // Returns the 20 bit Ordered Set
 static const uint32_t const bmcFrameType[] = {
@@ -119,5 +121,45 @@ static const uint8_t const bmc5bTo4b[] = {
     [(uint8_t)symKcodeEop]	= 0x14,
     [(uint8_t)symKcodeS3]	= 0x15
 };
+
+typedef enum {
+    sym4bKcodeS1    = 0x10,
+    sym4bKcodeS2    = 0x11,
+    sym4bKcodeR1    = 0x12,
+    sym4bKcodeR2    = 0x13,
+    sym4bKcodeEop   = 0x14,
+    sym4bKcodeS3    = 0x15
+} BMC4bSymbols;
+
+typedef enum {
+    ordsetHardReset =   sym4bKcodeR1 |
+                        sym4bKcodeR1 << 8 |
+                        sym4bKcodeR1 << 16 |
+                        sym4bKcodeR2 << 24,
+    ordsetCableReset =  sym4bKcodeR1 |
+                        sym4bKcodeS1 << 8 |
+                        sym4bKcodeR1 << 16 |
+                        sym4bKcodeS3 << 24,
+    ordsetSop =         sym4bKcodeS1 |
+                        sym4bKcodeS1 << 8 |
+                        sym4bKcodeS1 << 16 |
+                        sym4bKcodeS2 << 24,
+    ordsetSopP =        sym4bKcodeS1 |
+                        sym4bKcodeS1 << 8 |
+                        sym4bKcodeS3 << 16 |
+                        sym4bKcodeS3 << 24,
+    ordsetSopDp =       sym4bKcodeS1 |
+                        sym4bKcodeS3 << 8 |
+                        sym4bKcodeS1 << 16 |
+                        sym4bKcodeS3 << 24,
+    ordsetSopPDbg =     sym4bKcodeS1 |
+                        sym4bKcodeR2 << 8 |
+                        sym4bKcodeR2 << 16 |
+                        sym4bKcodeS3 << 24,
+    ordsetSopDpDbg =    sym4bKcodeS1 |
+                        sym4bKcodeR2 << 8 |
+                        sym4bKcodeS3 << 16 |
+                        sym4bKcodeS2 << 24,
+} BMC4bOrderedSets;
 
 #endif
