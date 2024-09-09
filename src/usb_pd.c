@@ -160,5 +160,19 @@ void thread_rx_process(void* unused_arg) {
 }
 */
 void thread_rx_process(void* unused_arg) {
-    
+    extern bmcRx *pdq_rx;
+	uint8_t proc_counter = 0;
+	// If there is a complete frame (EOP received)
+    if(pdq_rx->objOffset > proc_counter) {
+		if((pdq_rx->pdfPtr)[proc_counter].ordered_set == ordsetSop) {
+			printf("SOP\n");
+		} else if((pdq_rx->pdfPtr)[proc_counter].ordered_set == ordsetSopP) {
+			printf("SOPP\n");
+		}
+		if(pdq_rx->inputRollover && (proc_counter == 255)) {
+			pdq_rx->inputRollover = false;
+		}
+		proc_counter++;
+		printf("T\n");
+	}
 }

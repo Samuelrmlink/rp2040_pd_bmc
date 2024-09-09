@@ -9,6 +9,7 @@ struct bmcRx {
     uint8_t objOffset;          // Offset # of pd_frame objects (starts at 0 - should rollover and never actually land on the rollover_obj value)
     uint8_t byteOffset;         // Offset # of bytes
     bool evenSymbol;            // Each PD symbol is 4 bits - true loads the upper bits [7..4] instead of the lower bits [3..0]
+    bool inputRollover;
 
     uint8_t scrapBits;          // Leftover bits from the last frame are stored here
     uint8_t afterScrapOffset;   // Number of leftover bits [<< shift direction]

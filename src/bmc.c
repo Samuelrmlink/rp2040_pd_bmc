@@ -68,7 +68,7 @@ void bmc_locate_sof(bmcRx *rx, uint32_t *in) {
         rx->afterScrapOffset = 32 - rx->inputOffset;
     }
 }
-// Returns 5 bits (combined from both scrap and pio_raw)
+// Returns 4 bits (combined from both scrap and pio_raw)
 uint8_t bmc_pull_5b(bmcRx *rx, uint32_t *pio_raw) {
     uint8_t decode_4b = bmc5bTo4b[(rx->scrapBits | (*pio_raw >> rx->inputOffset) << rx->afterScrapOffset)];
     // Increment offset to account for bits consumed from pio_raw
@@ -76,12 +76,14 @@ uint8_t bmc_pull_5b(bmcRx *rx, uint32_t *pio_raw) {
     // We can reset to zero since the scrapBits variable never holds more than 4 bits
     rx->scrapBits = 0;
     rx->afterScrapOffset = 0;
+    return decode_4b;
 }
 bool bmc_load_symbols(bmcRx *rx, uint32_t *pio_raw) {
     // While loop ONLY runs if there are at least 5 bits in the input buffer
+    uint8_t decode_4b;
     while(rx->inputOffset <= 27) {
-        uint8_t decode_4b = bmc_pull_5b(rx, pio_raw);
-        if(decode_4b == symKcodeEop) {
+        decode_4b = bmc_pull_5b(rx, pio_raw);
+        if(decode_4b == sym4bKcodeEop) {
             // End of packet symbol
             return true;
         }
@@ -92,7 +94,7 @@ bool bmc_load_symbols(bmcRx *rx, uint32_t *pio_raw) {
         }
         // Transfer symbol
         (rx->pdfPtr)[rx->objOffset].raw_bytes[rx->byteOffset] |= decode_4b << (4 * rx->evenSymbol);
-        if(rx->evenSymbol) {
+        if(rx->evenSymbol || decode_4b & 0x80) {
             rx->evenSymbol = false;
             rx->byteOffset++;
         } else {
@@ -108,8 +110,7 @@ void bmc_process_symbols(bmcRx *rx, uint32_t *pio_raw) {
     if(!bmc_get_timestamp(rx)) {    // No timestamp would mean that we are still in the preamble stage
         //rx->inputOffset = 0;
         bmc_locate_sof(rx, pio_raw);
-    }
-    if(bmc_load_symbols(rx, pio_raw)) {
+    } else if(bmc_load_symbols(rx, pio_raw)) {
         // End of frame
         rx->objOffset++;
         rx->evenSymbol = false;

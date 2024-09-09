@@ -12,7 +12,7 @@
 QueueHandle_t queue_policy = NULL;		// PD Frame:	Input to policy thread	(3rd stage)
 
 // Task Handles (Thread Handles)
-//TaskHandle_t tskhdl_pd_rxf = NULL;	// Task handle: RX frame receiver
+TaskHandle_t tskhdl_pd_rxf = NULL;	// Task handle: RX frame receiver
 TaskHandle_t tskhdl_pd_pol = NULL;	// Task handle: USB-PD policy
 
 /*
@@ -92,13 +92,14 @@ int main() {
     pd_frame_clear(&((pdq_rx->pdfPtr)[0])); // TODO - currently only clears the first object
     usb_init();
 
-//    BaseType_t status_task_printtest = xTaskCreate(thread_print_test, "TEST_THREAD", 1024, NULL, 2, &tskhdl_pd_pol);
+    //BaseType_t status_task_printtest = xTaskCreate(thread_print_test, "TEST_THREAD", 1024, NULL, 2, &tskhdl_pd_pol);
 
-/*
+
     // Setup tasks
 //    BaseType_t status_task_rx_frame = xTaskCreate(thread_rx_process, "PROC_THREAD", 1024, NULL, 1, &tskhdl_pd_rxf);
-    BaseType_t status_task_policy = xTaskCreate(thread_rx_policy, "POLICY_THREAD", 1024, NULL, 2, &tskhdl_pd_pol);
+//    BaseType_t status_task_policy = xTaskCreate(thread_rx_policy, "POLICY_THREAD", 1024, NULL, 2, &tskhdl_pd_pol);
 
+/*
     if(status_task_rx_frame == pdPASS) {
 	// Setup the queues
 //	queue_rx_pio = xQueueCreate(1000, sizeof(rx_data));
