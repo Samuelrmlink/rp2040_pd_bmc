@@ -13,6 +13,8 @@ struct bmcRx {
     uint8_t scrapBits;          // Leftover bits from the last frame are stored here
     uint8_t afterScrapOffset;   // Number of leftover bits [<< shift direction]
     uint8_t inputOffset;        // Input offset {>> shift direction]
+    uint8_t rx_crc32;           // CRC32 value - for validation purposes
+    bool eval_crc32;            // Validate CRC32 if true
 };
 
 #endif

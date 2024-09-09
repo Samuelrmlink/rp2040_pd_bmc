@@ -25,6 +25,8 @@ bmcRx* bmc_rx_setup() {
     rx->scrapBits = 0;
     rx->afterScrapOffset = 0;
     rx->inputOffset = 0;
+    rx->rx_crc32 = 0;
+    rx->eval_crc32 = false;
     return rx;
 }
 uint32_t bmc_get_timestamp(bmcRx *rx) {
@@ -32,8 +34,8 @@ uint32_t bmc_get_timestamp(bmcRx *rx) {
 }
 // Returns the number of unchunked extended bytes (chunked extended frames, or non-extended frames will return 0)
 uint8_t bmc_extended_unchunked_bytes(pd_frame *pdf) {
-    if((pdf->hdr >> 15) && !(pdf->extended_hdr >> 15)) {
-        return (pdf->extended_hdr & 0xFF);
+    if((pdf->hdr >> 15) && !(pdf->raw_bytes[12] >> 7)) {
+        return (pdf->raw_bytes[12] | (pdf->raw_bytes[12] & 0x1) << 8);
     } else {
         return 0;
     }
@@ -68,14 +70,14 @@ void bmc_locate_sof(bmcRx *rx, uint32_t *in) {
 }
 // Returns 5 bits (combined from both scrap and pio_raw)
 uint8_t bmc_pull_5b(bmcRx *rx, uint32_t *pio_raw) {
-    uint8_t decode_4b = bmc5bTo4b((rx->scrapBits | (*pio_raw >> rx->inputOffset) << rx->afterScrapOffset));
+    uint8_t decode_4b = bmc5bTo4b[(rx->scrapBits | (*pio_raw >> rx->inputOffset) << rx->afterScrapOffset)];
     // Increment offset to account for bits consumed from pio_raw
     rx->inputOffset += 5 - rx->afterScrapOffset;
     // We can reset to zero since the scrapBits variable never holds more than 4 bits
     rx->scrapBits = 0;
     rx->afterScrapOffset = 0;
 }
-void bmc_load_symbols(bmcRx *rx, uint32_t *pio_raw) {
+bool bmc_load_symbols(bmcRx *rx, uint32_t *pio_raw) {
     // While loop ONLY runs if there are at least 5 bits in the input buffer
     while(rx->inputOffset <= 27) {
         uint8_t decode_4b = bmc_pull_5b(rx, pio_raw);
@@ -89,7 +91,7 @@ void bmc_load_symbols(bmcRx *rx, uint32_t *pio_raw) {
             rx->byteOffset = 10;
         }
         // Transfer symbol
-        (rx->pdfPtr)[rx->objOffset]->raw_bytes[rx->byteOffset] |= decode_4b << (4 * rx->evenSymbol);
+        (rx->pdfPtr)[rx->objOffset].raw_bytes[rx->byteOffset] |= decode_4b << (4 * rx->evenSymbol);
         if(rx->evenSymbol) {
             rx->evenSymbol = false;
             rx->byteOffset++;
@@ -98,7 +100,7 @@ void bmc_load_symbols(bmcRx *rx, uint32_t *pio_raw) {
         }
     }
     if(rx->inputOffset > 27) {
-        rx->scrapBits = *in >> rx->inputOffset;
+        rx->scrapBits = *pio_raw >> rx->inputOffset;
         rx->afterScrapOffset = 32 - rx->inputOffset;
     }
 }

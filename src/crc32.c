@@ -8,6 +8,7 @@ uint32_t crc32_calc(uint8_t *data, int length) {
     }
     return ~crc;
 }
+/*
 uint32_t crc32_pdframe_calc(pd_frame* pdf) {
     // Establish variables
     uint8_t num_bytes = 2;
@@ -40,3 +41,4 @@ uint32_t crc32_pdframe_calc(pd_frame* pdf) {
 
     return crc32_calc((uint8_t *) &tmpval, num_bytes);
 }
+*/
