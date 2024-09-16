@@ -9,7 +9,7 @@ bmcRx* bmc_rx_setup() {
     rx->pdfPtr = malloc(sizeof(pd_frame) * rx->rolloverObj);
     rx->objOffset = 0;
     rx->byteOffset = 0;
-    rx->evenSymbol = false;
+    rx->upperSymbol = false;
     rx->scrapBits = 0;
     rx->afterScrapOffset = 0;
     rx->inputOffset = 0;
@@ -81,12 +81,12 @@ bool bmc_load_symbols(bmcRx *rx, uint32_t *pio_raw) {
             rx->byteOffset = 10;
         }
         // Transfer symbol
-        (rx->pdfPtr)[rx->objOffset].raw_bytes[rx->byteOffset] |= decode_4b << (4 * rx->evenSymbol);
-        if(rx->evenSymbol || decode_4b & 0x10) {
-            rx->evenSymbol = false;
+        (rx->pdfPtr)[rx->objOffset].raw_bytes[rx->byteOffset] |= decode_4b << (4 * rx->upperSymbol);
+        if(rx->upperSymbol || decode_4b & 0x10) {
+            rx->upperSymbol = false;
             rx->byteOffset++;
         } else {
-            rx->evenSymbol = true;
+            rx->upperSymbol = true;
         }
     }
     if(rx->inputOffset > 27) {
@@ -107,7 +107,7 @@ void bmc_process_symbols(bmcRx *rx, uint32_t *pio_raw) {
         if(bmc_load_symbols(rx, pio_raw)) {
             // End of frame
             rx->objOffset++;
-            rx->evenSymbol = false;
+            rx->upperSymbol = false;
 //            printf("EOF\n");
         }
     }
@@ -166,7 +166,7 @@ bmcChannel* bmc_channel0_init() {
 
     return ch;
 }
-
+// TODO: find a new place for this function
 void individual_pin_toggle(uint8_t pin_num) {
     if(gpio_get(pin_num))
 	gpio_clr_mask(1 << pin_num); // Drive pin low
