@@ -160,6 +160,19 @@ void thread_rx_process(void* unused_arg) {
 }
 */
 void thread_rx_process(void* unused_arg) {
+    extern bmcChannel *bmc_ch0;
+    extern bmcRx *pdq_rx;
+    uint32_t lastval = 0;
+    uint32_t buf;
+
+    bool firsttime = true;
+    uint32_t tmpval;
+    (pdq_rx->pdfPtr)[pdq_rx->objOffset].obj[11] = 0x00000000;
+    while(true) {
+        // TODO : Implement processing
+        sleep_us(120);
+    }
+    /*
     extern bmcRx *pdq_rx;
 	uint8_t proc_counter = 0;
 	// If there is a complete frame (EOP received)
@@ -175,4 +188,5 @@ void thread_rx_process(void* unused_arg) {
 		proc_counter++;
 		printf("T\n");
 	}
+    */
 }

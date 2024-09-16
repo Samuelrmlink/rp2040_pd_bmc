@@ -89,14 +89,14 @@ int main() {
     stdio_init_all();
     bmc_ch0 = bmc_channel0_init();
     pdq_rx = bmc_rx_setup();
-    pd_frame_clear(&((pdq_rx->pdfPtr)[0])); // TODO - currently only clears the first object
     usb_init();
 
+    
     //BaseType_t status_task_printtest = xTaskCreate(thread_print_test, "TEST_THREAD", 1024, NULL, 2, &tskhdl_pd_pol);
 
 
     // Setup tasks
-//    BaseType_t status_task_rx_frame = xTaskCreate(thread_rx_process, "PROC_THREAD", 1024, NULL, 1, &tskhdl_pd_rxf);
+    BaseType_t status_task_rx_frame = xTaskCreate(thread_rx_process, "PROC_THREAD", 1024, NULL, 1, &tskhdl_pd_rxf);
 //    BaseType_t status_task_policy = xTaskCreate(thread_rx_policy, "POLICY_THREAD", 1024, NULL, 2, &tskhdl_pd_pol);
 
 /*
@@ -105,10 +105,11 @@ int main() {
 //	queue_rx_pio = xQueueCreate(1000, sizeof(rx_data));
 //	queue_rx_validFrame = xQueueCreate(10, sizeof(pd_frame));
 //	queue_policy = xQueueCreate(10, sizeof(policyEngineMsg));
-	*/irq_set_enabled(bmc_ch0->irq, true);
-	
+	*/
+    irq_set_enabled(bmc_ch0->irq, true);
 	// Start the scheduler
-	vTaskStartScheduler();/*
+	vTaskStartScheduler();
+    /*
     } else {
 	printf("Unable to start task scheduler.\n");
     }

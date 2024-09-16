@@ -2,19 +2,7 @@
 
 // BMC channel pointers
 bmcChannel *bmc_ch0;
-/*
-void bmc_rx_check() {
-    rx_data data;
-    extern QueueHandle_t queue_rx_pio;
-    // If PIO RX buffer is not empty
-    if(!pio_sm_is_rx_fifo_empty(bmc_ch0->pio, bmc_ch0->sm_rx)) {
-	// Receive BMC data from PIO interface
-	data.val = pio_sm_get(bmc_ch0->pio, bmc_ch0->sm_rx);
-	data.time = time_us_32();
-	xQueueSendToBackFromISR(queue_rx_pio, (void *) &data, NULL);
-    }
-}
-*/
+
 bmcRx* bmc_rx_setup() {
     bmcRx *rx = malloc(sizeof(bmcRx));
     rx->rolloverObj = 12;
@@ -70,7 +58,7 @@ void bmc_locate_sof(bmcRx *rx, uint32_t *in) {
 }
 // Returns 4 bits (combined from both scrap and pio_raw)
 uint8_t bmc_pull_5b(bmcRx *rx, uint32_t *pio_raw) {
-    uint8_t decode_4b = bmc5bTo4b[(rx->scrapBits | (*pio_raw >> rx->inputOffset) << rx->afterScrapOffset)];
+    uint8_t decode_4b = bmc5bTo4b[(rx->scrapBits | (*pio_raw >> rx->inputOffset) << rx->afterScrapOffset) & 0x1F];
     // Increment offset to account for bits consumed from pio_raw
     rx->inputOffset += 5 - rx->afterScrapOffset;
     // We can reset to zero since the scrapBits variable never holds more than 4 bits
@@ -94,7 +82,7 @@ bool bmc_load_symbols(bmcRx *rx, uint32_t *pio_raw) {
         }
         // Transfer symbol
         (rx->pdfPtr)[rx->objOffset].raw_bytes[rx->byteOffset] |= decode_4b << (4 * rx->evenSymbol);
-        if(rx->evenSymbol || decode_4b & 0x80) {
+        if(rx->evenSymbol || decode_4b & 0x10) {
             rx->evenSymbol = false;
             rx->byteOffset++;
         } else {
@@ -105,21 +93,31 @@ bool bmc_load_symbols(bmcRx *rx, uint32_t *pio_raw) {
         rx->scrapBits = *pio_raw >> rx->inputOffset;
         rx->afterScrapOffset = 32 - rx->inputOffset;
     }
+    return false;
 }
 void bmc_process_symbols(bmcRx *rx, uint32_t *pio_raw) {
+    // Reset inputOffset (since we are iterating through a new input buffer)
+    rx->inputOffset = 0;
+    // Check for no timestamp (which would mean that we haven't found the end of the frame preamble)
     if(!bmc_get_timestamp(rx)) {    // No timestamp would mean that we are still in the preamble stage
-        //rx->inputOffset = 0;
         bmc_locate_sof(rx, pio_raw);
-    } else if(bmc_load_symbols(rx, pio_raw)) {
-        // End of frame
-        rx->objOffset++;
-        rx->evenSymbol = false;
+    }
+    // Check again for a timestamp (again - this would mean we are past the preamble)
+    if(bmc_get_timestamp(rx)) {
+        if(bmc_load_symbols(rx, pio_raw)) {
+            // End of frame
+            rx->objOffset++;
+            rx->evenSymbol = false;
+//            printf("EOF\n");
+        }
     }
 }
 void bmc_rx_check() {
     extern bmcRx *pdq_rx;
-    if(!pio_sm_is_rx_fifo_empty(bmc_ch0->pio, bmc_ch0->sm_rx)) {
-        uint32_t buf = pio_sm_get(bmc_ch0->pio, bmc_ch0->sm_rx);
+    extern bmcChannel *bmc_ch0;
+    uint32_t buf;
+    while(!pio_sm_is_rx_fifo_empty(bmc_ch0->pio, bmc_ch0->sm_rx)) {
+        buf = pio_sm_get(bmc_ch0->pio, bmc_ch0->sm_rx);
         bmc_process_symbols(pdq_rx, &buf);
     }
 }
