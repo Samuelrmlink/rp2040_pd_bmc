@@ -8,6 +8,23 @@ uint32_t crc32_calc(uint8_t *data, int length) {
     }
     return ~crc;
 }
+uint32_t crc32_pdframe_calc(pd_frame *pdf) {
+    // Declare variables
+    uint8_t num_bytes = 2;  // Frame Header = (2 bytes)
+    
+    // Is this frame extended unchunked? (If so - how many bytes is the payload?)
+    uint8_t num_ext_bytes = bmc_extended_unchunked_bytes(pdf);
+    if(num_ext_bytes) {
+        // Account for the extended header + payload bytes
+        num_bytes += 2 + num_ext_bytes;
+    } else {
+        // Account for total number of bytes occupied by any potential data objects
+        num_bytes += ((pdf->hdr >> 12) & 0x7) * 4;
+    }
+
+    // Call the CRC32 generating function
+    return crc32_calc((uint8_t *) pdf->raw_bytes[10], num_bytes);
+}
 /*
 uint32_t crc32_pdframe_calc(pd_frame* pdf) {
     // Establish variables

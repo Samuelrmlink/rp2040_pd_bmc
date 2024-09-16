@@ -162,19 +162,18 @@ void thread_rx_process(void* unused_arg) {
 void thread_rx_process(void* unused_arg) {
     extern bmcChannel *bmc_ch0;
     extern bmcRx *pdq_rx;
-    uint32_t lastval = 0;
-    uint32_t buf;
 
-    bool firsttime = true;
-    uint32_t tmpval;
+/*
     (pdq_rx->pdfPtr)[pdq_rx->objOffset].obj[11] = 0x00000000;
     while(true) {
         // TODO : Implement processing
         sleep_us(120);
     }
-    /*
-    extern bmcRx *pdq_rx;
+*/
 	uint8_t proc_counter = 0;
+    uint8_t crc_offset = 0;
+    uint32_t crc_val;
+    while(true) {
 	// If there is a complete frame (EOP received)
     if(pdq_rx->objOffset > proc_counter) {
 		if((pdq_rx->pdfPtr)[proc_counter].ordered_set == ordsetSop) {
@@ -182,11 +181,14 @@ void thread_rx_process(void* unused_arg) {
 		} else if((pdq_rx->pdfPtr)[proc_counter].ordered_set == ordsetSopP) {
 			printf("SOPP\n");
 		}
+        crc_offset = 4 * (((pdq_rx->pdfPtr)[proc_counter].hdr >> 12) & 0x7) + 12;
+        printf("CRC: %X-%X-%X %X\n", (pdq_rx->pdfPtr)[proc_counter].obj[0], (pdq_rx->pdfPtr)[proc_counter].obj[1], (pdq_rx->pdfPtr)[proc_counter].obj[2], crc32_pdframe_calc(&(pdq_rx->pdfPtr)[proc_counter]));
 		if(pdq_rx->inputRollover && (proc_counter == 255)) {
 			pdq_rx->inputRollover = false;
 		}
 		proc_counter++;
-		printf("T\n");
+		//printf("T\n");
 	}
-    */
+    sleep_us(2000);
+    }
 }
