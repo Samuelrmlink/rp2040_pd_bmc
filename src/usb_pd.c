@@ -170,6 +170,11 @@ void thread_rx_process(void* unused_arg) {
         sleep_us(120);
     }
 */
+    // Clear all memory allocated to incoming pd_frame data
+    for(int i = 0; i < pdq_rx->rolloverObj; i++) {
+        pd_frame_clear(&(pdq_rx->pdfPtr)[i]);
+    }
+
 	uint8_t proc_counter = 0;
     uint8_t crc_offset = 0;
     uint32_t crc_val;
@@ -182,7 +187,7 @@ void thread_rx_process(void* unused_arg) {
 			printf("SOPP\n");
 		}
         crc_offset = 4 * (((pdq_rx->pdfPtr)[proc_counter].hdr >> 12) & 0x7) + 12;
-        printf("CRC: %X-%X-%X %X\n", (pdq_rx->pdfPtr)[proc_counter].obj[0], (pdq_rx->pdfPtr)[proc_counter].obj[1], (pdq_rx->pdfPtr)[proc_counter].obj[2], crc32_pdframe_calc(&(pdq_rx->pdfPtr)[proc_counter]));
+        printf("%X CRC: %X-%X-%X %X\n", (pdq_rx->pdfPtr)[proc_counter].hdr, (pdq_rx->pdfPtr)[proc_counter].obj[0], (pdq_rx->pdfPtr)[proc_counter].obj[1], (pdq_rx->pdfPtr)[proc_counter].obj[2], crc32_pdframe_calc(&(pdq_rx->pdfPtr)[proc_counter]));
 		if(pdq_rx->inputRollover && (proc_counter == 255)) {
 			pdq_rx->inputRollover = false;
 		}

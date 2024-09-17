@@ -23,7 +23,7 @@ uint32_t crc32_pdframe_calc(pd_frame *pdf) {
     }
 
     // Call the CRC32 generating function
-    return crc32_calc((uint8_t *) pdf->raw_bytes[10], num_bytes);
+    return crc32_calc(&(pdf->raw_bytes)[10], num_bytes);
 }
 /*
 uint32_t crc32_pdframe_calc(pd_frame* pdf) {
