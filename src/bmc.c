@@ -151,13 +151,13 @@ bmcChannel* bmc_channel0_init() {
     // Initialize TX FIFO
     uint offset_tx = pio_add_program(ch->pio, &differential_manchester_tx_program);
     printf("Transmit program loaded at %d\n", offset_tx);
-    differential_manchester_tx_program_init(ch->pio, ch->sm_tx, offset_tx, ch->tx_low, 125.f / 5);
+    differential_manchester_tx_program_init(ch->pio, ch->sm_tx, offset_tx, ch->tx_low, 25.f);
     pio_sm_set_enabled(ch->pio, ch->sm_tx, true);
     
     // Initialize RX FIFO
     uint offset_rx = pio_add_program(ch->pio, &differential_manchester_rx_program);
     printf("Receive program loaded at %d\n", offset_rx);
-    differential_manchester_rx_program_init(ch->pio, ch->sm_rx, offset_rx, ch->rx, 125.f / 5);
+    differential_manchester_rx_program_init(ch->pio, ch->sm_rx, offset_rx, ch->rx, 25.f); // 25.f for rp2040 28.2 for rp2350
 
     // Initialize RX IRQ handler
     pio_set_irq0_source_enabled(ch->pio, pis_interrupt0, true);

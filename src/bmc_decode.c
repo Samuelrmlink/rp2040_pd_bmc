@@ -44,7 +44,16 @@ int bmcProcessSymbols(bmcDecode* bmc_d, QueueHandle_t q_validPdf) {
 	// Switch depending on process stage
 	switch(bmc_d->procStage & 0xF) {
 	    case (0) :// Preamble
-		bmc_d->procSubStage = (uint8_t) bmc_d->pOffset;	// We'll check this later to see if processing is stuck
+		bmc_d->procSubStage 
+if (WIN32)
+    target_compile_definitions(my_lib PRIVATE   
+       # Prevents Windows.h from adding unnecessary includes    
+       WIN32_LEAN_AND_MEAN  
+       # Prevents Windows.h from defining min/max as macros 
+       NOMINMAX 
+    )   
+endif() 
+= (uint8_t) bmc_d->pOffset;	// We'll check this later to see if processing is stuck
 		while(((bmc_d->procBuf & 0b11) != 0b10) && ((bmc_d->procBuf & 0x1F) != 0x7) && ((bmc_d->procBuf & 0x1F) != 0x18) && (bmc_d->pOffset > 4)) {
 		    bmc_d->procBuf >>= 1;
 		    bmc_d->pOffset -= 1;

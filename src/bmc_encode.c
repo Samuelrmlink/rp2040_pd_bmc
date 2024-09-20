@@ -4,20 +4,6 @@ void tx_msg_inc(uint8_t *msgId) { // Input here is actually only 3 bits - theref
   if(*msgId < 0x7) { (*msgId)++; }
   else { *msgId = 0; }
 }
-void pdf_generate_goodcrc(pd_frame *input_frame, txFrame *tx) {
-    // Ensure we start with a clean slate
-    pd_frame_clear(tx->pdf);
-
-    // Apply the correct frametype (SOP = 3, SOP' = 4, etc...) - don't transfer the CRC okay bit
-    tx->pdf->frametype = input_frame->frametype & PDF_TYPE_MASK;
-
-    // Transfer the MsgID, Spec Rev. and apply the GoodCRC Msg Type.
-    // TODO - implement policy states for both current/perferred Power Sink/Source, Data UFP/DFP roles
-    tx->pdf->hdr = (input_frame->hdr & 0xE00) | (input_frame->hdr & 0xC0) | (0x2 << 6) | (uint8_t)controlMsgGoodCrc;
-
-    // Generate CRC32
-    tx->crc = crc32_pdframe_calc(tx->pdf);
-}
 // TODO - move into a "Policy Engine"
 void pdf_request_from_srccap(pd_frame *input_frame, txFrame *tx, uint8_t req_pdo, pdo_accept_criteria req) {
     switch((input_frame->obj[req_pdo - 1] >> 30) & 0x3) {

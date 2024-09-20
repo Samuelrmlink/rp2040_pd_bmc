@@ -11,9 +11,12 @@ extern bmcChannel *bmc_ch0;
  *	bmc_encode.c
  *
  */
-void bmc_clear_rx_init(bmcRx *rx);
+bmcRx* bmc_rx_setup();
 uint32_t bmc_get_timestamp(bmcRx *rx);
+uint8_t bmc_extended_unchunked_bytes(pd_frame *pdf);
 void bmc_locate_sof(bmcRx *rx, uint32_t *in);
+uint8_t bmc_pull_5b(bmcRx *rx, uint32_t *pio_raw);
+bool bmc_load_symbols(bmcRx *rx, uint32_t *pio_raw);
 void bmc_process_symbols(bmcRx *rx, uint32_t *pio_raw);
 void bmc_rx_check();
 void bmc_rx_cb();
@@ -22,7 +25,6 @@ void individual_pin_toggle(uint8_t pin_num);
 
 
 void tx_msg_inc(uint8_t *msgId);
-void pdf_generate_goodcrc(pd_frame *input_frame, txFrame *tx);
 void pdf_request_from_srccap_fixed(pd_frame *input_frame, txFrame *tx, uint8_t req_pdo, pdo_accept_criteria req);
 void pdf_request_from_srccap_augmented(pd_frame *input_frame, txFrame *tx, uint8_t req_pdo, pdo_accept_criteria req);
 void pdf_generate_source_capabilities_basic(pd_frame *input_frame, txFrame *tx);
@@ -37,6 +39,7 @@ void pdf_transmit(txFrame *txf, bmcChannel *ch);
  *
  */
 void pd_frame_clear(pd_frame* pdf);
+void pdf_generate_goodcrc(pd_frame *input_frame, pd_frame *output_frame);
 bool is_crc_good(pd_frame *pdf);
 bool check_sop_type(uint8_t type, pd_frame *pdf);
 PDMessageType pdf_get_sop_msg_type(pd_frame *msg);

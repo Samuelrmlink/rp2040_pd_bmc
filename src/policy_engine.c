@@ -1,5 +1,5 @@
 #include "main_i.h"
-
+/*
 void pe_transmit(txFrame *txf, bmcChannel *ch) {
     // TODO : implement transmission retries
     pdf_transmit(txf, ch);
@@ -17,3 +17,4 @@ void policy_engine_sop_frame_handler(pd_frame *in_pdf, txFrame *out_txf, pd_fram
             printf("Frame Handler error\n");
     }
 }
+*/

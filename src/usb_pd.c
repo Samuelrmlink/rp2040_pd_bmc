@@ -5,6 +5,20 @@ void pd_frame_clear(pd_frame *pdf) {
 	pdf->raw_bytes[i] = 0;
     }
 }
+void pdf_generate_goodcrc(pd_frame *input_frame, pd_frame *output_frame) {
+    // Ensure we start with a clean slate
+    pd_frame_clear(output_frame);
+
+    // Transfer over frame type (SOP, SOP', SOP", etc..)
+    output_frame->ordered_set = input_frame->ordered_set;
+
+    // Transfer the MsgID, Spec Rev. and apply the GoodCRC Msg Type.
+    // TODO - implement policy states for both current/perferred Power Sink/Source, Data UFP/DFP roles
+    output_frame->hdr = (input_frame->hdr & 0xE00) | (input_frame->hdr & 0xC0) | (0x2 << 6) | (uint8_t)controlMsgGoodCrc;
+
+    // Generate CRC32
+    output_frame->obj[0] = crc32_pdframe_calc(input_frame);
+}
 /*
 bool is_crc_good(pd_frame *pdf) {
     return (bool)(pdf->frametype & 0x80);
@@ -178,16 +192,27 @@ void thread_rx_process(void* unused_arg) {
 	uint8_t proc_counter = 0;
     uint8_t crc_offset = 0;
     uint32_t crc_val;
+    pd_frame resp;
+    pd_frame *response = &resp;
     while(true) {
 	// If there is a complete frame (EOP received)
     if(pdq_rx->objOffset > proc_counter) {
-		if((pdq_rx->pdfPtr)[proc_counter].ordered_set == ordsetSop) {
+        // Current pd_frame pointer (added for improved readability)
+        pd_frame *cPdf = &(pdq_rx->pdfPtr)[proc_counter];
+        
+        if(crc32_pdframe_valid(cPdf)) {
+            pdf_generate_goodcrc(cPdf, response);
+            printf("V %04X", response->hdr);
+        } else {
+            printf("Invalid\n");
+        }
+        if(cPdf->ordered_set == ordsetSop) {
 			printf("SOP\n");
-		} else if((pdq_rx->pdfPtr)[proc_counter].ordered_set == ordsetSopP) {
+		} else if(cPdf->ordered_set == ordsetSopP) {
 			printf("SOPP\n");
 		}
-        crc_offset = 4 * (((pdq_rx->pdfPtr)[proc_counter].hdr >> 12) & 0x7) + 12;
-        printf("%X CRC: %X-%X-%X %X\n", (pdq_rx->pdfPtr)[proc_counter].hdr, (pdq_rx->pdfPtr)[proc_counter].obj[0], (pdq_rx->pdfPtr)[proc_counter].obj[1], (pdq_rx->pdfPtr)[proc_counter].obj[2], crc32_pdframe_calc(&(pdq_rx->pdfPtr)[proc_counter]));
+        crc_offset = 4 * ((cPdf->hdr >> 12) & 0x7) + 12;
+        printf("%X CRC: %X-%X-%X %X\n", cPdf->hdr, cPdf->obj[0], cPdf->obj[1], cPdf->obj[2], crc32_pdframe_calc(cPdf));
 		if(pdq_rx->inputRollover && (proc_counter == 255)) {
 			pdq_rx->inputRollover = false;
 		}

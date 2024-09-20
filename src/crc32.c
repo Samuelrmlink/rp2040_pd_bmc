@@ -25,6 +25,18 @@ uint32_t crc32_pdframe_calc(pd_frame *pdf) {
     // Call the CRC32 generating function
     return crc32_calc(&(pdf->raw_bytes)[10], num_bytes);
 }
+bool crc32_pdframe_valid(pd_frame *pdf) {
+    uint8_t crc_obj_offset;
+    // Find the object offset of the CRC
+    for(int i = 0; i < 11; i++) {
+        if(!(pdf->obj[i + 1])) {
+            crc_obj_offset = i;
+            break;
+        }
+    }
+    // Return whether CRC matches
+    return pdf->obj[crc_obj_offset] == crc32_pdframe_calc(pdf);
+}
 /*
 uint32_t crc32_pdframe_calc(pd_frame* pdf) {
     // Establish variables
