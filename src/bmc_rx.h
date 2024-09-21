@@ -2,6 +2,7 @@
 #define _BMC_RX_H
 
 typedef struct bmcRx bmcRx;
+typedef struct bmcTx bmcTx;
 
 struct bmcRx {
     pd_frame *pdfPtr;           // Pointer to the first pd_frame object allocated
@@ -16,6 +17,18 @@ struct bmcRx {
     uint8_t inputOffset;        // Input offset {>> shift direction]
     uint8_t rx_crc32;           // CRC32 value - for validation purposes
     bool eval_crc32;            // Validate CRC32 if true
+};
+
+struct bmcTx {
+    pd_frame *pdf;
+    uint8_t byteOffset;
+    bool upperSymbol;
+    uint8_t scrapBits;
+    uint8_t numScrapBits;
+    uint8_t msgIdOut;       // Outgoing msgID value [actually only 3 bits - please use tx_msg_inc(<pointer to this variable>) to increment]
+    uint8_t num_u32;        // Number of u32 objects to send to the PIO
+    uint32_t *out;          // Pointer to the first aformentioned u32 object
+    uint16_t num_zeros;     // Number of zeros (to skip when transmitting via PIO)
 };
 
 #endif

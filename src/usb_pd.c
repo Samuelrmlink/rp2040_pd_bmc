@@ -17,7 +17,7 @@ void pdf_generate_goodcrc(pd_frame *input_frame, pd_frame *output_frame) {
     output_frame->hdr = (input_frame->hdr & 0xE00) | (input_frame->hdr & 0xC0) | (0x2 << 6) | (uint8_t)controlMsgGoodCrc;
 
     // Generate CRC32
-    output_frame->obj[0] = crc32_pdframe_calc(input_frame);
+    output_frame->obj[0] = crc32_pdframe_calc(output_frame);
 }
 /*
 bool is_crc_good(pd_frame *pdf) {
@@ -192,8 +192,10 @@ void thread_rx_process(void* unused_arg) {
 	uint8_t proc_counter = 0;
     uint8_t crc_offset = 0;
     uint32_t crc_val;
-    pd_frame resp;
-    pd_frame *response = &resp;
+    bmcTx *tx = malloc(sizeof(bmcTx));
+    tx->pdf = malloc(sizeof(pd_frame));
+    //pd_frame resp;
+    //pd_frame *response = &resp;
     while(true) {
 	// If there is a complete frame (EOP received)
     if(pdq_rx->objOffset > proc_counter) {
@@ -201,8 +203,14 @@ void thread_rx_process(void* unused_arg) {
         pd_frame *cPdf = &(pdq_rx->pdfPtr)[proc_counter];
         
         if(crc32_pdframe_valid(cPdf)) {
-            pdf_generate_goodcrc(cPdf, response);
-            printf("V %04X", response->hdr);
+            pdf_generate_goodcrc(cPdf, tx->pdf);
+            //pdf_to_uint32(tx);
+            pdf_transmit(tx, bmc_ch0);
+            printf("V %04X ", tx->pdf->hdr);
+            for(int i = 0; i < tx->num_u32; i++) {
+                printf("%X ", tx->out[i]);
+            }
+            printf("\n");
         } else {
             printf("Invalid\n");
         }
@@ -212,7 +220,7 @@ void thread_rx_process(void* unused_arg) {
 			printf("SOPP\n");
 		}
         crc_offset = 4 * ((cPdf->hdr >> 12) & 0x7) + 12;
-        printf("%X CRC: %X-%X-%X %X\n", cPdf->hdr, cPdf->obj[0], cPdf->obj[1], cPdf->obj[2], crc32_pdframe_calc(cPdf));
+        printf("%X CRC: %X-%X-%X %X\n", tx->pdf->hdr, tx->pdf->obj[0], tx->pdf->obj[1], tx->pdf->obj[2], crc32_pdframe_calc(tx->pdf));
 		if(pdq_rx->inputRollover && (proc_counter == 255)) {
 			pdq_rx->inputRollover = false;
 		}

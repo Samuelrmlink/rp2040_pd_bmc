@@ -173,3 +173,114 @@ void individual_pin_toggle(uint8_t pin_num) {
     else
 	gpio_set_mask(1 << pin_num); // Drive pin high
 }
+
+void static tx_raw_buf_write(uint32_t input_bits, uint8_t num_input_bits, uint32_t *buf, uint16_t *buf_position) {
+  uint8_t obj_offset = *buf_position / 32;
+  uint8_t bit_offset = *buf_position % 32;
+  uint8_t obj_empty_bits = 32 - bit_offset;
+  if(num_input_bits > obj_empty_bits) {
+    buf[obj_offset] |= (input_bits & (0xFFFFFFFF >> (32 - obj_empty_bits))) << bit_offset;
+    *buf_position += obj_empty_bits;
+    // Don't write the bits to the buffer twice (remove from input variables)
+    input_bits >>= obj_empty_bits;
+    num_input_bits -= obj_empty_bits;
+    // Update values generated from buf_position ptr
+    obj_offset = *buf_position / 32;
+    bit_offset = *buf_position % 32;
+  }
+  buf[obj_offset] |= (input_bits & (0xFFFFFFFF >> (32 - num_input_bits))) << bit_offset;
+  *buf_position += num_input_bits;
+}
+void pdf_to_uint32(bmcTx *txf) {
+    uint16_t current_bit_num = 0;
+    uint8_t follower_zero_bits = 2;
+
+    // Calculate the number of bytes we'll be transferring
+    uint8_t num_bytes_payload = ((txf->pdf->hdr >> 12) & 0x7) * 4;
+    if(!num_bytes_payload && (txf->pdf->hdr >> 15)) {
+        num_bytes_payload += 2 + bmc_extended_unchunked_bytes(txf->pdf);
+    }
+    uint8_t input_bytes_non_kcode =
+        2 +                 // Message Header
+        num_bytes_payload + // Data Payload (may be zero - includes any data objects, extended header/data, etc if applicable)
+        4;                  // CRC32
+    // Calculate the number of output bits required
+    uint16_t total_bits_req =
+        64 + 5 * (              // Preamble + [5 bits per symbol]
+        4 +                     // Ordered Set symbols
+        4 +                     // Message Header (2 bytes * 2 symbols/byte = 4 symbols)
+        num_bytes_payload * 2 + // Data Payload (2 symbols per byte)
+        8 +                     // CRC32 (4 bytes * 2 symbols/byte = 8 symbols)
+        1) +                    // EOP symbol
+        follower_zero_bits;     // Zero bits following the frame
+    txf->num_u32 = total_bits_req / 32;
+    // Round up if more bits are required
+    if(total_bits_req % 32) { txf->num_u32 += 1; }
+    // Store the number of remainder unused bits (used later during transmit)
+    txf->num_zeros = total_bits_req % 32;
+    // Allocate memory for u32 values (PIO TX buffer)
+    txf->out = malloc(sizeof(uint32_t) * txf->num_u32);
+    // Ensure that our u32 area in memory is blank
+    for(int i = 0; i < txf->num_u32; i++) {
+        txf->out[i] = 0;
+    }
+    // Add preamble (64-bits)
+    for(int i = 0; i < 2; i++) {
+        txf->out[i] = 0xAAAAAAAA;
+        current_bit_num += 32;
+    }
+    // Add the Ordered Set symbols
+    txf->byteOffset = 4;
+    for(int i = 0; i < 4; i++) {
+        tx_raw_buf_write(bmc4bTo5b[(txf->pdf->raw_bytes)[txf->byteOffset]], (uint8_t)NUM_BITS_SYMBOL, txf->out, &current_bit_num);
+        txf->byteOffset += 1;
+    }
+    // Add the Message Header, Data Payload, and CRC32
+    for(int i = 0; i < input_bytes_non_kcode; i++) {
+        // Skip the __padding1 field in the pd_frame structure
+        if(txf->byteOffset == 8) { txf->byteOffset = 10; }
+        // Write both the upper and lower symbols (With the exception of K-Code symbols - each byte contains 2 symbols)
+        tx_raw_buf_write(bmc4bTo5b[(txf->pdf->raw_bytes)[txf->byteOffset] & 0xF], (uint8_t)NUM_BITS_SYMBOL, txf->out, &current_bit_num);
+        tx_raw_buf_write(bmc4bTo5b[((txf->pdf->raw_bytes)[txf->byteOffset] >> 4) & 0xF], (uint8_t)NUM_BITS_SYMBOL, txf->out, &current_bit_num);
+        txf->byteOffset += 1;
+    }
+    // Add the EOP symbol
+    tx_raw_buf_write(symKcodeEop, (uint8_t)NUM_BITS_SYMBOL, txf->out, &current_bit_num);
+    // Following zero bit (if applicable)
+    while(follower_zero_bits) {
+        tx_raw_buf_write(0x0, 1, txf->out, &current_bit_num);
+        follower_zero_bits--;
+    }
+}
+bool bmc_rx_active(bmcChannel *chan) {
+   uint prev = pio_sm_get_pc(chan->pio, chan->sm_rx);
+   bool rx_line_active = false;
+   for(int i = 0; i < 35; i++) {
+    if(pio_sm_get_pc(chan->pio, chan->sm_rx) != prev) {
+      rx_line_active = true;
+      break;
+    }
+    busy_wait_us(1);
+   }
+   return rx_line_active;
+}
+void pdf_transmit(bmcTx *txf, bmcChannel *ch) {
+    pdf_to_uint32(txf);
+    while(bmc_rx_active(ch)) {
+      sleep_us(20);
+    }
+    irq_set_enabled(ch->irq, false);
+    gpio_set_mask(1 << ch->tx_high);
+    uint64_t timestamp = time_us_64();
+    pio_sm_put_blocking(ch->pio, ch->sm_tx, txf->out[0]);
+    pio_sm_exec(ch->pio, ch->sm_tx, pio_encode_out(pio_null, txf->num_zeros));
+    for(int i = 1; i < txf->num_u32; i++) {
+	pio_sm_put_blocking(ch->pio, ch->sm_tx, txf->out[i]);
+    }
+    busy_wait_until(timestamp + 103 * txf->num_u32 - (320 * txf->num_zeros) / 100);
+    if(pio_sm_get_pc(ch->pio, ch->sm_tx) == 27) { // THIS IS A HACK - 27 is the PIO instruction that (at the time of this hack) leaves the tx line pulled high
+      pio_sm_exec(ch->pio, ch->sm_tx, pio_encode_jmp(22) | pio_encode_sideset(1, 1));
+    }
+    gpio_clr_mask(1 << ch->tx_high);
+    irq_set_enabled(ch->irq, true);
+}
