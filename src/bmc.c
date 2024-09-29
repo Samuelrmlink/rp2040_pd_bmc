@@ -3,22 +3,82 @@
 // BMC channel pointers
 bmcChannel *bmc_ch0;
 
+// Increment object offset safely (without overflow)
+void bmc_inc_object_offset(bmcRx *rx) {
+    if(rx->objOffset >= rx->rolloverObj) {
+        // We need to rollover
+        rx->objOffset = 0;
+        rx->inputRollover = true;
+    } else {
+        // Normal incrememt operation
+        rx->objOffset += 1;
+    }
+}
 bmcRx* bmc_rx_setup() {
     bmcRx *rx = malloc(sizeof(bmcRx));
-    rx->rolloverObj = 12;
+    rx->rolloverObj = 240;
     rx->pdfPtr = malloc(sizeof(pd_frame) * rx->rolloverObj);
     rx->objOffset = 0;
     rx->byteOffset = 0;
     rx->upperSymbol = false;
+    rx->inputRollover = false;
     rx->scrapBits = 0;
     rx->afterScrapOffset = 0;
     rx->inputOffset = 0;
     rx->rx_crc32 = 0;
     rx->eval_crc32 = false;
+    rx->overflowCount = 0;
+    rx->lastOverflow = 0;
     return rx;
+}
+void bmc_rx_overflow_protect(bmcRx *rx) {
+    rx->byteOffset = 0;
+    rx->upperSymbol = 0;
+    rx->scrapBits = 0;
+    rx->afterScrapOffset = 0;
+    rx->inputOffset = 0;
+    rx->rx_crc32 = 0;
+    rx->eval_crc32 = false;
+
+    // Increment overflow count
+    rx->overflowCount += 1;
+
+    // Increment object offset
+    rx->lastOverflow = rx->objOffset;
+    rx->objOffset += 1;
 }
 uint32_t bmc_get_timestamp(bmcRx *rx) {
     return (rx->pdfPtr)[rx->objOffset].timestamp_us;
+}
+// Returns the index value of the Ordered Set
+uint8_t bmc_get_ordset_index(uint32_t input) {
+    uint8_t out;
+    switch(input) {
+        case (ordsetHardReset) :
+            out = 1;
+            break;
+        case (ordsetCableReset) :
+            out = 2;
+            break;
+        case (ordsetSop) :
+            out = 3;
+            break;
+        case (ordsetSopP) :
+            out = 4;
+            break;
+        case (ordsetSopDp) :
+            out = 5;
+            break;
+        case (ordsetSopPDbg) :
+            out = 6;
+            break;
+        case (ordsetSopDpDbg) :
+            out = 7;
+            break;
+        default :
+            out = 0;
+    }
+    return out;
 }
 // Returns the number of unchunked extended bytes (chunked extended frames, or non-extended frames will return 0)
 uint8_t bmc_extended_unchunked_bytes(pd_frame *pdf) {
@@ -28,8 +88,29 @@ uint8_t bmc_extended_unchunked_bytes(pd_frame *pdf) {
         return 0;
     }
 }
+void bmc_locate_preamble(bmcRx *rx, uint32_t *in) {
+    uint8_t offset = 0;
+    // This function will align with the preamble (if found)
+    switch(*in) {
+        case (0x55555555) :
+            offset = 1;
+            // Falls through (no break)
+        case (0xAAAAAAAA) :
+            // Indicate that the preamble has been found
+            rx->byteOffset = 4;
+            break;
+        default:
+            rx->byteOffset = 0;
+            break;
+    }
+    // Consume all bytes (except for maybe one)
+    rx->inputOffset = 32 - offset;
 
+    rx->scrapBits = 0;
+    rx->afterScrapOffset = 0;
+}
 void bmc_locate_sof(bmcRx *rx, uint32_t *in) {
+    uint8_t num_scrap_consuming;
     // While loop ONLY runs if there are at least 5 bits in the input buffer
     while(rx->inputOffset <= 27) {
         if( ((rx->scrapBits | (*in >> rx->inputOffset) << rx->afterScrapOffset) & 0x1F) == symKcodeS1 ||     // K-Code S1 (starting symbol for ordsetSop*) ---or---
@@ -41,14 +122,16 @@ void bmc_locate_sof(bmcRx *rx, uint32_t *in) {
             // Exit - we've found the Start-of-frame
             break;
         } else {
+            // Consume either 1 or 2 scrap bits (depending on whether more than 1 is available)
+            (rx->afterScrapOffset > 1) ? (num_scrap_consuming = 2) : (num_scrap_consuming = 1);
             // If we have scraps leftover we'll consume those first
             if(rx->afterScrapOffset) {
-                rx->afterScrapOffset -= 1;
-                rx->scrapBits >>= 1;
-            } else {
-                // Try offsetting another bit
-                rx->inputOffset += 1;
+                rx->afterScrapOffset -= num_scrap_consuming;
+                rx->scrapBits >>= num_scrap_consuming;
             }
+            // Try offsetting another 2 bits
+            // (Why not just offset 1 bit?: to not lose alignment from the preamble)
+            rx->inputOffset += (2 - num_scrap_consuming);
         }
     }
     if(rx->inputOffset > 27) {
@@ -69,6 +152,9 @@ uint8_t bmc_pull_5b(bmcRx *rx, uint32_t *pio_raw) {
 bool bmc_load_symbols(bmcRx *rx, uint32_t *pio_raw) {
     // While loop ONLY runs if there are at least 5 bits in the input buffer
     uint8_t decode_4b;
+    // Exit function if there aren't enough bits to process
+    if(rx->inputOffset > 27) { return false; }
+    // Otherwise process symbols
     while(rx->inputOffset <= 27) {
         decode_4b = bmc_pull_5b(rx, pio_raw);
         if(decode_4b == sym4bKcodeEop) {
@@ -80,11 +166,17 @@ bool bmc_load_symbols(bmcRx *rx, uint32_t *pio_raw) {
             // Skip to hdr field offset
             rx->byteOffset = 10;
         }
+        // Catch errors (before we have an overflow)
+        if(rx->byteOffset >= 56) {
+            // EOP was never received
+            bmc_rx_overflow_protect(rx);
+            return false;
+        }
         // Transfer symbol
         (rx->pdfPtr)[rx->objOffset].raw_bytes[rx->byteOffset] |= decode_4b << (4 * rx->upperSymbol);
         if(rx->upperSymbol || decode_4b & 0x10) {
             rx->upperSymbol = false;
-            rx->byteOffset++;
+            rx->byteOffset += 1;
         } else {
             rx->upperSymbol = true;
         }
@@ -98,16 +190,27 @@ bool bmc_load_symbols(bmcRx *rx, uint32_t *pio_raw) {
 void bmc_process_symbols(bmcRx *rx, uint32_t *pio_raw) {
     // Reset inputOffset (since we are iterating through a new input buffer)
     rx->inputOffset = 0;
+    // If rollover == true: Clear all memory allocated to incoming pd_frame data
+    if(rx->inputRollover) {
+        for(int i = 0; i < rx->rolloverObj; i++) {
+            pd_frame_clear(&(rx->pdfPtr)[i]);
+        }
+    }
     // Check for no timestamp (which would mean that we haven't found the end of the frame preamble)
     if(!bmc_get_timestamp(rx)) {    // No timestamp would mean that we are still in the preamble stage
-        bmc_locate_sof(rx, pio_raw);
+        if(rx->byteOffset >= 4) {
+            bmc_locate_sof(rx, pio_raw);
+        } else {
+            bmc_locate_preamble(rx, pio_raw);
+        }
     }
     // Check again for a timestamp (again - this would mean we are past the preamble)
-    if(bmc_get_timestamp(rx)) {
+    if(bmc_get_timestamp(rx) && (rx->inputOffset <= 27)) {
         if(bmc_load_symbols(rx, pio_raw)) {
-            // End of frame
-            rx->objOffset++;
+            // End of frame - increment object offset
+            bmc_inc_object_offset(rx);
             rx->upperSymbol = false;
+            //printf("EOF %X\n", (rx->pdfPtr)[rx->objOffset - 1].obj[2]);
 //            printf("EOF\n");
         }
     }
@@ -116,6 +219,7 @@ void bmc_rx_check() {
     extern bmcRx *pdq_rx;
     extern bmcChannel *bmc_ch0;
     uint32_t buf;
+    uint16_t count;
     while(!pio_sm_is_rx_fifo_empty(bmc_ch0->pio, bmc_ch0->sm_rx)) {
         buf = pio_sm_get(bmc_ch0->pio, bmc_ch0->sm_rx);
         bmc_process_symbols(pdq_rx, &buf);
@@ -125,7 +229,7 @@ void bmc_rx_cb() {
     bmc_rx_check();
     if(pio_interrupt_get(bmc_ch0->pio, 0)) {
 	pio_interrupt_clear(bmc_ch0->pio, 0);
-    } 
+    }
 }
 bmcChannel* bmc_channel0_init() {
     bmcChannel *ch = malloc(sizeof(bmcChannel));
@@ -151,13 +255,13 @@ bmcChannel* bmc_channel0_init() {
     // Initialize TX FIFO
     uint offset_tx = pio_add_program(ch->pio, &differential_manchester_tx_program);
     printf("Transmit program loaded at %d\n", offset_tx);
-    differential_manchester_tx_program_init(ch->pio, ch->sm_tx, offset_tx, ch->tx_low, 25.f);
+    differential_manchester_tx_program_init(ch->pio, ch->sm_tx, offset_tx, ch->tx_low, 28.2);
     pio_sm_set_enabled(ch->pio, ch->sm_tx, true);
     
     // Initialize RX FIFO
     uint offset_rx = pio_add_program(ch->pio, &differential_manchester_rx_program);
     printf("Receive program loaded at %d\n", offset_rx);
-    differential_manchester_rx_program_init(ch->pio, ch->sm_rx, offset_rx, ch->rx, 25.f); // 25.f for rp2040 28.2 for rp2350
+    differential_manchester_rx_program_init(ch->pio, ch->sm_rx, offset_rx, ch->rx, 28.2); // 25.f for rp2040 28.2 for rp2350
 
     // Initialize RX IRQ handler
     pio_set_irq0_source_enabled(ch->pio, pis_interrupt0, true);
@@ -217,7 +321,7 @@ void pdf_to_uint32(bmcTx *txf) {
     // Round up if more bits are required
     if(total_bits_req % 32) { txf->num_u32 += 1; }
     // Store the number of remainder unused bits (used later during transmit)
-    txf->num_zeros = total_bits_req % 32;
+    txf->num_zeros = 32 - total_bits_req % 32;
     // Allocate memory for u32 values (PIO TX buffer)
     txf->out = malloc(sizeof(uint32_t) * txf->num_u32);
     // Ensure that our u32 area in memory is blank
@@ -272,9 +376,9 @@ void pdf_transmit(bmcTx *txf, bmcChannel *ch) {
     irq_set_enabled(ch->irq, false);
     gpio_set_mask(1 << ch->tx_high);
     uint64_t timestamp = time_us_64();
-    pio_sm_put_blocking(ch->pio, ch->sm_tx, txf->out[0]);
-    pio_sm_exec(ch->pio, ch->sm_tx, pio_encode_out(pio_null, txf->num_zeros));
-    for(int i = 1; i < txf->num_u32; i++) {
+    //pio_sm_put_blocking(ch->pio, ch->sm_tx, txf->out[0]);
+    //pio_sm_exec(ch->pio, ch->sm_tx, pio_encode_out(pio_null, txf->num_zeros));
+    for(int i = 0; i < txf->num_u32; i++) {
 	pio_sm_put_blocking(ch->pio, ch->sm_tx, txf->out[i]);
     }
     busy_wait_until(timestamp + 103 * txf->num_u32 - (320 * txf->num_zeros) / 100);
@@ -282,5 +386,14 @@ void pdf_transmit(bmcTx *txf, bmcChannel *ch) {
       pio_sm_exec(ch->pio, ch->sm_tx, pio_encode_jmp(22) | pio_encode_sideset(1, 1));
     }
     gpio_clr_mask(1 << ch->tx_high);
+    free(txf->out);
+    txf->byteOffset = 0;
+    txf->upperSymbol = false;
+    txf->scrapBits = 0;
+    txf->numScrapBits = 0;
+    txf->num_u32 = 0;
+    while(!pio_sm_is_rx_fifo_empty(bmc_ch0->pio, bmc_ch0->sm_rx)) {
+        pio_sm_get(ch->pio, ch->sm_rx);
+    }
     irq_set_enabled(ch->irq, true);
 }

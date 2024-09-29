@@ -17,6 +17,9 @@ struct bmcRx {
     uint8_t inputOffset;        // Input offset {>> shift direction]
     uint8_t rx_crc32;           // CRC32 value - for validation purposes
     bool eval_crc32;            // Validate CRC32 if true
+
+    uint16_t overflowCount;     // Counts the number of times pio rx buffer has been completely full
+    uint8_t lastOverflow;       // Index of the last pio rx buffer overflow
 };
 
 struct bmcTx {

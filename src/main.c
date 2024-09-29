@@ -83,6 +83,7 @@ void thread_rx_policy(void *unused_arg) {
 }
 */
 bmcRx *pdq_rx;
+bmcTx *tx;
 
 int main() {
     // Initialize IO & PIO
