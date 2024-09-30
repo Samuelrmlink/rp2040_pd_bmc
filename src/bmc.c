@@ -161,10 +161,23 @@ bool bmc_load_symbols(bmcRx *rx, uint32_t *pio_raw) {
             // End of packet symbol
             return true;
         }
-        // Skip past padding (put there for ARM Cortex-M alignment purposes)
+        // Check frame type Skip past padding (put there for ARM Cortex-M alignment purposes)
         if(rx->byteOffset == 8) {
-            // Skip to hdr field offset
+            // Skip past padding (put there for ARM Cortex-M alignment purposes)
+            // (Skips to hdr field offset)
             rx->byteOffset = 10;
+            /*
+            switch(bmc_get_ordset_index((rx->pdfPtr)[rx->objOffset].ordered_set)) {
+                case (PdfTypeInvalid) :
+                case (PdfTypeHardReset) :
+                case (PdfTypeCableReset) :
+                    // End of frame - consume all remaining symbols
+                    //return true;
+                    break;
+                default:
+                    break;
+            }
+            */
         }
         // Catch errors (before we have an overflow)
         if(rx->byteOffset >= 56) {
@@ -210,10 +223,25 @@ void bmc_process_symbols(bmcRx *rx, uint32_t *pio_raw) {
             // End of frame - increment object offset
             bmc_inc_object_offset(rx);
             rx->upperSymbol = false;
+            rx->byteOffset = 0;
             //printf("EOF %X\n", (rx->pdfPtr)[rx->objOffset - 1].obj[2]);
 //            printf("EOF\n");
         }
     }
+    /*
+    switch(bmc_get_ordset_index((rx->pdfPtr)[rx->objOffset].ordered_set)) {
+        case (PdfTypeInvalid) :
+        case (PdfTypeHardReset) :
+        case (PdfTypeCableReset) :
+            // End of frame - consume all remaining symbols
+            bmc_inc_object_offset(rx);
+            rx->upperSymbol = false;
+            rx->byteOffset = 0;
+            break;
+        default:
+            break;
+    }
+    */
 }
 void bmc_rx_check() {
     extern bmcRx *pdq_rx;
