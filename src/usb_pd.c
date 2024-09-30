@@ -195,17 +195,15 @@ void thread_rx_process(void* unused_arg) {
     pd_frame_clear(tx->pdf);
 
     while(true) {
-	// If there is a complete frame (EOP received)
+	// If there is a complete frame
     if(pdq_rx->objOffset > proc_counter) {
         // Current pd_frame pointer (added for improved readability)
         cPdf = &(pdq_rx->pdfPtr)[proc_counter];
         proc_counter++;
         if(crc32_pdframe_valid(cPdf) && !cPdf->__padding1) {
             if(bmc_get_ordset_index(cPdf->ordered_set) == PdfTypeSop) {
-                individual_pin_toggle(16);
                 pdf_generate_goodcrc(cPdf, tx->pdf);
                 pdf_transmit(tx, bmc_ch0);
-                individual_pin_toggle(16);
             }
             //printf("%s %X\n", sopFrameTypeNames[bmc_get_ordset_index(cPdf->ordered_set)], cPdf->hdr);
             cPdf->__padding1 = 1;
@@ -213,35 +211,18 @@ void thread_rx_process(void* unused_arg) {
 		if(pdq_rx->inputRollover && (proc_counter == 255)) {
 			pdq_rx->inputRollover = false;
 		}
-	}
-    /*
-    // No full frame was received - check for being partially through a frame (so that we can manually push if necessary)
-    else if(bmc_get_timestamp(pdq_rx) && !bmc_rx_active(bmc_ch0)) {
-        individual_pin_toggle(16);
-        // We are in the middle of receiving a pd_frame - but the RX state-machine is no longer active
-        // Disable IRQ
-        irq_set_enabled(bmc_ch0->irq, false);
-        pio_sm_set_enabled(bmc_ch0->pio, bmc_ch0->sm_rx, false);
-        // Fill the RX FIFO with zeros until it pushes
-        while(!pio_sm_is_rx_fifo_empty(bmc_ch0->pio, bmc_ch0->sm_rx)) {
-            pio_sm_exec_wait_blocking(bmc_ch0->pio, bmc_ch0->sm_rx, pio_encode_in(pio_y, 1));
+	} else {
+        if(bmc_get_timestamp(pdq_rx) && !bmc_rx_active(bmc_ch0)) {
+            // Fill the RX FIFO with zeros until it pushes
+            individual_pin_toggle(16);
+            while(pio_sm_is_rx_fifo_empty(bmc_ch0->pio, bmc_ch0->sm_rx)) {
+                pio_sm_exec_wait_blocking(bmc_ch0->pio, bmc_ch0->sm_rx, pio_encode_in(pio_y, 1));
+            }
+            // Retrieve data from the RX FIFO
+            bmc_rx_cb();
+            individual_pin_toggle(16);
         }
-        // Retrive the data that was just pushed
-        //bmc_rx_check();
-        //pdq_rx->objOffset++;
-        // Enable IRQ
-        //irq_set_enabled(bmc_ch0->irq, true);
-        uint32_t pio_tmp = pio_sm_get(bmc_ch0->pio, bmc_ch0->sm_rx);
-        obj2 = &(((pdq_rx->pdfPtr)[pdq_rx->objOffset]).obj[2]);
-        printf("%X %X:%X %u *%X\n%X,%u,%u\n", pio_tmp, (pdq_rx->pdfPtr)[pdq_rx->objOffset].hdr, ((pdq_rx->pdfPtr)[pdq_rx->objOffset]).obj[2], pdq_rx->objOffset, *obj2, pdq_rx->scrapBits, pdq_rx->afterScrapOffset, pdq_rx->inputOffset);
-        bmc_process_symbols(pdq_rx, &pio_tmp);
-        printf("2t %X:%X %u *%X\n%X,%u,%u\n", (pdq_rx->pdfPtr)[pdq_rx->objOffset - 1].hdr, ((pdq_rx->pdfPtr)[pdq_rx->objOffset]).obj[2], pdq_rx->objOffset, *obj2, pdq_rx->scrapBits, pdq_rx->afterScrapOffset, pdq_rx->inputOffset);
-        individual_pin_toggle(16);
-        //printf("Db: %u, %u", pdq_rx->objOffset, proc_counter);
-        //printf("pio %X\n", pio_sm_get(bmc_ch0->pio, bmc_ch0->sm_rx));
-        //printf("\n");
     }
-    */
     sleep_us(100);
     }
 }
