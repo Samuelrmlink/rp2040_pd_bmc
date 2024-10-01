@@ -13,7 +13,10 @@ extern bmcChannel *bmc_ch0;
  */
 bmcRx* bmc_rx_setup();
 uint32_t bmc_get_timestamp(bmcRx *rx);
+bool bmc_validate_pdf(pd_frame *pdf);
+uint8_t bmc_get_ordset_index(uint32_t input);
 uint8_t bmc_extended_unchunked_bytes(pd_frame *pdf);
+void bmc_locate_preamble(bmcRx *rx, uint32_t *in);
 void bmc_locate_sof(bmcRx *rx, uint32_t *in);
 uint8_t bmc_pull_5b(bmcRx *rx, uint32_t *pio_raw);
 bool bmc_load_symbols(bmcRx *rx, uint32_t *pio_raw);

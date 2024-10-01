@@ -50,6 +50,26 @@ void bmc_rx_overflow_protect(bmcRx *rx) {
 uint32_t bmc_get_timestamp(bmcRx *rx) {
     return (rx->pdfPtr)[rx->objOffset].timestamp_us;
 }
+// Returns true if valid, otherwise returns false
+bool bmc_validate_pdf(pd_frame *pdf) {
+    if(!pdf->timestamp_us) {
+        return false;           // No timestamp - not valid
+    }
+    uint32_t ordset_index = bmc_get_ordset_index(pdf->ordered_set);
+    switch (ordset_index) {
+        case(PdfTypeInvalid) :
+            return false;       // Invalid - no valid (obviously..)
+        case(PdfTypeHardReset) :
+        case(PdfTypeCableReset) :
+            return true;        // Valid
+        case(PdfTypeSop) :
+        case(PdfTypeSopP) :
+        case(PdfTypeSopDp) :
+        case(PdfTypeSopPDbg) :
+        case(PdfTypeSopDpDbg) :
+            return crc32_pdframe_valid(pdf); // Check CRC32 - valid if it checks out
+    }
+}
 // Returns the index value of the Ordered Set
 uint8_t bmc_get_ordset_index(uint32_t input) {
     uint8_t out;

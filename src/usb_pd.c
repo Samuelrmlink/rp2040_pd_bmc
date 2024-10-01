@@ -200,7 +200,7 @@ void thread_rx_process(void* unused_arg) {
         // Current pd_frame pointer (added for improved readability)
         cPdf = &(pdq_rx->pdfPtr)[proc_counter];
         proc_counter++;
-        if(crc32_pdframe_valid(cPdf) && !cPdf->__padding1) {
+        if(bmc_validate_pdf(cPdf) && !cPdf->__padding1) {
             if(bmc_get_ordset_index(cPdf->ordered_set) == PdfTypeSop) {
                 pdf_generate_goodcrc(cPdf, tx->pdf);
                 pdf_transmit(tx, bmc_ch0);
