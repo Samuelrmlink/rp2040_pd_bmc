@@ -150,6 +150,7 @@ uint8_t bmc_pull_5b(bmcRx *rx, uint32_t *pio_raw) {
     return decode_4b;
 }
 bool bmc_load_symbols(bmcRx *rx, uint32_t *pio_raw) {
+    uint8_t ordset_index;
     // While loop ONLY runs if there are at least 5 bits in the input buffer
     uint8_t decode_4b;
     // Exit function if there aren't enough bits to process
@@ -166,18 +167,18 @@ bool bmc_load_symbols(bmcRx *rx, uint32_t *pio_raw) {
             // Skip past padding (put there for ARM Cortex-M alignment purposes)
             // (Skips to hdr field offset)
             rx->byteOffset = 10;
-            /*
-            switch(bmc_get_ordset_index((rx->pdfPtr)[rx->objOffset].ordered_set)) {
+            ordset_index = bmc_get_ordset_index((rx->pdfPtr)[rx->objOffset].ordered_set);
+            // Check for a Hard Reset or Cable Reset (possible EOF - without an EOP symbol)
+            switch(ordset_index) {
                 case (PdfTypeInvalid) :
                 case (PdfTypeHardReset) :
                 case (PdfTypeCableReset) :
                     // End of frame - consume all remaining symbols
-                    //return true;
+                    return true;
                     break;
                 default:
                     break;
             }
-            */
         }
         // Catch errors (before we have an overflow)
         if(rx->byteOffset >= 56) {
@@ -224,24 +225,8 @@ void bmc_process_symbols(bmcRx *rx, uint32_t *pio_raw) {
             bmc_inc_object_offset(rx);
             rx->upperSymbol = false;
             rx->byteOffset = 0;
-            //printf("EOF %X\n", (rx->pdfPtr)[rx->objOffset - 1].obj[2]);
-//            printf("EOF\n");
         }
     }
-    /*
-    switch(bmc_get_ordset_index((rx->pdfPtr)[rx->objOffset].ordered_set)) {
-        case (PdfTypeInvalid) :
-        case (PdfTypeHardReset) :
-        case (PdfTypeCableReset) :
-            // End of frame - consume all remaining symbols
-            bmc_inc_object_offset(rx);
-            rx->upperSymbol = false;
-            rx->byteOffset = 0;
-            break;
-        default:
-            break;
-    }
-    */
 }
 void bmc_rx_check() {
     extern bmcRx *pdq_rx;
