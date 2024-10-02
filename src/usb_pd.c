@@ -206,7 +206,7 @@ void pdf_request_from_srccap_fixed(pd_frame *input_frame, bmcTx *tx, uint8_t req
     ((mA_max / 10) & 0x3FF);				// Max current
 
     // Generate CRC32
-    tx->pdf->obj[(input_frame->hdr >> 12) & 0x7] = crc32_pdframe_calc(tx->pdf);
+    tx->pdf->obj[1] = crc32_pdframe_calc(tx->pdf);
 }
 void pdf_request_from_srccap_augmented(pd_frame *input_frame, bmcTx *tx, uint8_t req_pdo, pdo_accept_criteria req) {
     // Ensure we start with a clean slate
@@ -233,7 +233,7 @@ void pdf_request_from_srccap_augmented(pd_frame *input_frame, bmcTx *tx, uint8_t
     ((req.mA_max / 50) & 0x7F);		// Operating current
 
     // Generate CRC32
-    tx->pdf->obj[(input_frame->hdr >> 12) & 0x7] = crc32_pdframe_calc(tx->pdf);
+    tx->pdf->obj[1] = crc32_pdframe_calc(tx->pdf);
 }
 uint32_t *obj2;
 void thread_rx_process(void* unused_arg) {
@@ -265,27 +265,28 @@ void thread_rx_process(void* unused_arg) {
 
     while(true) {
 	// If there is a complete frame
-    if(pdq_rx->objOffset > proc_counter) {
-        // Current pd_frame pointer (added for improved readability)
-        cPdf = &(pdq_rx->pdfPtr)[proc_counter];
-        proc_counter++;
-        if(bmc_validate_pdf(cPdf) && !cPdf->__padding1) {
-            if(bmc_get_ordset_index(cPdf->ordered_set) == PdfTypeSop) {
-                pdf_generate_goodcrc(cPdf, tx->pdf);
-                pdf_transmit(tx, bmc_ch0);
-                if(is_src_cap(cPdf)) {
-                    tmpindex = optimal_pdo(cPdf, power_req);
-                    if(!tmpindex) { tmpindex = 1; }   // If no acceptable PDO is found - just request the first one (always 5v)
-                    pdf_request_from_srccap(cPdf, tx, tmpindex, power_req);
-                    pdf_transmit(tx, bmc_ch0);
-                }
-            }
-            //printf("%s %X\n", sopFrameTypeNames[bmc_get_ordset_index(cPdf->ordered_set)], cPdf->hdr);
-            cPdf->__padding1 = 1;
-        }
-		if(pdq_rx->inputRollover && (proc_counter == 255)) {
-			pdq_rx->inputRollover = false;
+	if(pdq_rx->objOffset > proc_counter) {
+	    individual_pin_toggle(16);
+	    // Current pd_frame pointer (added for improved readability)
+	    cPdf = &(pdq_rx->pdfPtr)[proc_counter];
+	    proc_counter++;
+	    if(bmc_validate_pdf(cPdf) && !cPdf->__padding1) {
+		if(bmc_get_ordset_index(cPdf->ordered_set) == PdfTypeSop) {
+		    pdf_generate_goodcrc(cPdf, tx->pdf);
+		    pdf_transmit(tx, bmc_ch0);
+		    if(is_src_cap(cPdf)) {
+			tmpindex = optimal_pdo(cPdf, power_req);
+			if(!tmpindex) { tmpindex = 1; }   // If no acceptable PDO is found - just request the first one (always 5v)
+			pdf_request_from_srccap(cPdf, tx, tmpindex, power_req);
+			pdf_transmit(tx, bmc_ch0);
+		    }
 		}
+		//printf("%s %X\n", sopFrameTypeNames[bmc_get_ordset_index(cPdf->ordered_set)], cPdf->hdr);
+		cPdf->__padding1 = 1;
+	    }
+	    if(pdq_rx->inputRollover && (proc_counter == 255)) {
+		pdq_rx->inputRollover = false;
+	    }
 	} else {
         if(bmc_get_timestamp(pdq_rx) && !bmc_rx_active(bmc_ch0)) {
             // Fill the RX FIFO with zeros until it pushes
@@ -297,7 +298,10 @@ void thread_rx_process(void* unused_arg) {
             bmc_rx_cb();
         //    individual_pin_toggle(16);
         }
+    if(pio_sm_get_pc(bmc_ch0->pio, bmc_ch0->sm_tx) == 27) { // THIS IS A HACK - 27 is the PIO instruction that (at the time of this hack) leaves the tx line pulled high
+      pio_sm_exec(bmc_ch0->pio, bmc_ch0->sm_tx, pio_encode_jmp(22) | pio_encode_sideset(1, 1));
     }
+	}
     sleep_us(100);
     }
 }
