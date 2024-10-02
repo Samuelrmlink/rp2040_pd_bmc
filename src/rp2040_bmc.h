@@ -32,9 +32,9 @@ void pdf_transmit(bmcTx *txf, bmcChannel *ch);
 
 
 void tx_msg_inc(uint8_t *msgId);
-void pdf_request_from_srccap_fixed(pd_frame *input_frame, txFrame *tx, uint8_t req_pdo, pdo_accept_criteria req);
-void pdf_request_from_srccap_augmented(pd_frame *input_frame, txFrame *tx, uint8_t req_pdo, pdo_accept_criteria req);
-void pdf_generate_source_capabilities_basic(pd_frame *input_frame, txFrame *tx);
+void pdf_request_from_srccap_fixed(pd_frame *input_frame, bmcTx *tx, uint8_t req_pdo, pdo_accept_criteria req);
+void pdf_request_from_srccap_augmented(pd_frame *input_frame, bmcTx *tx, uint8_t req_pdo, pdo_accept_criteria req);
+//void pdf_generate_source_capabilities_basic(pd_frame *input_frame, txFrame *tx);
 
 
 /* 
@@ -43,8 +43,6 @@ void pdf_generate_source_capabilities_basic(pd_frame *input_frame, txFrame *tx);
  */
 void pd_frame_clear(pd_frame* pdf);
 void pdf_generate_goodcrc(pd_frame *input_frame, pd_frame *output_frame);
-bool is_crc_good(pd_frame *pdf);
-bool check_sop_type(uint8_t type, pd_frame *pdf);
 PDMessageType pdf_get_sop_msg_type(pd_frame *msg);
 bool is_src_cap(pd_frame *pdf);
 uint8_t optimal_pdo(pd_frame *pdf, pdo_accept_criteria power_req);

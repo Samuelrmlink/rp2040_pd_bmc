@@ -35,8 +35,8 @@ struct bmcChannel {
 typedef struct bmcChannel bmcChannel;
 
 void tx_msg_inc(uint8_t *msgId);
-void pdf_request_from_srccap_fixed(pd_frame *input_frame, txFrame *tx, uint8_t req_pdo, pdo_accept_criteria req);
-void pdf_generate_source_capabilities_basic(pd_frame *input_frame, txFrame *tx);
+//void pdf_request_from_srccap_fixed(pd_frame *input_frame, txFrame *tx, uint8_t req_pdo, pdo_accept_criteria req);
+//void pdf_generate_source_capabilities_basic(pd_frame *input_frame, txFrame *tx);
 /*
 void static tx_raw_buf_write(uint32_t input_bits, uint8_t num_input_bits, uint32_t *buf, uint16_t *buf_position);
 void pdf_to_uint32(bmcTx *txf);

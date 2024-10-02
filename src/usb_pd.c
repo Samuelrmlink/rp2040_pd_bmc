@@ -19,13 +19,6 @@ void pdf_generate_goodcrc(pd_frame *input_frame, pd_frame *output_frame) {
     // Generate CRC32
     output_frame->obj[0] = crc32_pdframe_calc(output_frame);
 }
-/*
-bool is_crc_good(pd_frame *pdf) {
-    return (bool)(pdf->frametype & 0x80);
-}
-bool check_sop_type(uint8_t type, pd_frame *pdf) {
-    return (bool)((pdf->frametype & 0x7) == type);
-}
 PDMessageType pdf_get_sop_msg_type(pd_frame *msg) {
     uint8_t frmType = 0;
     if(msg->hdr & 0x8000) {		// Extended message
@@ -39,13 +32,12 @@ PDMessageType pdf_get_sop_msg_type(pd_frame *msg) {
     return (PDMessageType) frmType;
 }
 bool is_src_cap(pd_frame *pdf) {
-    if(((pdf->frametype & 0x7) == PdfTypeSop) && (pdf_get_sop_msg_type(pdf) == dataMsgSourceCap)) {
+    if((bmc_get_ordset_index(pdf->ordered_set) == PdfTypeSop) && (pdf_get_sop_msg_type(pdf) == dataMsgSourceCap)) {
         return true;
     } else {
         return false;
     }
 }
-*/
 bool eval_pdo_fixed(uint32_t pdo_obj, pdo_accept_criteria req) {
     // We know this is a fixed PDO - not Augmented, Battery, etc..
     uint32_t pdo_mV = ((pdo_obj >> 10) & 0x3FF) * 50;
@@ -173,6 +165,76 @@ void thread_rx_process(void* unused_arg) {
     }
 }
 */
+// TODO - move into a "Policy Engine"
+void pdf_request_from_srccap(pd_frame *input_frame, bmcTx *tx, uint8_t req_pdo, pdo_accept_criteria req) {
+    switch((input_frame->obj[req_pdo - 1] >> 30) & 0x3) {
+        case (pdoTypeFixed) :
+            pdf_request_from_srccap_fixed(input_frame, tx, req_pdo, req);
+            break;
+        case (pdoTypeAugmented) :
+            pdf_request_from_srccap_augmented(input_frame, tx, req_pdo, req);
+            break;
+        case (pdoTypeBattery) :
+        case (pdoTypeVariable) :
+            break;
+        default :
+            //TODO - Implement error handling
+            break;
+    }
+}
+void pdf_request_from_srccap_fixed(pd_frame *input_frame, bmcTx *tx, uint8_t req_pdo, pdo_accept_criteria req) {
+    // Ensure we start with a clean slate
+    pd_frame_clear(tx->pdf);
+
+    // Get PDO maximum current
+    uint16_t mA_max = (input_frame->obj[req_pdo - 1] & 0x3FF) * 10;
+
+    // Replace maximum current value if requested value is lower
+    if(req.mA_max < mA_max) {
+        mA_max = req.mA_max;
+    }
+
+
+    // Setup ordered_set (SOP) and header (uses hard-coded values for testing currently)
+    tx->pdf->ordered_set = input_frame->ordered_set;
+    tx->msgIdOut = 0;//TODO-fix this mess
+    tx->pdf->hdr = (0x1 << 12) | (tx->msgIdOut << 9) | (0x2 << 6) | 0x2; // TODO - remove magic numbers
+
+    // Setup RDO
+    tx->pdf->obj[0] =	(req_pdo << 28) |			// Object position
+    (((mA_max / 10) & 0x3FF) << 10) |	// Operating current
+    ((mA_max / 10) & 0x3FF);				// Max current
+
+    // Generate CRC32
+    tx->pdf->obj[(input_frame->hdr >> 12) & 0x7] = crc32_pdframe_calc(tx->pdf);
+}
+void pdf_request_from_srccap_augmented(pd_frame *input_frame, bmcTx *tx, uint8_t req_pdo, pdo_accept_criteria req) {
+    // Ensure we start with a clean slate
+    pd_frame_clear(tx->pdf);
+
+    // Since eval_pdo_augmented has passed we know the req_pdo.mV_max is within range of this VPDO
+    // Get PDO max current
+    uint32_t pdo_mA_max = (input_frame->obj[req_pdo - 1] & 0x7F) * 50;
+
+    // Any modification of the current value does not leave this function
+    if(req.mA_max > pdo_mA_max) {
+        // Current requested is higher than provided by the charger - just take what we can get
+        req.mA_max = pdo_mA_max;
+    }
+
+    // Setup ordered_set (SOP) and header (uses hard-coded values for testing currently)
+    tx->pdf->ordered_set = input_frame->ordered_set;
+    tx->msgIdOut = 0;//TODO-fix this mess
+    tx->pdf->hdr = (0x1 << 12) | (tx->msgIdOut << 9) | (0x2 << 6) | 0x2; // TODO - remove magic numbers
+
+    // Setup RDO
+    tx->pdf->obj[0] =	(req_pdo << 28) |			// Object position
+    (((req.mV_max / 20) & 0xFFF) << 9) |	// Output voltage
+    ((req.mA_max / 50) & 0x7F);		// Operating current
+
+    // Generate CRC32
+    tx->pdf->obj[(input_frame->hdr >> 12) & 0x7] = crc32_pdframe_calc(tx->pdf);
+}
 uint32_t *obj2;
 void thread_rx_process(void* unused_arg) {
     extern bmcChannel *bmc_ch0;
@@ -189,6 +251,13 @@ void thread_rx_process(void* unused_arg) {
     gpio_set_dir(16, GPIO_OUT);
 
 	uint8_t proc_counter = 0;
+    uint8_t tmpindex;
+    pdo_accept_criteria power_req = {
+        .mV_min = 5000,
+        .mV_max = 10240,
+        .mA_min = 0,
+        .mA_max = 2000
+    };
     pd_frame *cPdf;
     tx = malloc(sizeof(bmcTx));
     tx->pdf = malloc(sizeof(pd_frame));
@@ -204,6 +273,12 @@ void thread_rx_process(void* unused_arg) {
             if(bmc_get_ordset_index(cPdf->ordered_set) == PdfTypeSop) {
                 pdf_generate_goodcrc(cPdf, tx->pdf);
                 pdf_transmit(tx, bmc_ch0);
+                if(is_src_cap(cPdf)) {
+                    tmpindex = optimal_pdo(cPdf, power_req);
+                    if(!tmpindex) { tmpindex = 1; }   // If no acceptable PDO is found - just request the first one (always 5v)
+                    pdf_request_from_srccap(cPdf, tx, tmpindex, power_req);
+                    pdf_transmit(tx, bmc_ch0);
+                }
             }
             //printf("%s %X\n", sopFrameTypeNames[bmc_get_ordset_index(cPdf->ordered_set)], cPdf->hdr);
             cPdf->__padding1 = 1;
@@ -214,13 +289,13 @@ void thread_rx_process(void* unused_arg) {
 	} else {
         if(bmc_get_timestamp(pdq_rx) && !bmc_rx_active(bmc_ch0)) {
             // Fill the RX FIFO with zeros until it pushes
-            individual_pin_toggle(16);
+        //    individual_pin_toggle(16);
             while(pio_sm_is_rx_fifo_empty(bmc_ch0->pio, bmc_ch0->sm_rx)) {
                 pio_sm_exec_wait_blocking(bmc_ch0->pio, bmc_ch0->sm_rx, pio_encode_in(pio_y, 1));
             }
             // Retrieve data from the RX FIFO
             bmc_rx_cb();
-            individual_pin_toggle(16);
+        //    individual_pin_toggle(16);
         }
     }
     sleep_us(100);
