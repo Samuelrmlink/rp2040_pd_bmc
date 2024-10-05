@@ -264,8 +264,19 @@ void thread_rx_process(void* unused_arg) {
     pd_frame_clear(tx->pdf);
 
     while(true) {
+    // If proc_counter is ready to rollover
+    if(proc_counter == pdq_rx->rolloverObj) {
+        // Clear the inputRollover variable
+        pdq_rx->inputRollover = false;
+        // Reset proc_counter
+        proc_counter = 0;
+        // Clear pd_frame arrays
+        for(int i = pdq_rx->objOffset; i < pdq_rx->rolloverObj; i++) {
+            pd_frame_clear(&(pdq_rx->pdfPtr)[i]);
+        }
+    }
 	// If there is a complete frame
-	if(pdq_rx->objOffset > proc_counter) {
+	if((pdq_rx->objOffset > proc_counter) || pdq_rx->inputRollover) {
 	    individual_pin_toggle(16);
 	    // Current pd_frame pointer (added for improved readability)
 	    cPdf = &(pdq_rx->pdfPtr)[proc_counter];
@@ -284,8 +295,8 @@ void thread_rx_process(void* unused_arg) {
 		//printf("%s %X\n", sopFrameTypeNames[bmc_get_ordset_index(cPdf->ordered_set)], cPdf->hdr);
 		cPdf->__padding1 = 1;
 	    }
-	    if(pdq_rx->inputRollover && (proc_counter == 255)) {
-		pdq_rx->inputRollover = false;
+	    if(pdq_rx->inputRollover) {
+		    pdq_rx->inputRollover = false;
 	    }
 	} else {
         if(bmc_get_timestamp(pdq_rx) && !bmc_rx_active(bmc_ch0)) {

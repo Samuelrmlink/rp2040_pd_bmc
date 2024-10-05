@@ -5,7 +5,7 @@ bmcChannel *bmc_ch0;
 
 // Increment object offset safely (without overflow)
 void bmc_inc_object_offset(bmcRx *rx) {
-    if(rx->objOffset >= rx->rolloverObj) {
+    if(rx->objOffset >= rx->rolloverObj - 1) {
         // We need to rollover
         rx->objOffset = 0;
         rx->inputRollover = true;
