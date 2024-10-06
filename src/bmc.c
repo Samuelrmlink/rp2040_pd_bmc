@@ -424,7 +424,7 @@ void pdf_transmit(bmcTx *txf, bmcChannel *ch) {
     txf->scrapBits = 0;
     txf->numScrapBits = 0;
     txf->num_u32 = 0;
-    while(!pio_sm_is_rx_fifo_empty(bmc_ch0->pio, bmc_ch0->sm_rx)) {
+    while(!pio_sm_is_rx_fifo_empty(ch->pio, ch->sm_rx)) {
         pio_sm_get(ch->pio, ch->sm_rx);
     }
     irq_set_enabled(ch->irq, true);

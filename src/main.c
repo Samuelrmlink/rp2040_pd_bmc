@@ -47,6 +47,6 @@ int main() {
     assert(status_task_rx_frame == pdPASS);
     irq_set_enabled(bmc_ch0->irq, true);
 
-	// Start the scheduler
-	vTaskStartScheduler();
+    // Start the scheduler
+    vTaskStartScheduler();
 }

@@ -1,5 +1,6 @@
 #ifndef _BMC_RX_H
 #define _BMC_RX_H
+#include "hardware/pio.h"
 
 typedef struct bmcRx bmcRx;
 typedef struct bmcTx bmcTx;
@@ -33,5 +34,24 @@ struct bmcTx {
     uint32_t *out;          // Pointer to the first aformentioned u32 object
     uint16_t num_zeros;     // Number of zeros (to skip when transmitting via PIO)
 };
+
+struct bmcChannel {
+    // Hardware PIO & state machine handles
+    PIO pio;
+    uint sm_tx;
+    uint sm_rx;
+    uint irq;	// Example: PIO0_IRQ_0, etc...
+
+    // Hardware pins
+    uint rx;
+    uint tx_high;
+    uint tx_low;
+    uint adc;
+
+    // Currently unused (TO BE ADDED) - TODO:
+    // connector_orientation
+    // vconn_state
+};
+typedef struct bmcChannel bmcChannel;
 
 #endif

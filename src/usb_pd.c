@@ -227,19 +227,18 @@ void thread_rx_process(void* unused_arg) {
 		    pdq_rx->inputRollover = false;
 	    }
 	} else {
-        if(bmc_get_timestamp(pdq_rx) && !bmc_rx_active(bmc_ch0)) {
-            // Fill the RX FIFO with zeros until it pushes
-        //    individual_pin_toggle(16);
-            while(pio_sm_is_rx_fifo_empty(bmc_ch0->pio, bmc_ch0->sm_rx)) {
-                pio_sm_exec_wait_blocking(bmc_ch0->pio, bmc_ch0->sm_rx, pio_encode_in(pio_y, 1));
-            }
-            // Retrieve data from the RX FIFO
-            bmc_rx_cb();
-        //    individual_pin_toggle(16);
-        }
-    if(pio_sm_get_pc(bmc_ch0->pio, bmc_ch0->sm_tx) == 27) { // THIS IS A HACK - 27 is the PIO instruction that (at the time of this hack) leaves the tx line pulled high
-      pio_sm_exec(bmc_ch0->pio, bmc_ch0->sm_tx, pio_encode_jmp(22) | pio_encode_sideset(1, 1));
-    }
+	    if(bmc_get_timestamp(pdq_rx) && !bmc_rx_active(bmc_ch0)) {
+		// Fill the RX FIFO with zeros until it pushes
+		while(pio_sm_is_rx_fifo_empty(bmc_ch0->pio, bmc_ch0->sm_rx)) {
+		    pio_sm_exec_wait_blocking(bmc_ch0->pio, bmc_ch0->sm_rx, pio_encode_in(pio_y, 1));
+		}
+		// Retrieve data from the RX FIFO
+		bmc_rx_cb();
+	    }
+	    // THIS IS A HACK - instruction 27 is the PIO instruction that (at the time of this hack) leaves the tx line pulled high
+	    if(pio_sm_get_pc(bmc_ch0->pio, bmc_ch0->sm_tx) == 27) {
+		pio_sm_exec(bmc_ch0->pio, bmc_ch0->sm_tx, pio_encode_jmp(22) | pio_encode_sideset(1, 1));
+	    }
 	}
     sleep_us(100);
     }

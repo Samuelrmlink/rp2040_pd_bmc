@@ -31,10 +31,8 @@ bool bmc_rx_active(bmcChannel *chan);
 void pdf_transmit(bmcTx *txf, bmcChannel *ch);
 
 
-void tx_msg_inc(uint8_t *msgId);
 void pdf_request_from_srccap_fixed(pd_frame *input_frame, bmcTx *tx, uint8_t req_pdo, pdo_accept_criteria req);
 void pdf_request_from_srccap_augmented(pd_frame *input_frame, bmcTx *tx, uint8_t req_pdo, pdo_accept_criteria req);
-//void pdf_generate_source_capabilities_basic(pd_frame *input_frame, txFrame *tx);
 
 
 /* 
@@ -46,7 +44,6 @@ void pdf_generate_goodcrc(pd_frame *input_frame, pd_frame *output_frame);
 PDMessageType pdf_get_sop_msg_type(pd_frame *msg);
 bool is_src_cap(pd_frame *pdf);
 uint8_t optimal_pdo(pd_frame *pdf, pdo_accept_criteria power_req);
-//void pdf_generate_request(pd_frame *pdf, txFrame *txf, uint8_t req_index);
 void thread_rx_process(void* unused_arg);
 
 #endif
