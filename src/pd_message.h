@@ -3,8 +3,6 @@
 
 #include <stdio.h>
 
-// USB-PD Frame Type Mask
-#define PDF_TYPE_MASK 0x7
 
 // USB-PD Frame Type - strings array
 typedef enum {

@@ -1,5 +1,5 @@
 #include "cli_commands.h"
-#include "../pdb_msg.h"
+#include "../pd_frame.h"
 #include "../bmc_rx.h"
 
 typedef struct {
@@ -28,7 +28,6 @@ void cli_usbpd_show_pdo(Cli *cli) {
 }
 void cli_usbpd_show_debugstate(Cli *cli) {
     extern bmcRx *pdq_rx;
-    cli_printf(cli, "TESTing" EOL);
     cli_printf(cli, "bmcRx objOffset=%u byteOffset=%u upperSymbol=%u inputRollover=%u scrapBits=%X afterScrapOffset=%u inputOffset=%u overflowCount=%u lastOverflow=%u" EOL, pdq_rx->objOffset, pdq_rx->byteOffset, pdq_rx->upperSymbol, pdq_rx->inputRollover, pdq_rx->scrapBits, pdq_rx->afterScrapOffset, pdq_rx->inputOffset, pdq_rx->overflowCount, pdq_rx->lastOverflow);
 }
 void cli_usbpd_show_overflow(Cli *cli) {

@@ -1,5 +1,5 @@
 #include "cli_commands.h"
-#include "../led.h"
+//#include "../led.h"
 #include <vector>
 #include <hardware/gpio.h>
 #include <FreeRTOS.h>
@@ -78,7 +78,7 @@ static const GPIOItem* gpio_get_and_prepare(Cli* cli, std::string& arg) {
     }
 
     if(gpio->is_led) {
-        led_disable();
+        //led_disable();
     }
 
     return gpio;

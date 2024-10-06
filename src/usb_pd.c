@@ -89,82 +89,10 @@ uint8_t optimal_pdo(pd_frame *pdf, pdo_accept_criteria power_req) {
 		//TODO - Implement error handling
 		break;
 	}
-        /*
-	if(((pdf->obj[i - 1] >> 10) & 0x3FF) * 50 == req_mvolts) {
-            ret = i;
-        }
-	*/
     }
     return ret;
 }
-/*
-void pdf_generate_request(pd_frame *pdf, txFrame *txf, uint8_t req_index) {
-  // Ensure we start with a clean slate
-  pd_frame_clear(tx->pdf);
 
-  // Setup frametype (SOP) and header (uses hard-coded values for testing currently)
-  tx->pdf->frametype = PdfTypeSop;
-  tx->pdf->hdr = (0x1 << 12) | (tx->msgIdOut << 9) | (0x2 << 6) | 0x2; // TODO - remove magic numbers
-
-  // Setup RDO
-  tx->pdf->obj[0] =	(0x1 << 28) |			// Object position
-			((input_frame->obj[0] & 0x3FF) << 10) |	// Operating current
-			(input_frame->obj[0] & 0x3FF);		// Max current
-  
-  // Generate CRC32
-  tx->crc = crc32_pdframe_calc(tx->pdf);
-}*/
-
-
-/*
- *	USB-PD PIO data -> pd_frame data structure (as defined in pdb_msg.h header file)
- *
-void thread_rx_process(void* unused_arg) {
-    extern QueueHandle_t queue_rx_pio;
-    extern QueueHandle_t queue_rx_validFrame;
-    extern QueueHandle_t queue_policy;
-    uint32_t rxval;
-    bmcDecode *bmc_d = malloc(sizeof(bmcDecode));
-    bmc_d->msg = malloc(sizeof(pd_frame));
-    pd_frame *rxdPdf = NULL;
-    policyEngineMsg pMsg;
-
-    // Clear variables
-    bmc_decode_clear(bmc_d);
-    pd_frame_clear(bmc_d->msg);
-
-    while(true) {
-	// Block this thread if we are in the awaiting preamble stage
-	if(!bmc_d->procStage) {
-	    // Await new data from the BMC PIO ISR (blocking function)
-	    xQueueReceive(queue_rx_pio, &bmc_d->pioData, portMAX_DELAY);
-	// Otherwise check the queue without blocking (provide some time)
-	} else {
-	    if(!xQueueReceive(queue_rx_pio, &bmc_d->pioData, 0)) {
-		sleep_us(120);
-		if(!xQueueReceive(queue_rx_pio, &bmc_d->pioData, 0)) {
-		    // TODO - add PIO flush function here
-		    irq_set_enabled(bmc_ch0->irq, false);
-		    while(pio_sm_is_rx_fifo_empty(bmc_ch0->pio, bmc_ch0->sm_rx)) {
-			pio_sm_exec_wait_blocking(bmc_ch0->pio, bmc_ch0->sm_rx, pio_encode_in(pio_y, 1));
-		    }
-		    irq_set_enabled(bmc_ch0->irq, true);
-		    bmc_rx_check();
-		    continue;
-		}
-	    }
-	}
-        bmcProcessSymbols(bmc_d, queue_rx_validFrame);
-        
-	// Check for complete pd_frame data
-	if(xQueueReceive(queue_rx_validFrame, &rxdPdf, 0) && is_crc_good(rxdPdf)) { // If rxd && CRC is valid
-	    pMsg.msgType = peMsgPdFrameIn;
-	    pMsg.pdf = rxdPdf;
-	    xQueueSendToBack(queue_policy, &pMsg, portMAX_DELAY);
-	}
-    }
-}
-*/
 // TODO - move into a "Policy Engine"
 void pdf_request_from_srccap(pd_frame *input_frame, bmcTx *tx, uint8_t req_pdo, pdo_accept_criteria req) {
     switch((input_frame->obj[req_pdo - 1] >> 30) & 0x3) {

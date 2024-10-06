@@ -299,7 +299,6 @@ bmcChannel* bmc_channel0_init() {
     // Initialize RX IRQ handler
     pio_set_irq0_source_enabled(ch->pio, pis_interrupt0, true);
     irq_set_exclusive_handler(ch->irq, bmc_rx_cb);
-    irq_set_enabled(ch->irq, false);    // Delay starting until we are ready to start Task Scheduler
 
     return ch;
 }
