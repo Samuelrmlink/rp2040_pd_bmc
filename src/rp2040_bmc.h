@@ -3,7 +3,7 @@
 
 #include "main_i.h"
 
-extern bmcChannel *bmc_ch0;
+extern bmcChannels *bmc_ch;
 
 /*
  *	bmc.c
@@ -23,7 +23,9 @@ bool bmc_load_symbols(bmcRx *rx, uint32_t *pio_raw);
 void bmc_process_symbols(bmcRx *rx, uint32_t *pio_raw);
 void bmc_rx_check();
 void bmc_rx_cb();
-bmcChannel* bmc_channel0_init();
+bmcChannels* bmc_channels_alloc(uint8_t numChannels);
+bool bmc_channel_register(bmcChannels *ch, PIO pio, uint sm_tx, uint sm_rx, uint irq, uint rx, uint tx_high, uint tx_low, uint adc);
+//bmcChannel* bmc_channel0_init();
 void individual_pin_toggle(uint8_t pin_num);
 void static tx_raw_buf_write(uint32_t input_bits, uint8_t num_input_bits, uint32_t *buf, uint16_t *buf_position);
 void pdf_to_uint32(bmcTx *txf);

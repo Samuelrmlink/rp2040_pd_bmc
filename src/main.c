@@ -35,6 +35,8 @@ static void thread_usb(void* unused_arg) {
 }
 
 int main() {
+    extern bmcChannels *bmc_ch;
+
     // Initialize IO & PIO
     stdio_init_all();
     BaseType_t status_task_usb = xTaskCreate(thread_usb, "USB_THREAD", 1024, NULL, 1, &tskhdl_usb_cli);
@@ -42,11 +44,13 @@ int main() {
 
     // Setup USB-PD channels
     pdq_rx = bmc_rx_setup();
-    bmc_ch0 = bmc_channel0_init();
+    bmc_ch = bmc_channels_alloc(4);
+    bool ch_reg = bmc_channel_register(bmc_ch, pio0, 0, 1, PIO0_IRQ_0, 6, 10, 9, 26);
+    //assert(ch_reg);
+    //bmc_ch0 = bmc_channel0_init();
     BaseType_t status_task_rx_frame = xTaskCreate(thread_rx_process, "PROC_THREAD", 1024, NULL, 1, &tskhdl_pd_rxf);
     assert(status_task_rx_frame == pdPASS);
-    irq_set_enabled(bmc_ch0->irq, true);
-
+    irq_set_enabled((bmc_ch->chan)[0].irq, true);
     // Start the scheduler
     vTaskStartScheduler();
 }

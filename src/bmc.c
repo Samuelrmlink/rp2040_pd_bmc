@@ -1,7 +1,7 @@
 #include "main_i.h"
 
 // BMC channel pointers
-bmcChannel *bmc_ch0;
+bmcChannels *bmc_ch;
 
 // Increment object offset safely (without overflow)
 void bmc_inc_object_offset(bmcRx *rx) {
@@ -250,7 +250,8 @@ void bmc_process_symbols(bmcRx *rx, uint32_t *pio_raw) {
 }
 void bmc_rx_check() {
     extern bmcRx *pdq_rx;
-    extern bmcChannel *bmc_ch0;
+    extern bmcChannels *bmc_ch;
+    bmcChannel *bmc_ch0 = &(bmc_ch->chan)[0];
     uint32_t buf;
     uint16_t count;
     while(!pio_sm_is_rx_fifo_empty(bmc_ch0->pio, bmc_ch0->sm_rx)) {
@@ -259,11 +260,76 @@ void bmc_rx_check() {
     }
 }
 void bmc_rx_cb() {
+    extern bmcChannels *bmc_ch;
+    bmcChannel *bmc_ch0 = &(bmc_ch->chan)[0];
     bmc_rx_check();
     if(pio_interrupt_get(bmc_ch0->pio, 0)) {
 	pio_interrupt_clear(bmc_ch0->pio, 0);
     }
 }
+// Allocates bmcChannels structure with a pointer array
+bmcChannels* bmc_channels_alloc(uint8_t numChannels) {
+    bmcChannels *ch = malloc(sizeof(bmcChannels));
+    ch->maxChannels = numChannels;
+    ch->chan = malloc(sizeof(bmcChannels) * numChannels);
+    // Set IRQ values to zero (normally 7 - 10 for PIO) (ensuring we can identify them)
+    for(int i = 0; i < numChannels; i++) {
+        (ch->chan)[i].irq = 0;
+    }
+    return ch;
+}
+// Returns true when a BMC channel is successfully registered
+bool bmc_channel_register(bmcChannels *ch, PIO pio, uint sm_tx, uint sm_rx, uint irq, uint rx, uint tx_high, uint tx_low, uint adc) {
+    uint8_t chosen_channel = 0xFF;
+    for(int i = 0; i < ch->maxChannels; i++) {
+	if((ch->chan)[i].irq == 0) {
+	    // This is a free spot
+	    chosen_channel = i;
+	    break;
+	}
+    }
+    if(chosen_channel == 0xFF) {
+	// No available channels to allocate
+    printf("NALLOC\n");
+	return false;
+    } else {
+	// Use pointer for better code readability
+	bmcChannel *ch_ptr = &(ch->chan)[0];
+	// PIO instance and state-machines
+	ch_ptr->pio = pio;
+	ch_ptr->sm_tx = sm_tx;
+	ch_ptr->sm_rx = sm_rx;
+	// IRQ
+	ch_ptr->irq = irq;
+	// IO Pins
+	ch_ptr->rx = rx;
+	ch_ptr->tx_high = tx_high;
+	ch_ptr->tx_low = tx_low;
+	ch_ptr->adc = adc;
+    gpio_init(ch_ptr->tx_high);
+    gpio_set_dir(ch_ptr->tx_high, GPIO_OUT);
+    // Init TX FIFO (if applicable)
+    if(ch_ptr->tx_low) {
+        uint offset_tx = pio_add_program(ch_ptr->pio, &differential_manchester_tx_program);
+        printf("Transmit program loaded at %d\n", offset_tx);
+        differential_manchester_tx_program_init(ch_ptr->pio, ch_ptr->sm_tx, offset_tx, ch_ptr->tx_low, 25.f); // 25.f for rp2040 28.2 for rp2350
+        pio_sm_set_enabled(ch_ptr->pio, ch_ptr->sm_tx, true);
+    }
+    // Init RX FIFO (if applicable)
+    if(ch_ptr->rx) {
+        uint offset_rx = pio_add_program(ch_ptr->pio, &differential_manchester_rx_program);
+        printf("Receive program loaded at %d\n", offset_rx);
+        differential_manchester_rx_program_init(ch_ptr->pio, ch_ptr->sm_rx, offset_rx, ch_ptr->rx, 25.f); // 25.f for rp2040 28.2 for rp2350
+        pio_sm_set_enabled(ch_ptr->pio, ch_ptr->sm_rx, true);
+    }
+    // Init RX IRQ handler
+    pio_set_irq0_source_enabled(ch_ptr->pio, pis_interrupt0, true);
+    irq_set_exclusive_handler(ch_ptr->irq, bmc_rx_cb);
+	// Channel registered successfully
+	return true;
+    }
+}
+/*
 bmcChannel* bmc_channel0_init() {
     bmcChannel *ch = malloc(sizeof(bmcChannel));
 
@@ -302,6 +368,7 @@ bmcChannel* bmc_channel0_init() {
 
     return ch;
 }
+*/
 // TODO: find a new place for this function
 void individual_pin_toggle(uint8_t pin_num) {
     if(gpio_get(pin_num))

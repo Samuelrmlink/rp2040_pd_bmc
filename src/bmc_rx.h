@@ -54,4 +54,10 @@ struct bmcChannel {
 };
 typedef struct bmcChannel bmcChannel;
 
+struct bmcChannels {
+    uint8_t maxChannels;	// Number of channels in pointer array
+    bmcChannel *chan;		// Pointer to the first channel element
+};
+typedef struct bmcChannels bmcChannels;
+
 #endif

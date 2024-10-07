@@ -165,7 +165,8 @@ void pdf_request_from_srccap_augmented(pd_frame *input_frame, bmcTx *tx, uint8_t
 }
 uint32_t *obj2;
 void thread_rx_process(void* unused_arg) {
-    extern bmcChannel *bmc_ch0;
+    extern bmcChannels *bmc_ch;
+    bmcChannel *bmc_ch0 = &(bmc_ch->chan)[0];
     extern bmcRx *pdq_rx;
     extern bmcTx *tx;
 
@@ -235,10 +236,12 @@ void thread_rx_process(void* unused_arg) {
 		// Retrieve data from the RX FIFO
 		bmc_rx_cb();
 	    }
+        /*
 	    // THIS IS A HACK - instruction 27 is the PIO instruction that (at the time of this hack) leaves the tx line pulled high
 	    if(pio_sm_get_pc(bmc_ch0->pio, bmc_ch0->sm_tx) == 27) {
 		pio_sm_exec(bmc_ch0->pio, bmc_ch0->sm_tx, pio_encode_jmp(22) | pio_encode_sideset(1, 1));
 	    }
+        */
 	}
     sleep_us(100);
     }
