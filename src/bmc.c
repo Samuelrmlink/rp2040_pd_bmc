@@ -293,7 +293,7 @@ bool bmc_channel_register(bmcChannels *ch, PIO pio, uint sm_tx, uint sm_rx, uint
 	    return false;
     } else {
 	// Use pointer for better code readability
-	bmcChannel *ch_ptr = &(ch->chan)[0];
+	bmcChannel *ch_ptr = &(ch->chan)[chosen_channel];
 	// PIO instance and state-machines
 	ch_ptr->pio = pio;
 	ch_ptr->sm_tx = sm_tx;
