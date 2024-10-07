@@ -289,9 +289,8 @@ bool bmc_channel_register(bmcChannels *ch, PIO pio, uint sm_tx, uint sm_rx, uint
 	}
     }
     if(chosen_channel == 0xFF) {
-	// No available channels to allocate
-    printf("NALLOC\n");
-	return false;
+	    // No available channels to allocate
+	    return false;
     } else {
 	// Use pointer for better code readability
 	bmcChannel *ch_ptr = &(ch->chan)[0];
@@ -306,69 +305,27 @@ bool bmc_channel_register(bmcChannels *ch, PIO pio, uint sm_tx, uint sm_rx, uint
 	ch_ptr->tx_high = tx_high;
 	ch_ptr->tx_low = tx_low;
 	ch_ptr->adc = adc;
-    gpio_init(ch_ptr->tx_high);
-    gpio_set_dir(ch_ptr->tx_high, GPIO_OUT);
-    // Init TX FIFO (if applicable)
-    if(ch_ptr->tx_low) {
-        uint offset_tx = pio_add_program(ch_ptr->pio, &differential_manchester_tx_program);
-        printf("Transmit program loaded at %d\n", offset_tx);
-        differential_manchester_tx_program_init(ch_ptr->pio, ch_ptr->sm_tx, offset_tx, ch_ptr->tx_low, 25.f); // 25.f for rp2040 28.2 for rp2350
-        pio_sm_set_enabled(ch_ptr->pio, ch_ptr->sm_tx, true);
-    }
-    // Init RX FIFO (if applicable)
-    if(ch_ptr->rx) {
-        uint offset_rx = pio_add_program(ch_ptr->pio, &differential_manchester_rx_program);
-        printf("Receive program loaded at %d\n", offset_rx);
-        differential_manchester_rx_program_init(ch_ptr->pio, ch_ptr->sm_rx, offset_rx, ch_ptr->rx, 25.f); // 25.f for rp2040 28.2 for rp2350
-        pio_sm_set_enabled(ch_ptr->pio, ch_ptr->sm_rx, true);
-    }
-    // Init RX IRQ handler
-    pio_set_irq0_source_enabled(ch_ptr->pio, pis_interrupt0, true);
-    irq_set_exclusive_handler(ch_ptr->irq, bmc_rx_cb);
+	gpio_init(ch_ptr->tx_high);
+	gpio_set_dir(ch_ptr->tx_high, GPIO_OUT);
+	// Init TX FIFO (if applicable)
+	if(ch_ptr->tx_low) {
+	    uint offset_tx = pio_add_program(ch_ptr->pio, &differential_manchester_tx_program);
+	    differential_manchester_tx_program_init(ch_ptr->pio, ch_ptr->sm_tx, offset_tx, ch_ptr->tx_low, 25.f); // 25.f for rp2040 28.2 for rp2350
+	    pio_sm_set_enabled(ch_ptr->pio, ch_ptr->sm_tx, true);
+	}
+	// Init RX FIFO (if applicable)
+	if(ch_ptr->rx) {
+	    uint offset_rx = pio_add_program(ch_ptr->pio, &differential_manchester_rx_program);
+	    differential_manchester_rx_program_init(ch_ptr->pio, ch_ptr->sm_rx, offset_rx, ch_ptr->rx, 25.f); // 25.f for rp2040 28.2 for rp2350
+	    pio_sm_set_enabled(ch_ptr->pio, ch_ptr->sm_rx, true);
+	}
+	// Init RX IRQ handler
+	pio_set_irq0_source_enabled(ch_ptr->pio, pis_interrupt0, true);
+	irq_set_exclusive_handler(ch_ptr->irq, bmc_rx_cb);
 	// Channel registered successfully
 	return true;
     }
 }
-/*
-bmcChannel* bmc_channel0_init() {
-    bmcChannel *ch = malloc(sizeof(bmcChannel));
-
-    // Define PIO & state machine handles
-    ch->pio = pio0;
-    ch->sm_tx = 0;
-    ch->sm_rx = 1;
-
-    // Define pins
-    ch->rx = 6;
-    ch->tx_high = 10;
-    ch->tx_low = 9;
-    ch->adc = 26;
-
-    // Define IRQ channel
-    ch->irq = PIO0_IRQ_0;
-
-    // Init GPIO (not including those for PIO)
-    gpio_init(ch->tx_high);
-    gpio_set_dir(ch->tx_high, GPIO_OUT);
-    
-    // Initialize TX FIFO
-    uint offset_tx = pio_add_program(ch->pio, &differential_manchester_tx_program);
-    printf("Transmit program loaded at %d\n", offset_tx);
-    differential_manchester_tx_program_init(ch->pio, ch->sm_tx, offset_tx, ch->tx_low, 25.f);
-    pio_sm_set_enabled(ch->pio, ch->sm_tx, true);
-    
-    // Initialize RX FIFO
-    uint offset_rx = pio_add_program(ch->pio, &differential_manchester_rx_program);
-    printf("Receive program loaded at %d\n", offset_rx);
-    differential_manchester_rx_program_init(ch->pio, ch->sm_rx, offset_rx, ch->rx, 25.f); // 25.f for rp2040 28.2 for rp2350
-
-    // Initialize RX IRQ handler
-    pio_set_irq0_source_enabled(ch->pio, pis_interrupt0, true);
-    irq_set_exclusive_handler(ch->irq, bmc_rx_cb);
-
-    return ch;
-}
-*/
 // TODO: find a new place for this function
 void individual_pin_toggle(uint8_t pin_num) {
     if(gpio_get(pin_num))
