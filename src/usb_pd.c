@@ -164,6 +164,7 @@ void pdf_request_from_srccap_augmented(pd_frame *input_frame, bmcTx *tx, uint8_t
     tx->pdf->obj[1] = crc32_pdframe_calc(tx->pdf);
 }
 uint32_t *obj2;
+uint8_t srccap_index;
 void thread_rx_process(void* unused_arg) {
     extern bmcChannels *bmc_ch;
     bmcChannel *bmc_ch0 = &(bmc_ch->chan)[0];
@@ -218,6 +219,7 @@ void thread_rx_process(void* unused_arg) {
 		    pdf_generate_goodcrc(cPdf, tx->pdf);
 		    pdf_transmit(tx, bmc_ch0);
 		    if(is_src_cap(cPdf)) {
+            srccap_index = proc_counter - 1;
 			tmpindex = optimal_pdo(cPdf, power_req);
 			if(!tmpindex) { tmpindex = 1; }   // If no acceptable PDO is found - just request the first one (always 5v)
 			pdf_request_from_srccap(cPdf, tx, tmpindex, power_req);

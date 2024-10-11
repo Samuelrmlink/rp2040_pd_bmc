@@ -22,9 +22,13 @@ static bool str_to_int(const char* str, uint8_t* value) {
     return true;
 }
 
-void cli_usbpd_show_pdo(Cli *cli) {
-    uint32_t test = 0xffAAFFEE;
-    cli_printf(cli, "Show PDO here...%X" EOL, test);
+void cli_usbpd_show_srccap(Cli *cli) {
+    extern bmcRx *pdq_rx;
+    extern uint8_t srccap_index;
+    for(int i = 0; i < 56; i++) {
+        cli_printf(cli, "%02X", (pdq_rx->pdfPtr)[srccap_index].raw_bytes[i]);
+    }
+    cli_printf(cli, "\n");
 }
 void cli_usbpd_show_debugstate(Cli *cli) {
     extern bmcRx *pdq_rx;
@@ -41,6 +45,13 @@ void cli_usbpd_show_lastframe(Cli *cli) {
     extern bmcRx *pdq_rx;
     for(int i = 0; i < 56; i++) {
         cli_printf(cli, "%02X", (pdq_rx->pdfPtr)[pdq_rx->objOffset - 1].raw_bytes[i]);
+    }
+    cli_printf(cli, "\n");
+}
+void cli_usbpd_show_firstframe(Cli *cli) {
+    extern bmcRx *pdq_rx;
+    for(int i = 0; i < 56; i++) {
+        cli_printf(cli, "%02X", (pdq_rx->pdfPtr)[0].raw_bytes[i]);
     }
     cli_printf(cli, "\n");
 }
@@ -64,13 +75,15 @@ void cli_usbpd_show_help(Cli *cli) {
     cli_printf(cli, "\tdbg\t- Prints some debug information" EOL);
     cli_printf(cli, "\tovf\t- Prints some overflow debug information" EOL);
     cli_printf(cli, "\tlf\t- Prints the last frame debug information" EOL);
+    cli_printf(cli, "\tff\t- Prints the first frame debug information" EOL);
 //    cli_printf(cli, "\tframe #\t- Prints the frame debug information" EOL);
 }
 static const CliUsbpdShowOption cli_usbpd_show_options[] = {
-    {.cb = cli_usbpd_show_pdo, .option = "pdo"},
+    {.cb = cli_usbpd_show_srccap, .option = "srccap"},
     {.cb = cli_usbpd_show_debugstate, .option = "dbg"},
     {.cb = cli_usbpd_show_overflow, .option = "ovf"},
     {.cb = cli_usbpd_show_lastframe, .option = "lf"},
+    {.cb = cli_usbpd_show_firstframe, .option = "ff"},
 //    {.cb = cli_usbpd_show_frame, .option = "frame"},
     {.cb = cli_usbpd_show_help, .option = "-h"},
     {.cb = cli_usbpd_show_help, .option = "--help"},
