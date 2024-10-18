@@ -7,22 +7,23 @@ typedef struct {
     const char *name;
 } CliUsbpdSubcommand;
 typedef struct {
-    void (*const cb)(Cli *cli);
+    void (*const cb)(Cli *cli, uint32_t *argval);
     const char *option;
+    const bool argint;
 } CliUsbpdShowOption;
 
-static bool str_to_int(const char* str, uint8_t* value) {
+static bool str_to_uint(const char* str, uint32_t* value) {
     char* end;
     long int val = strtol(str, &end, 10);
-    if(val > UINT8_MAX || val < 0 || *end != '\0') {
+    if(val > UINT32_MAX || val < 0 || *end != '\0') {
         return false;
     }
 
-    *value = (uint8_t)val;
+    *value = (uint32_t)val;
     return true;
 }
 
-void cli_usbpd_show_srccap(Cli *cli) {
+void cli_usbpd_show_srccap(Cli *cli, uint32_t *argval) {
     extern bmcRx *pdq_rx;
     extern uint8_t srccap_index;
     for(int i = 0; i < 56; i++) {
@@ -30,70 +31,73 @@ void cli_usbpd_show_srccap(Cli *cli) {
     }
     cli_printf(cli, "\n");
 }
-void cli_usbpd_show_debugstate(Cli *cli) {
+void cli_usbpd_show_debugstate(Cli *cli, uint32_t *argval) {
     extern bmcRx *pdq_rx;
     cli_printf(cli, "bmcRx objOffset=%u byteOffset=%u upperSymbol=%u inputRollover=%u scrapBits=%X afterScrapOffset=%u inputOffset=%u overflowCount=%u lastOverflow=%u" EOL, pdq_rx->objOffset, pdq_rx->byteOffset, pdq_rx->upperSymbol, pdq_rx->inputRollover, pdq_rx->scrapBits, pdq_rx->afterScrapOffset, pdq_rx->inputOffset, pdq_rx->overflowCount, pdq_rx->lastOverflow);
 }
-void cli_usbpd_show_overflow(Cli *cli) {
+void cli_usbpd_show_overflow(Cli *cli, uint32_t *argval) {
     extern bmcRx *pdq_rx;
     for(int i = 0; i < 56; i++) {
         cli_printf(cli, "%02X", (pdq_rx->pdfPtr)[pdq_rx->lastOverflow].raw_bytes[i]);
     }
     cli_printf(cli, "\n");
 }
-void cli_usbpd_show_lastframe(Cli *cli) {
+void cli_usbpd_show_lastframe(Cli *cli, uint32_t *argval) {
     extern bmcRx *pdq_rx;
     for(int i = 0; i < 56; i++) {
         cli_printf(cli, "%02X", (pdq_rx->pdfPtr)[pdq_rx->objOffset - 1].raw_bytes[i]);
     }
     cli_printf(cli, "\n");
 }
-void cli_usbpd_show_firstframe(Cli *cli) {
+void cli_usbpd_show_firstframe(Cli *cli, uint32_t *argval) {
     extern bmcRx *pdq_rx;
     for(int i = 0; i < 56; i++) {
         cli_printf(cli, "%02X", (pdq_rx->pdfPtr)[0].raw_bytes[i]);
     }
     cli_printf(cli, "\n");
 }
-/*
-void cli_usbpd_show_frame(Cli *cli, std::vector<std::string>& arg) {
-    uint8_t framenum;
-    if(!str_to_int(arg.c_str(), &framenum)) {
-        cli_printf(cli, "Invalid frame #: %s" EOL, arg.c_str());
+void cli_usbpd_show_frame(Cli *cli, uint32_t *framenum) {
+    extern bmcRx *pdq_rx;
+    if(*framenum < pdq_rx->rolloverObj) {
+    cli_printf(cli, "# %03u | ", *framenum);
+    for(int i = 0; i < 56; i++) {
+        cli_printf(cli, "%02X", (pdq_rx->pdfPtr)[*framenum].raw_bytes[i]);
+    }
+    cli_printf(cli, "\n");
+    } else {
+        cli_printf(cli, "Error: Invalid frame #: %u" EOL, *framenum);
         return;
     }
-    cli_printf(cli, "# %u" EOL, framenum);
 }
-*/
 
 
 // This function is part of the 'show' subcommand - so while it does indeed 
 // 'show help' - it only does so for the 'show' subcommand of the 'usbpd' command
-void cli_usbpd_show_help(Cli *cli) {
+void cli_usbpd_show_help(Cli *cli, uint32_t *argval) {
     cli_printf(cli, "Usage: " EOL);
     cli_printf(cli, "\tpdo\t- Prints the last set of [Source] Power-Data-Objects (PDOs)" EOL);
     cli_printf(cli, "\tdbg\t- Prints some debug information" EOL);
     cli_printf(cli, "\tovf\t- Prints some overflow debug information" EOL);
     cli_printf(cli, "\tlf\t- Prints the last frame debug information" EOL);
     cli_printf(cli, "\tff\t- Prints the first frame debug information" EOL);
-//    cli_printf(cli, "\tframe #\t- Prints the frame debug information" EOL);
+    cli_printf(cli, "\tframe #\t- Prints the frame debug information" EOL);
 }
 static const CliUsbpdShowOption cli_usbpd_show_options[] = {
-    {.cb = cli_usbpd_show_srccap, .option = "srccap"},
-    {.cb = cli_usbpd_show_debugstate, .option = "dbg"},
-    {.cb = cli_usbpd_show_overflow, .option = "ovf"},
-    {.cb = cli_usbpd_show_lastframe, .option = "lf"},
-    {.cb = cli_usbpd_show_firstframe, .option = "ff"},
-//    {.cb = cli_usbpd_show_frame, .option = "frame"},
-    {.cb = cli_usbpd_show_help, .option = "-h"},
-    {.cb = cli_usbpd_show_help, .option = "--help"},
+    {.cb = cli_usbpd_show_srccap, .option = "srccap", .argint = false},
+    {.cb = cli_usbpd_show_debugstate, .option = "dbg", .argint = false},
+    {.cb = cli_usbpd_show_overflow, .option = "ovf", .argint = false},
+    {.cb = cli_usbpd_show_lastframe, .option = "lf", .argint = false},
+    {.cb = cli_usbpd_show_firstframe, .option = "ff", .argint = false},
+    {.cb = cli_usbpd_show_frame, .option = "frame", .argint = true},
+    {.cb = cli_usbpd_show_help, .option = "-h", .argint = false},
+    {.cb = cli_usbpd_show_help, .option = "--help", .argint = false},
 };
 static const size_t cli_usbpd_show_options_count = 
     sizeof(cli_usbpd_show_options) / sizeof(cli_usbpd_show_options[0]);
 void cli_usbpd_show(Cli *cli, std::vector<std::string>& argv) {
     if(argv.size() < 2) {
 	// Print help information
-	cli_usbpd_show_help(cli);
+	cli_usbpd_show_help(cli, NULL);
 	return;
     }
     //cli_printf(cli, "TEST-remove: %u" EOL, argv.size());
@@ -101,7 +105,11 @@ void cli_usbpd_show(Cli *cli, std::vector<std::string>& argv) {
     for(size_t i = 0; i < cli_usbpd_show_options_count; i++) {
 	    const CliUsbpdShowOption *cl = &cli_usbpd_show_options[i];
         if(cl->option == argv[1]) {
-            cl->cb(cli);
+            uint32_t cmdarg = 0;
+            if(cl->argint) {
+                str_to_uint(argv[2].c_str(), &cmdarg);
+            }
+            cl->cb(cli, &cmdarg);
         }
     }
     return;
