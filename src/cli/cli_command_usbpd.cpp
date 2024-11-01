@@ -33,19 +33,28 @@ static bool hex_str_to_uint8_array(const char* str, uint8_t* value, uint8_t max_
     for(int i = 0; i < (max_bytes_out * 2 + 3); i++) { // Two chars represent each hex ASCII byte + '0x' prefix + '\0' string terminator
         char_sym = (uint8_t)str[i];
         // Check for the NULL string terminator
-        if(!char_sym) { return true; }
+        if(!char_sym) {
+            // Zero out the remaining bits
+            while((i / 2 - start_offset) < max_bytes_out) {
+                value[i / 2 - start_offset] = 0;
+                i++;
+            }
+            return true;
+        }
         // Ensure this ASCII symbol corresponds to a valid Hex symbol
         if(char_sym < ASCII_ZERO_SYMBOL_OFFSET || (char_sym > ASCII_9_SYMBOL_OFFSET && char_sym < ASCII_A_SYMBOL_OFFSET)
             || (char_sym > ASCII_F_SYMBOL_OFFSET && (char_sym != ASCII_LOWERCASE_X_SYMBOL_OFFSET))) { return false; }
         // Check for valid '0x' prefix
         if(char_sym == ASCII_LOWERCASE_X_SYMBOL_OFFSET && i == 1 && (uint8_t)str[0] == ASCII_ZERO_SYMBOL_OFFSET) {
-            start_offset = 2;
+            start_offset = 1;
             continue;
         }
         // Make sure we don't exceed max_bytes_out
-        if(i - start_offset / 2 >= max_bytes_out) { return false; }
+        if(i / 2 - start_offset >= max_bytes_out) { return false; }
+        // Clear output value
+        if(!(i % 2)) { value[i / 2 - start_offset] = 0; }
         // Convert ASCII symbol to HEX
-        value[i - start_offset / 2] |= ascii_hex_sym_to_uint_sym[char_sym + ASCII_ZERO_SYMBOL_OFFSET] << i % 2;
+        value[i / 2 - start_offset] |= ascii_hex_sym_to_uint_sym[char_sym - ASCII_ZERO_SYMBOL_OFFSET] << !(i % 2) * 4;
     }
 
     // We still haven't encountered the NULL terminator?
@@ -143,12 +152,24 @@ void cli_usbpd_show(Cli *cli, std::vector<std::string>& argv) {
     return;
 }
 
+void cli_usbpd_config(Cli *cli, std::vector<std::string>& argv) {
+    extern bmcRx *pdq_rx;
+    if(argv.size() < 2) {
+        // print help information
+        return;
+    }
+    uint32_t test_array_number = 55;
+    hex_str_to_uint8_array(argv[1].c_str(), (pdq_rx->pdfPtr)[test_array_number].raw_bytes, 56);
+    cli_usbpd_show_frame(cli, &test_array_number);
+}
+
 void cli_usbpd_help(Cli *cli) {
     cli_printf(cli, "Usage: " EOL);
     cli_printf(cli, "\tusbpd show\t- Print state-machine parameters" EOL);
 }
 static const CliUsbpdSubcommand cli_usbpd_subcommands[] = {
     {.fn = cli_usbpd_show, .name = "show"},
+    {.fn = cli_usbpd_config, .name = "config"},
 };
 static const size_t cli_usbpd_subcommands_count = 
     sizeof(cli_usbpd_subcommands) / sizeof(cli_usbpd_subcommands[0]);
