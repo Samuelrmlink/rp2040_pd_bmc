@@ -1,6 +1,7 @@
 #include "cli_commands.h"
 #include "../pd_frame.h"
 #include "../bmc_rx.h"
+#include "cli_hex_convert.h"
 
 typedef struct {
     void (*const fn)(Cli *cli, std::vector<std::string>& argv);
@@ -22,7 +23,34 @@ static bool str_to_uint(const char* str, uint32_t* value) {
     *value = (uint32_t)val;
     return true;
 }
+static bool hex_str_to_uint8_array(const char* str, uint8_t* value, uint8_t max_bytes_out) {
+    uint8_t start_offset = 0;
+    uint8_t char_sym;
 
+    // Validate inputs
+    if(!str || !value) { return false; }
+    // Process each ASCII symbol
+    for(int i = 0; i < (max_bytes_out * 2 + 3); i++) { // Two chars represent each hex ASCII byte + '0x' prefix + '\0' string terminator
+        char_sym = (uint8_t)str[i];
+        // Check for the NULL string terminator
+        if(!char_sym) { return true; }
+        // Ensure this ASCII symbol corresponds to a valid Hex symbol
+        if(char_sym < ASCII_ZERO_SYMBOL_OFFSET || (char_sym > ASCII_9_SYMBOL_OFFSET && char_sym < ASCII_A_SYMBOL_OFFSET)
+            || (char_sym > ASCII_F_SYMBOL_OFFSET && (char_sym != ASCII_LOWERCASE_X_SYMBOL_OFFSET))) { return false; }
+        // Check for valid '0x' prefix
+        if(char_sym == ASCII_LOWERCASE_X_SYMBOL_OFFSET && i == 1 && (uint8_t)str[0] == ASCII_ZERO_SYMBOL_OFFSET) {
+            start_offset = 2;
+            continue;
+        }
+        // Make sure we don't exceed max_bytes_out
+        if(i - start_offset / 2 >= max_bytes_out) { return false; }
+        // Convert ASCII symbol to HEX
+        value[i - start_offset / 2] |= ascii_hex_sym_to_uint_sym[char_sym + ASCII_ZERO_SYMBOL_OFFSET] << i % 2;
+    }
+
+    // We still haven't encountered the NULL terminator?
+    return false;
+}
 void cli_usbpd_show_srccap(Cli *cli, uint32_t *argval) {
     extern bmcRx *pdq_rx;
     extern uint8_t srccap_index;
