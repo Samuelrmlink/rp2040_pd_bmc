@@ -23,20 +23,37 @@ static bool str_to_uint(const char* str, uint32_t* value) {
     *value = (uint32_t)val;
     return true;
 }
-static bool hex_str_to_uint8_array(const char* str, uint8_t* value, uint8_t max_bytes_out) {
+static bool hex_str_to_uint8_array(const char* str, uint8_t* value, uint8_t max_bytes_out, bool left_aligned) {
     uint8_t start_offset = 0;
+    uint8_t out_byte_offset = 0;
     uint8_t char_sym;
 
     // Validate inputs
     if(!str || !value) { return false; }
+    // Check for valid '0x' prefix
+    if(str[0] == '0' && str[1] == 'x') { 
+        start_offset = 1;
+    }   
+    // Right-Aligned
+    if(!left_aligned) {
+        for(int x = start_offset * 2; x < (max_bytes_out * 2 + 3); x++) {
+            // Determine how many bytes are in the output
+            if(!(uint8_t)str[x]) {
+                out_byte_offset = (x - 1) / 2 - start_offset * 2 + 1 + start_offset;
+                break;
+            }
+        }
+        printf("bytes_out: %u\n", out_byte_offset);
+    }
+
     // Process each ASCII symbol
-    for(int i = 0; i < (max_bytes_out * 2 + 3); i++) { // Two chars represent each hex ASCII byte + '0x' prefix + '\0' string terminator
+    for(int i = start_offset * 2; i < (max_bytes_out * 2 + 3); i++) { // Two chars represent each hex ASCII byte + '0x' prefix + '\0' string terminator
         char_sym = (uint8_t)str[i];
         // Check for the NULL string terminator
         if(!char_sym) {
             // Zero out the remaining bits
-            while((i / 2 - start_offset) < max_bytes_out) {
-                value[i / 2 - start_offset] = 0;
+            while((i / 2) < max_bytes_out) {
+                value[i / 2] = 0;
                 i++;
             }
             return true;
@@ -44,13 +61,15 @@ static bool hex_str_to_uint8_array(const char* str, uint8_t* value, uint8_t max_
         // Ensure this ASCII symbol corresponds to a valid Hex symbol
         if(char_sym < ASCII_ZERO_SYMBOL_OFFSET || (char_sym > ASCII_9_SYMBOL_OFFSET && char_sym < ASCII_A_SYMBOL_OFFSET)
             || (char_sym > ASCII_F_SYMBOL_OFFSET && (char_sym != ASCII_LOWERCASE_X_SYMBOL_OFFSET))) { return false; }
+        /*
         // Check for valid '0x' prefix
         if(char_sym == ASCII_LOWERCASE_X_SYMBOL_OFFSET && i == 1 && (uint8_t)str[0] == ASCII_ZERO_SYMBOL_OFFSET) {
             start_offset = 1;
             continue;
         }
+        */
         // Make sure we don't exceed max_bytes_out
-        if(i / 2 - start_offset >= max_bytes_out) { return false; }
+        if(i / 2 >= max_bytes_out) { return false; }
         // Clear output value
         if(!(i % 2)) { value[i / 2 - start_offset] = 0; }
         // Convert ASCII symbol to HEX
@@ -93,7 +112,7 @@ void cli_usbpd_show_firstframe(Cli *cli, uint32_t *argval) {
     }
     cli_printf(cli, "\n");
 }
-void cli_usbpd_show_frame(Cli *cli, uint32_t *framenum) {
+void cli_usbpd_show_rawframe(Cli *cli, uint32_t *framenum) {
     extern bmcRx *pdq_rx;
     if(*framenum < pdq_rx->rolloverObj) {
     cli_printf(cli, "# %03u | ", *framenum);
@@ -103,6 +122,7 @@ void cli_usbpd_show_frame(Cli *cli, uint32_t *framenum) {
     cli_printf(cli, "\n");
     } else {
         cli_printf(cli, "Error: Invalid frame #: %u" EOL, *framenum);
+        cli_printf(cli, "Range: [0 - %u]" EOL, pdq_rx->rolloverObj - 1);
         return;
     }
 }
@@ -117,7 +137,7 @@ void cli_usbpd_show_help(Cli *cli, uint32_t *argval) {
     cli_printf(cli, "\tovf\t- Prints some overflow debug information" EOL);
     cli_printf(cli, "\tlf\t- Prints the last frame debug information" EOL);
     cli_printf(cli, "\tff\t- Prints the first frame debug information" EOL);
-    cli_printf(cli, "\tframe #\t- Prints the frame debug information" EOL);
+    cli_printf(cli, "\trf #\t- Prints the raw frame debug information" EOL);
 }
 static const CliUsbpdShowOption cli_usbpd_show_options[] = {
     {.cb = cli_usbpd_show_srccap, .option = "srccap", .argint = false},
@@ -125,7 +145,7 @@ static const CliUsbpdShowOption cli_usbpd_show_options[] = {
     {.cb = cli_usbpd_show_overflow, .option = "ovf", .argint = false},
     {.cb = cli_usbpd_show_lastframe, .option = "lf", .argint = false},
     {.cb = cli_usbpd_show_firstframe, .option = "ff", .argint = false},
-    {.cb = cli_usbpd_show_frame, .option = "frame", .argint = true},
+    {.cb = cli_usbpd_show_rawframe, .option = "rf", .argint = true},
     {.cb = cli_usbpd_show_help, .option = "-h", .argint = false},
     {.cb = cli_usbpd_show_help, .option = "--help", .argint = false},
 };
@@ -152,6 +172,10 @@ void cli_usbpd_show(Cli *cli, std::vector<std::string>& argv) {
     return;
 }
 
+void cli_usbpd_config_help(Cli *cli) {
+    cli_printf(cli, "Usage: " EOL);
+    cli_printf(cli, "\t usbpd config [WORK IN PROGRESS]");
+}
 void cli_usbpd_config(Cli *cli, std::vector<std::string>& argv) {
     extern bmcRx *pdq_rx;
     if(argv.size() < 2) {
@@ -159,8 +183,8 @@ void cli_usbpd_config(Cli *cli, std::vector<std::string>& argv) {
         return;
     }
     uint32_t test_array_number = 55;
-    hex_str_to_uint8_array(argv[1].c_str(), (pdq_rx->pdfPtr)[test_array_number].raw_bytes, 56);
-    cli_usbpd_show_frame(cli, &test_array_number);
+    hex_str_to_uint8_array(argv[1].c_str(), (pdq_rx->pdfPtr)[test_array_number].raw_bytes, 56, false);
+    cli_usbpd_show_rawframe(cli, &test_array_number);
 }
 
 void cli_usbpd_help(Cli *cli) {
