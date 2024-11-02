@@ -182,7 +182,7 @@ void thread_rx_process(void* unused_arg) {
     gpio_init(17);
     gpio_set_dir(17, GPIO_OUT);
 
-	uint8_t proc_counter = 0;
+    uint8_t proc_counter = 0;
     uint8_t tmpindex;
     pdo_accept_criteria power_req = {
         .mV_min = 5000,
@@ -196,57 +196,57 @@ void thread_rx_process(void* unused_arg) {
     pd_frame_clear(tx->pdf);
 
     while(true) {
-    // If proc_counter is ready to rollover
-    if(proc_counter == pdq_rx->rolloverObj) {
-        // Clear the inputRollover variable
-        pdq_rx->inputRollover = false;
-        // Reset proc_counter
-        proc_counter = 0;
-        // Clear pd_frame arrays
-        for(int i = pdq_rx->objOffset; i < pdq_rx->rolloverObj; i++) {
-            pd_frame_clear(&(pdq_rx->pdfPtr)[i]);
+        // If proc_counter is ready to rollover
+        if(proc_counter == pdq_rx->rolloverObj) {
+            // Clear the inputRollover variable
+            pdq_rx->inputRollover = false;
+             // Reset proc_counter
+            proc_counter = 0;
+            // Clear pd_frame arrays
+            for(int i = pdq_rx->objOffset; i < pdq_rx->rolloverObj; i++) {
+                pd_frame_clear(&(pdq_rx->pdfPtr)[i]);
+            }
         }
-    }
-	// If there is a complete frame
-	if((pdq_rx->objOffset > proc_counter) || pdq_rx->inputRollover) {
-	    individual_pin_toggle(16);
-	    // Current pd_frame pointer (added for improved readability)
-	    cPdf = &(pdq_rx->pdfPtr)[proc_counter];
-	    proc_counter++;
-	    if(bmc_validate_pdf(cPdf) && !cPdf->__padding1) {
-        individual_pin_toggle(17);
-		if(bmc_get_ordset_index(cPdf->ordered_set) == PdfTypeSop) {
-		    pdf_generate_goodcrc(cPdf, tx->pdf);
-		    pdf_transmit(tx, bmc_ch0);
-		    if(is_src_cap(cPdf)) {
-            srccap_index = proc_counter - 1;
-			tmpindex = optimal_pdo(cPdf, power_req);
-			if(!tmpindex) { tmpindex = 1; }   // If no acceptable PDO is found - just request the first one (always 5v)
-			pdf_request_from_srccap(cPdf, tx, tmpindex, power_req);
-			pdf_transmit(tx, bmc_ch0);
-		    }
-		}
-        individual_pin_toggle(17);
-		//printf("%s %X\n", sopFrameTypeNames[bmc_get_ordset_index(cPdf->ordered_set)], cPdf->hdr);
-		cPdf->__padding1 = 1;
-	    }
-	    if(pdq_rx->inputRollover) {
-		    pdq_rx->inputRollover = false;
-	    }
-	} else {
-	    if(bmc_get_timestamp(pdq_rx) && !bmc_rx_active(bmc_ch0)) {
-		// Fill the RX FIFO with zeros until it pushes
-		while(pio_sm_is_rx_fifo_empty(bmc_ch0->pio, bmc_ch0->sm_rx)) {
-		    pio_sm_exec_wait_blocking(bmc_ch0->pio, bmc_ch0->sm_rx, pio_encode_in(pio_y, 1));
-		}
-		// Retrieve data from the RX FIFO
-		bmc_rx_cb();
-	    }
-	    // THIS IS A HACK - instruction 27 is the PIO instruction that (at the time of this hack) leaves the tx line pulled high
-	    if(pio_sm_get_pc(bmc_ch0->pio, bmc_ch0->sm_tx) == 27) {
-		pio_sm_exec(bmc_ch0->pio, bmc_ch0->sm_tx, pio_encode_jmp(22) | pio_encode_sideset(1, 1));
-	    }
-	}
+        // If there is a complete frame
+        if((pdq_rx->objOffset > proc_counter) || pdq_rx->inputRollover) {
+            individual_pin_toggle(16);
+            // Current pd_frame pointer (added for improved readability)
+            cPdf = &(pdq_rx->pdfPtr)[proc_counter];
+            proc_counter++;
+            if(bmc_validate_pdf(cPdf) && !cPdf->__padding1) {
+                individual_pin_toggle(17);
+                if(bmc_get_ordset_index(cPdf->ordered_set) == PdfTypeSop) {
+                    pdf_generate_goodcrc(cPdf, tx->pdf);
+                    pdf_transmit(tx, bmc_ch0);
+                    if(is_src_cap(cPdf)) {
+                        srccap_index = proc_counter - 1;
+                        tmpindex = optimal_pdo(cPdf, power_req);
+                        if(!tmpindex) { tmpindex = 1; }   // If no acceptable PDO is found - just request the first one (always 5v)
+                        pdf_request_from_srccap(cPdf, tx, tmpindex, power_req);
+                        pdf_transmit(tx, bmc_ch0);
+                    }
+                }
+                individual_pin_toggle(17);
+                //printf("%s %X\n", sopFrameTypeNames[bmc_get_ordset_index(cPdf->ordered_set)], cPdf->hdr);
+                cPdf->__padding1 = 1;
+            }
+            if(pdq_rx->inputRollover) {
+                pdq_rx->inputRollover = false;
+            }
+        } else {
+            if(bmc_get_timestamp(pdq_rx) && !bmc_rx_active(bmc_ch0)) {
+                // Fill the RX FIFO with zeros until it pushes
+                while(pio_sm_is_rx_fifo_empty(bmc_ch0->pio, bmc_ch0->sm_rx)) {
+                    pio_sm_exec_wait_blocking(bmc_ch0->pio, bmc_ch0->sm_rx, pio_encode_in(pio_y, 1));
+                }
+                // Retrieve data from the RX FIFO
+                bmc_rx_cb();
+            }
+            // THIS IS A HACK - instruction 27 is the PIO instruction that (at the time of this hack) leaves the tx line pulled high
+            if(pio_sm_get_pc(bmc_ch0->pio, bmc_ch0->sm_tx) == 27) {
+                pio_sm_exec(bmc_ch0->pio, bmc_ch0->sm_tx, pio_encode_jmp(22) | pio_encode_sideset(1, 1));
+            }
+        }
     sleep_us(100);
     }
 }
