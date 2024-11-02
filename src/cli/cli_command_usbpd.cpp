@@ -23,37 +23,20 @@ static bool str_to_uint(const char* str, uint32_t* value) {
     *value = (uint32_t)val;
     return true;
 }
-static bool hex_str_to_uint8_array(const char* str, uint8_t* value, uint8_t max_bytes_out, bool left_aligned) {
+static bool hex_str_to_uint8_array(const char* str, uint8_t* value, uint8_t max_bytes_out) {
     uint8_t start_offset = 0;
-    uint8_t out_byte_offset = 0;
     uint8_t char_sym;
 
     // Validate inputs
     if(!str || !value) { return false; }
-    // Check for valid '0x' prefix
-    if(str[0] == '0' && str[1] == 'x') { 
-        start_offset = 1;
-    }   
-    // Right-Aligned
-    if(!left_aligned) {
-        for(int x = start_offset * 2; x < (max_bytes_out * 2 + 3); x++) {
-            // Determine how many bytes are in the output
-            if(!(uint8_t)str[x]) {
-                out_byte_offset = (x - 1) / 2 - start_offset * 2 + 1 + start_offset;
-                break;
-            }
-        }
-        printf("bytes_out: %u\n", out_byte_offset);
-    }
-
     // Process each ASCII symbol
-    for(int i = start_offset * 2; i < (max_bytes_out * 2 + 3); i++) { // Two chars represent each hex ASCII byte + '0x' prefix + '\0' string terminator
+    for(int i = 0; i < (max_bytes_out * 2 + 3); i++) { // Two chars represent each hex ASCII byte + '0x' prefix + '\0' string terminator
         char_sym = (uint8_t)str[i];
         // Check for the NULL string terminator
         if(!char_sym) {
             // Zero out the remaining bits
-            while((i / 2) < max_bytes_out) {
-                value[i / 2] = 0;
+            while((i / 2 - start_offset) < max_bytes_out) {
+                value[i / 2 - start_offset] = 0;
                 i++;
             }
             return true;
@@ -61,15 +44,13 @@ static bool hex_str_to_uint8_array(const char* str, uint8_t* value, uint8_t max_
         // Ensure this ASCII symbol corresponds to a valid Hex symbol
         if(char_sym < ASCII_ZERO_SYMBOL_OFFSET || (char_sym > ASCII_9_SYMBOL_OFFSET && char_sym < ASCII_A_SYMBOL_OFFSET)
             || (char_sym > ASCII_F_SYMBOL_OFFSET && (char_sym != ASCII_LOWERCASE_X_SYMBOL_OFFSET))) { return false; }
-        /*
         // Check for valid '0x' prefix
         if(char_sym == ASCII_LOWERCASE_X_SYMBOL_OFFSET && i == 1 && (uint8_t)str[0] == ASCII_ZERO_SYMBOL_OFFSET) {
             start_offset = 1;
             continue;
         }
-        */
         // Make sure we don't exceed max_bytes_out
-        if(i / 2 >= max_bytes_out) { return false; }
+        if(i / 2 - start_offset>= max_bytes_out) { return false; }
         // Clear output value
         if(!(i % 2)) { value[i / 2 - start_offset] = 0; }
         // Convert ASCII symbol to HEX
@@ -183,13 +164,14 @@ void cli_usbpd_config(Cli *cli, std::vector<std::string>& argv) {
         return;
     }
     uint32_t test_array_number = 55;
-    hex_str_to_uint8_array(argv[1].c_str(), (pdq_rx->pdfPtr)[test_array_number].raw_bytes, 56, false);
+    hex_str_to_uint8_array(argv[1].c_str(), (pdq_rx->pdfPtr)[test_array_number].raw_bytes, 56);
     cli_usbpd_show_rawframe(cli, &test_array_number);
 }
 
 void cli_usbpd_help(Cli *cli) {
     cli_printf(cli, "Usage: " EOL);
     cli_printf(cli, "\tusbpd show\t- Print state-machine parameters" EOL);
+    cli_printf(cli, "\tusbpd config\t-Configure USB-PD parameters" EOL);
 }
 static const CliUsbpdSubcommand cli_usbpd_subcommands[] = {
     {.fn = cli_usbpd_show, .name = "show"},
