@@ -1,4 +1,6 @@
 #include "main_i.h"
+#include "hardware/clocks.h"
+
 
 // BMC channel pointers
 bmcChannels *bmc_ch;
@@ -307,16 +309,17 @@ bool bmc_channel_register(bmcChannels *ch, PIO pio, uint sm_tx, uint sm_rx, uint
 	ch_ptr->adc = adc;
 	gpio_init(ch_ptr->tx_high);
 	gpio_set_dir(ch_ptr->tx_high, GPIO_OUT);
+    float clock_div = (float)clock_get_hz(clk_sys) / 5000000;
 	// Init TX FIFO (if applicable)
 	if(ch_ptr->tx_low) {
 	    uint offset_tx = pio_add_program(ch_ptr->pio, &differential_manchester_tx_program);
-	    differential_manchester_tx_program_init(ch_ptr->pio, ch_ptr->sm_tx, offset_tx, ch_ptr->tx_low, 25.f); // 25.f for rp2040 28.2 for rp2350
+	    differential_manchester_tx_program_init(ch_ptr->pio, ch_ptr->sm_tx, offset_tx, ch_ptr->tx_low, clock_div); // 25.f for rp2040 28.2 for rp2350
 	    pio_sm_set_enabled(ch_ptr->pio, ch_ptr->sm_tx, true);
 	}
 	// Init RX FIFO (if applicable)
 	if(ch_ptr->rx) {
 	    uint offset_rx = pio_add_program(ch_ptr->pio, &differential_manchester_rx_program);
-	    differential_manchester_rx_program_init(ch_ptr->pio, ch_ptr->sm_rx, offset_rx, ch_ptr->rx, 25.f); // 25.f for rp2040 28.2 for rp2350
+	    differential_manchester_rx_program_init(ch_ptr->pio, ch_ptr->sm_rx, offset_rx, ch_ptr->rx, clock_div); // 25.f for rp2040 28.2 for rp2350
 	    pio_sm_set_enabled(ch_ptr->pio, ch_ptr->sm_rx, true);
 	}
 	// Init RX IRQ handler
