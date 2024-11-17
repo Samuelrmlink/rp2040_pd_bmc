@@ -78,7 +78,7 @@ static bool hex_str_to_uint8_array(const char* str, uint8_t* value, uint8_t max_
     // We still haven't encountered the NULL terminator?
     return false;
 }
-static uint32_t hex_str_to_uint32(const char* str) {
+static uint32_t hex_str_to_uint32(const char* str, bool swap_endian) {
     // Measure the incoming data size
     uint8_t num_nibbles = 0;
     for(int i = 0; i < 12; i++) {
@@ -103,7 +103,13 @@ static uint32_t hex_str_to_uint32(const char* str) {
     // Prepare output data
     uint32_t prep = 0;
     hex_str_to_uint8_array(str, (uint8_t*) &prep, 4);
-    return endian_swap(prep);
+
+    // hex_str_to_uint8_array actually swaps endian - so we have to swap it back if we don't want the endian to be swapped.
+    if(!swap_endian) {
+        return endian_swap(prep);
+    } else {
+        return prep;
+    }   
 }
 void cli_usbpd_show_srccap(Cli *cli, uint32_t *argval) {
     extern bmcRx *pdq_rx;
@@ -209,7 +215,7 @@ void cli_usbpd_config(Cli *cli, std::vector<std::string>& argv) {
         return;
     }
     uint32_t test_array_number = 55;
-    uint32_t output = hex_str_to_uint32(argv[1].c_str());
+    uint32_t output = hex_str_to_uint32(argv[1].c_str(), false);
     cli_printf(cli, "hex_str_to_uint32() output: %X" EOL, output);
     hex_str_to_uint8_array(argv[1].c_str(), (pdq_rx->pdfPtr)[test_array_number].raw_bytes, 56);
     cli_usbpd_show_rawframe(cli, &test_array_number);
