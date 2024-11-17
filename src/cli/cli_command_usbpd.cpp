@@ -23,6 +23,24 @@ static bool str_to_uint(const char* str, uint32_t* value) {
     *value = (uint32_t)val;
     return true;
 }
+static uint32_t endian_swap(const uint32_t input) {
+    uint8_t* byte = (uint8_t*)&input;
+    return (byte[0] << 24) | (byte[1] << 16) | (byte[2] << 8) | byte[3];
+}
+static bool char_is_valid_hex(const char str) {
+    if(str == *"x") {
+        // This would likely be the 'x' in the '0x' prefix
+        return true;
+    } else if(str >= *"0" && str <= *"9") {
+        return true;
+    } else if(str >= *"A" && str <= *"F") {
+        return true;
+    } else if(str >= *"a" && str <= *"f") {
+        return true;
+    } else {
+        return false;
+    }
+}
 static bool hex_str_to_uint8_array(const char* str, uint8_t* value, uint8_t max_bytes_out) {
     uint8_t start_offset = 0;
     uint8_t char_sym;
@@ -59,6 +77,33 @@ static bool hex_str_to_uint8_array(const char* str, uint8_t* value, uint8_t max_
 
     // We still haven't encountered the NULL terminator?
     return false;
+}
+static uint32_t hex_str_to_uint32(const char* str) {
+    // Measure the incoming data size
+    uint8_t num_nibbles = 0;
+    for(int i = 0; i < 12; i++) {
+        if(!str[i]) {
+            break;
+        } else if (str[i] == *"x") {
+            num_nibbles = 0;
+        } else {
+            if(!char_is_valid_hex(str[i])) {
+                printf("hex_str_to_uint32(): ASCII symbol '%c' cannot be represented as Hex.\n", str[i]);
+                return 0;
+            }
+            num_nibbles++;
+        }
+    }
+
+    // Return if incoming data size is invalid
+    if(num_nibbles != 2 * sizeof(uint32_t)) {
+        printf("hex_str_to_uint32(): Invalid data size [ Expected size: %u bytes (%u bits) ]\n", sizeof(uint32_t), 8 * sizeof(uint32_t));
+    }
+
+    // Prepare output data
+    uint32_t prep = 0;
+    hex_str_to_uint8_array(str, (uint8_t*) &prep, 4);
+    return endian_swap(prep);
 }
 void cli_usbpd_show_srccap(Cli *cli, uint32_t *argval) {
     extern bmcRx *pdq_rx;
@@ -164,6 +209,8 @@ void cli_usbpd_config(Cli *cli, std::vector<std::string>& argv) {
         return;
     }
     uint32_t test_array_number = 55;
+    uint32_t output = hex_str_to_uint32(argv[1].c_str());
+    cli_printf(cli, "hex_str_to_uint32() output: %X" EOL, output);
     hex_str_to_uint8_array(argv[1].c_str(), (pdq_rx->pdfPtr)[test_array_number].raw_bytes, 56);
     cli_usbpd_show_rawframe(cli, &test_array_number);
 }
