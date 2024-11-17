@@ -109,7 +109,7 @@ static uint32_t hex_str_to_uint32(const char* str, bool swap_endian) {
         return endian_swap(prep);
     } else {
         return prep;
-    }   
+    }
 }
 void cli_usbpd_show_srccap(Cli *cli, uint32_t *argval) {
     extern bmcRx *pdq_rx;
@@ -208,6 +208,19 @@ void cli_usbpd_config_help(Cli *cli) {
     cli_printf(cli, "Usage: " EOL);
     cli_printf(cli, "\t usbpd config [WORK IN PROGRESS]");
 }
+void cli_usbpd_config_set(const char* str) {
+    printf("Config set: %s\n", str);
+}
+static const CliOption usbpdConfigOptions[] = {
+    {
+        .fullname = "set",
+        .shortname = "-s",
+        .desc = "usbpd config set <key> <value>",
+        .callback = cli_usbpd_config_set,
+        .num_args = 2,
+    },
+};
+static const size_t usbpdConfigOptions_count = sizeof(usbpdConfigOptions) / sizeof(usbpdConfigOptions[0]);
 void cli_usbpd_config(Cli *cli, std::vector<std::string>& argv) {
     extern bmcRx *pdq_rx;
     if(argv.size() < 2) {
@@ -216,6 +229,33 @@ void cli_usbpd_config(Cli *cli, std::vector<std::string>& argv) {
     }
     uint32_t test_array_number = 55;
     uint32_t output = hex_str_to_uint32(argv[1].c_str(), false);
+    //cli_printf(cli, ".size: %u\n", argv.size());
+    for(int i = 1; i < (int)argv.size(); i++) {
+        for(size_t j = 0; j < usbpdConfigOptions_count; j++) {
+            const CliOption cmd_co = usbpdConfigOptions[j];
+            // Check whether the current string matches a valid option
+            if((argv[i] == cmd_co.shortname) || (argv[i] == cmd_co.fullname)) {
+                // Check that we have enough arguments that whichever option was chosen
+                if(argv[i].size() - 1 - i >= cmd_co.num_args) {
+                    // Execute the appropriate option handler
+                    (cmd_co.callback)(argv[i + 1].c_str());
+                    // Offset the number of args
+                    i += cmd_co.num_args;
+                }
+                printf("i:%u argv[i]:%s argv.size():%u\n", i, argv[i].c_str(), argv.size());
+            }
+        }
+        /*
+        if(argv[i] == *"-") {
+
+            cli_usbpd_config_option_handler();
+            i++;
+            //cli_printf(cli, "Option: %s\n", argv[i].c_str());
+        }
+        cli_printf(cli, "#%u 0x%X %s\n", i, argv[i].c_str(), argv[i].c_str());
+        */
+    }
+
     cli_printf(cli, "hex_str_to_uint32() output: %X" EOL, output);
     hex_str_to_uint8_array(argv[1].c_str(), (pdq_rx->pdfPtr)[test_array_number].raw_bytes, 56);
     cli_usbpd_show_rawframe(cli, &test_array_number);
