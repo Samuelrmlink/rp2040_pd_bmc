@@ -22,6 +22,7 @@
 #include "pd_message.h"
 #include "crc32.h"
 #include "bmc_rx.h"
+#include "config_reg.h"
 #include "rp2040_bmc.h"
 #include "cli/cli.h"
 
