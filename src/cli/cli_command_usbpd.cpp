@@ -189,8 +189,6 @@ void cli_usbpd_show(Cli *cli, std::vector<std::string>& argv) {
 	cli_usbpd_show_help(cli, NULL);
 	return;
     }
-    //cli_printf(cli, "TEST-remove: %u" EOL, argv.size());
-
     for(size_t i = 0; i < cli_usbpd_show_options_count; i++) {
 	    const CliUsbpdShowOption *cl = &cli_usbpd_show_options[i];
         if(cl->option == argv[1]) {
@@ -204,14 +202,22 @@ void cli_usbpd_show(Cli *cli, std::vector<std::string>& argv) {
     return;
 }
 
-void cli_usbpd_config_help(Cli *cli) {
-    cli_printf(cli, "Usage: " EOL);
-    cli_printf(cli, "\t usbpd config [WORK IN PROGRESS]");
+void cli_usbpd_config_help(const char* __unused) {
+    printf("Usage: usbpd config [OPTIONS]" EOL);
+    printf("  -h, --help\t[Shows this message]" EOL);
+    printf("  -s, set <Key> <value>" EOL);
 }
 void cli_usbpd_config_set(const char* str) {
     printf("Config set: %s\n", str);
 }
 static const CliOption usbpdConfigOptions[] = {
+    {
+        .fullname = "--help",
+        .shortname = "-h",
+        .desc = "Shows help",
+        .callback = cli_usbpd_config_help,
+        .num_args = 0,
+    },
     {
         .fullname = "set",
         .shortname = "-s",
@@ -228,37 +234,27 @@ void cli_usbpd_config(Cli *cli, std::vector<std::string>& argv) {
         return;
     }
     uint32_t test_array_number = 55;
-    uint32_t output = hex_str_to_uint32(argv[1].c_str(), false);
-    //cli_printf(cli, ".size: %u\n", argv.size());
     for(int i = 1; i < (int)argv.size(); i++) {
         for(size_t j = 0; j < usbpdConfigOptions_count; j++) {
             const CliOption cmd_co = usbpdConfigOptions[j];
             // Check whether the current string matches a valid option
             if((argv[i] == cmd_co.shortname) || (argv[i] == cmd_co.fullname)) {
                 // Check that we have enough arguments that whichever option was chosen
-                if(argv[i].size() - 1 - i >= cmd_co.num_args) {
+                if((argv.size() - 1 - i) >= cmd_co.num_args) {
                     // Execute the appropriate option handler
                     (cmd_co.callback)(argv[i + 1].c_str());
                     // Offset the number of args
                     i += cmd_co.num_args;
+                } else {
+                    cli_printf(cli, "Error: Option %s requires at least %u arguments.\n", argv[i].c_str(), cmd_co.num_args);
                 }
-                printf("i:%u argv[i]:%s argv.size():%u\n", i, argv[i].c_str(), argv.size());
             }
         }
-        /*
-        if(argv[i] == *"-") {
-
-            cli_usbpd_config_option_handler();
-            i++;
-            //cli_printf(cli, "Option: %s\n", argv[i].c_str());
-        }
-        cli_printf(cli, "#%u 0x%X %s\n", i, argv[i].c_str(), argv[i].c_str());
-        */
     }
-
-    cli_printf(cli, "hex_str_to_uint32() output: %X" EOL, output);
+/*
     hex_str_to_uint8_array(argv[1].c_str(), (pdq_rx->pdfPtr)[test_array_number].raw_bytes, 56);
     cli_usbpd_show_rawframe(cli, &test_array_number);
+*/
 }
 
 void cli_usbpd_help(Cli *cli) {
