@@ -231,6 +231,7 @@ void cli_usbpd_config(Cli *cli, std::vector<std::string>& argv) {
     extern bmcRx *pdq_rx;
     if(argv.size() < 2) {
         // print help information
+        cli_usbpd_config_help(NULL);
         return;
     }
     uint32_t test_array_number = 55;
@@ -246,11 +247,14 @@ void cli_usbpd_config(Cli *cli, std::vector<std::string>& argv) {
                     // Offset the number of args
                     i += cmd_co.num_args;
                 } else {
-                    cli_printf(cli, "Error: Option %s requires at least %u arguments.\n", argv[i].c_str(), cmd_co.num_args);
+                    cli_printf(cli, "Error: Option [ %s, %s ] requires at least %u arguments.\n", cmd_co.shortname, cmd_co.fullname, cmd_co.num_args);
                 }
+                return;
             }
         }
     }
+    // Print help (no valid user input)
+    cli_usbpd_config_help(NULL);
 /*
     hex_str_to_uint8_array(argv[1].c_str(), (pdq_rx->pdfPtr)[test_array_number].raw_bytes, 56);
     cli_usbpd_show_rawframe(cli, &test_array_number);
@@ -271,8 +275,8 @@ static const size_t cli_usbpd_subcommands_count =
 void cli_usbpd(Cli *cli, std::string& args) {
     std::vector<std::string> argv = cli_split_args(args);
     if(argv.size() < 1) {
-	cli_usbpd_help(cli);
-	return;
+        cli_usbpd_help(cli);
+        return;
     }
 
     for(size_t i = 0; i < cli_usbpd_subcommands_count; i++) {
