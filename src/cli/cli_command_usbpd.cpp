@@ -23,9 +23,13 @@ static bool str_to_uint(const char* str, uint32_t* value) {
     *value = (uint32_t)val;
     return true;
 }
-static uint32_t endian_swap(const uint32_t input) {
+static uint32_t endian_swap_u32(const uint32_t input) {
     uint8_t* byte = (uint8_t*)&input;
     return (byte[0] << 24) | (byte[1] << 16) | (byte[2] << 8) | byte[3];
+}
+static uint32_t endian_swap_u16(const uint16_t input) {
+    uint8_t* byte = (uint8_t*)&input;
+    return (byte[2] << 8) | byte[3];
 }
 static bool char_is_valid_hex(const char str) {
     if(str == *"x") {
@@ -94,19 +98,48 @@ static uint32_t hex_str_to_uint32(const char* str, bool swap_endian) {
             num_nibbles++;
         }
     }
-
     // Return if incoming data size is invalid
     if(num_nibbles != 2 * sizeof(uint32_t)) {
         printf("hex_str_to_uint32(): Invalid data size [ Expected size: %u bytes (%u bits) ]\n", sizeof(uint32_t), 8 * sizeof(uint32_t));
+        return 0;
     }
-
     // Prepare output data
     uint32_t prep = 0;
     hex_str_to_uint8_array(str, (uint8_t*) &prep, 4);
-
     // hex_str_to_uint8_array actually swaps endian - so we have to swap it back if we don't want the endian to be swapped.
     if(!swap_endian) {
-        return endian_swap(prep);
+        return endian_swap_u32(prep);
+    } else {
+        return prep;
+    }
+}
+static uint16_t hex_str_to_uint16(const char* str, bool swap_endian) {
+    // Measure the incoming data size
+    uint8_t num_nibbles = 0;
+    for(int i = 0; i < 12; i++) {
+        if(!str[i]) {
+            break;
+        } else if (str[i] == *"x") {
+            num_nibbles = 0;
+        } else {
+            if(!char_is_valid_hex(str[i])) {
+                printf("hex_str_to_uint32(): ASCII symbol '%c' cannot be represented as Hex.\n", str[i]);
+                return 0;
+            }
+            num_nibbles++;
+        }
+    }
+    // Return if incoming data size is invalid
+    if(num_nibbles != 2 * sizeof(uint16_t)) {
+        printf("hex_str_to_uint32(): Invalid data size [ Expected size: %u bytes (%u bits) ]\n", sizeof(uint16_t), 8 * sizeof(uint16_t));
+        return 0;
+    }
+    // Prepare output data
+    uint16_t prep = 0;
+    hex_str_to_uint8_array(str, (uint8_t*) &prep, 4);
+    // hex_str_to_uint8_array actually swaps endian - so we have to swap it back if we don't want the endian to be swapped.
+    if(!swap_endian) {
+        return endian_swap_u16(prep);
     } else {
         return prep;
     }
