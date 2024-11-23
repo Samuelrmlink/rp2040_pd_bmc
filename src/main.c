@@ -40,7 +40,7 @@ int main() {
     // Initialize IO & PIO
     stdio_init_all();
     BaseType_t status_task_usb = xTaskCreate(thread_usb, "USB_THREAD", 1024, NULL, 1, &tskhdl_usb_cli);
-    assert(status_usb == pdPASS);
+    assert(status_task_usb == pdPASS);
 
     // Setup USB-PD channels
     pdq_rx = bmc_rx_setup();
