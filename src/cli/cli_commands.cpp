@@ -4,6 +4,7 @@
 void cli_gpio(Cli* cli, std::string& args);
 void cli_device_info(Cli* cli, std::string& args);
 void cli_usbpd(Cli* cli, std::string& args);
+void cli_clear(Cli* cli, std::string& args);
 
 void cli_help(Cli* cli, std::string& args) {
     size_t max_len = 0;
@@ -61,10 +62,21 @@ const CliItem cli_items[] = {
         .callback = cli_gpio,
     },
     {
+        .name = "clear",
+        .desc = "clear the screen",
+        .callback = cli_clear,
+    },
+    {
+        .name = "cls",
+        .desc = "alias for clear",
+        .callback = cli_clear,
+    },
+    {
 	.name = "usbpd",
 	.desc = "USB Power Delivery",
 	.callback = cli_usbpd,
     },
+    
 };
 
 size_t cli_items_count = sizeof(cli_items) / sizeof(CliItem);

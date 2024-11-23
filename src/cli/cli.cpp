@@ -7,6 +7,8 @@
 #include <locale>
 #include <stdarg.h>
 
+#define ASCII_ESCAPE 27
+
 struct Cli {
     std::string line;
     std::string prev_line;
@@ -222,6 +224,10 @@ void cli_printf(Cli* cli, const char* format, ...) {
     va_start(args, format);
     vprintf(format, args);
     va_end(args);
+}
+
+void cli_clear(Cli* cli, std::string& args) {
+    cli_printf(cli, "%c[2J%c[H", ASCII_ESCAPE, ASCII_ESCAPE);
 }
 
 std::vector<std::string> cli_split_args(std::string& args) {
