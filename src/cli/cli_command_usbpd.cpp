@@ -3,6 +3,7 @@
 #include "../bmc_rx.h"
 #include "../policy_engine.h"
 #include "cli_hex_convert.h"
+#include <string.h>
 
 typedef struct {
     void (*const fn)(Cli *cli, std::vector<std::string>& argv);
@@ -240,13 +241,33 @@ void cli_usbpd_config_help(const char* __unused) {
     printf("Usage: usbpd config [OPTIONS]" EOL);
     printf("  -h, --help\t[Shows this message]" EOL);
     printf("  -s, set <Key> <value>" EOL);
+    printf("  -g, get <Key>" EOL);
 }
 void cli_usbpd_config_set(const char* key_str, const char* value_str) {
     printf("Config set: %s:%s\n", key_str, value_str);
 }
 void cli_usbpd_config_get(const char* str, const char* _unused) {
     extern configKey* config_db;
-    printf("Config get: %s\n", config_db->desc);
+    uint8_t index;
+    bool db_match = false;
+    for(int i = 0; i < database_items_count; i++) {
+        if(strcmp(str, (config_db[i].name)) == 0) {
+            index = i;
+            db_match = true;
+            break;
+        }
+    }
+    if(db_match) {
+        keyData const *key = config_db[index].keyPtr;
+        printf("Config description: %s, %u %u %u\n", config_db[index].desc, key->Bv.regNum, key->Bv.lsbOffset,key->Bv.msbOffset);
+    } else {
+        printf("Usage: usbpd config get <key>" EOL);
+        printf("   Keys:          Description:" EOL);
+        printf("  -------        --------------" EOL);
+        for(int i = 0; i < database_items_count; i++) {
+            printf("  %s    %s" EOL, config_db[i].name, config_db[i].desc);
+        }
+    }
 }
 static const CliOption usbpdConfigOptions[] = {
     {
