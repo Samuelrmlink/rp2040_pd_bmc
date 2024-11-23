@@ -279,7 +279,6 @@ void cli_usbpd_config(Cli *cli, std::vector<std::string>& argv) {
         cli_usbpd_config_help(NULL);
         return;
     }
-    uint32_t test_array_number = 55;
     for(int i = 1; i < (int)argv.size(); i++) {
         for(size_t j = 0; j < usbpdConfigOptions_count; j++) {
             const CliOption cmd_co = usbpdConfigOptions[j];
@@ -298,19 +297,16 @@ void cli_usbpd_config(Cli *cli, std::vector<std::string>& argv) {
                         void (*func_ptr)(const char*, const char*) = (void (*)(const char*, const char*))cmd_co.callback;
                         func_ptr(argv[i + 1].c_str(), argv[i + 2].c_str());
                     }
-                    //(cmd_co.callback)(argv[i + 1].c_str());
                     // Offset the number of args
                     i += cmd_co.num_args;
                 } else {
                     cli_printf(cli, "Error: Option [ %s, %s ] requires at least %u arguments.\n", cmd_co.shortname, cmd_co.fullname, cmd_co.num_args);
                 }
-                return;
             }
         }
     }
-    // Print help (no valid user input)
-    cli_usbpd_config_help(NULL);
 /*
+    uint32_t test_array_number = 55;
     hex_str_to_uint8_array(argv[1].c_str(), (pdq_rx->pdfPtr)[test_array_number].raw_bytes, 56);
     cli_usbpd_show_rawframe(cli, &test_array_number);
 */
