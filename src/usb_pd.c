@@ -1,4 +1,5 @@
 #include "main_i.h"
+#include "policy_engine.h"
 
 void pd_frame_clear(pd_frame *pdf) {
     for(uint8_t i = 0; i < 56; i++) {
@@ -165,6 +166,7 @@ void pdf_request_from_srccap_augmented(pd_frame *input_frame, bmcTx *tx, uint8_t
 }
 uint32_t *obj2;
 uint8_t srccap_index;
+extern configKey* config_db = database;
 void thread_rx_process(void* unused_arg) {
     extern bmcChannels *bmc_ch;
     bmcChannel *bmc_ch0 = &(bmc_ch->chan)[0];

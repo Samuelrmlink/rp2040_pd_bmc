@@ -11,12 +11,13 @@ struct CliItem {
     CliCallback callback;
 };
 
-typedef void (*CliSubCallback)(const char* str); 
+typedef void (*CliSubCallback)(const char* str);
 struct CliOption {
     const char* fullname;
     const char* shortname;
     const char* desc;
-    CliSubCallback callback;
+    //CliSubCallback callback;
+    void* callback;
     const uint8_t num_args;
 };
 

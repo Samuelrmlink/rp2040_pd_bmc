@@ -1,6 +1,7 @@
 #include "cli_commands.h"
 #include "../pd_frame.h"
 #include "../bmc_rx.h"
+#include "../policy_engine.h"
 #include "cli_hex_convert.h"
 
 typedef struct {
@@ -240,23 +241,34 @@ void cli_usbpd_config_help(const char* __unused) {
     printf("  -h, --help\t[Shows this message]" EOL);
     printf("  -s, set <Key> <value>" EOL);
 }
-void cli_usbpd_config_set(const char* str) {
-    printf("Config set: %s\n", str);
+void cli_usbpd_config_set(const char* key_str, const char* value_str) {
+    printf("Config set: %s:%s\n", key_str, value_str);
+}
+void cli_usbpd_config_get(const char* str, const char* _unused) {
+    extern configKey* config_db;
+    printf("Config get: %s\n", config_db->desc);
 }
 static const CliOption usbpdConfigOptions[] = {
     {
         .fullname = "--help",
         .shortname = "-h",
         .desc = "Shows help",
-        .callback = cli_usbpd_config_help,
+        .callback = (void*)(uintptr_t)cli_usbpd_config_help,
         .num_args = 0,
     },
     {
         .fullname = "set",
         .shortname = "-s",
         .desc = "usbpd config set <key> <value>",
-        .callback = cli_usbpd_config_set,
+        .callback = (void*)(uintptr_t)cli_usbpd_config_set,
         .num_args = 2,
+    },
+    {
+        .fullname = "get",
+        .shortname = "-g",
+        .desc = "usbpd config get <key> <value>",
+        .callback = (void*)(uintptr_t)cli_usbpd_config_get,
+        .num_args = 1,
     },
 };
 static const size_t usbpdConfigOptions_count = sizeof(usbpdConfigOptions) / sizeof(usbpdConfigOptions[0]);
@@ -276,7 +288,17 @@ void cli_usbpd_config(Cli *cli, std::vector<std::string>& argv) {
                 // Check that we have enough arguments that whichever option was chosen
                 if((argv.size() - 1 - i) >= cmd_co.num_args) {
                     // Execute the appropriate option handler
-                    (cmd_co.callback)(argv[i + 1].c_str());
+                    if(!cmd_co.num_args) {
+                        void (*func_ptr)(void) = (void (*)(void))cmd_co.callback;
+                        func_ptr();
+                    } else if(cmd_co.num_args == 1) {
+                        void (*func_ptr)(const char*) = (void (*)(const char*))cmd_co.callback;
+                        func_ptr(argv[i + 1].c_str());
+                    } else if(cmd_co.num_args == 2) {
+                        void (*func_ptr)(const char*, const char*) = (void (*)(const char*, const char*))cmd_co.callback;
+                        func_ptr(argv[i + 1].c_str(), argv[i + 2].c_str());
+                    }
+                    //(cmd_co.callback)(argv[i + 1].c_str());
                     // Offset the number of args
                     i += cmd_co.num_args;
                 } else {
