@@ -247,10 +247,12 @@ void cli_usbpd_config_set(const char* key_str, const char* value_str) {
     printf("Config set: %s:%s\n", key_str, value_str);
 }
 void cli_usbpd_config_get(const char* str, const char* _unused) {
+    //extern uint32_t config_reg[CONFIG_NUMBER_OF_REGISTERS];
     extern configKey* config_db;
     uint8_t index;
     bool db_match = false;
     for(int i = 0; i < database_items_count; i++) {
+        //printf("%s %s\n", str, config_db[i].name);
         if(strcmp(str, (config_db[i].name)) == 0) {
             index = i;
             db_match = true;
@@ -259,7 +261,8 @@ void cli_usbpd_config_get(const char* str, const char* _unused) {
     }
     if(db_match) {
         keyData const *key = config_db[index].keyPtr;
-        printf("Config description: %s, %u %u %u\n", config_db[index].desc, key->Bv.regNum, key->Bv.lsbOffset,key->Bv.msbOffset);
+        
+        printf("Config description: %s, %u %u %u %u\n", config_db[index].desc, key->Bv.regNum, key->Bv.lsbOffset, key->Bv.msbOffset, config_reg[key->Bv.regNum]);
     } else {
         printf("Usage: usbpd config get <key>" EOL);
         printf("   Keys:          Description:" EOL);

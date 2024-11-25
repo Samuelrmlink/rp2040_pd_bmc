@@ -1,6 +1,13 @@
 #ifndef _POLICY_ENGINE_H
 #define _POLICY_ENGINE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define CONFIG_NUMBER_OF_REGISTERS 3
+extern uint32_t config_reg[CONFIG_NUMBER_OF_REGISTERS];
+
 typedef struct {
     const uint8_t regNum;
     const uint8_t _unused;
@@ -27,35 +34,35 @@ typedef struct {
     const bool nvmBackup;
 } configKey;
 
-static keyData key_mv_min = { .Bv = { .regNum = 1, .lsbOffset = 2, .msbOffset = 3, .minValue = 4, .maxValue = 5 } };
-static keyData key_mv_max = { .Bv = { .regNum = 1, .lsbOffset = 2, .msbOffset = 3, .minValue = 4, .maxValue = 5 } };
-static keyData key_ma_min = { .Bv = { .regNum = 1, .lsbOffset = 2, .msbOffset = 3, .minValue = 4, .maxValue = 5 } };
-static keyData key_ma_max = { .Bv = { .regNum = 1, .lsbOffset = 2, .msbOffset = 3, .minValue = 4, .maxValue = 5 } };
+static keyData key_mv_min = { .Bv = { .regNum = 1, .lsbOffset = 0, .msbOffset = 9, .minValue = 66, .maxValue = 1000 } };    // Range: [3.3v, 50v]
+static keyData key_mv_max = { .Bv = { .regNum = 1, .lsbOffset = 10, .msbOffset = 19, .minValue = 66, .maxValue = 1000 } };  // Range: [3.3v, 50v]
+static keyData key_ma_min = { .Bv = { .regNum = 2, .lsbOffset = 0, .msbOffset = 9, .minValue = 0, .maxValue = 500 } };      // Range: [0a, 5a]
+static keyData key_ma_max = { .Bv = { .regNum = 2, .lsbOffset = 10, .msbOffset = 19, .minValue = 0, .maxValue = 500 } };    // Range: [0a, 5a]
 static configKey database[] = {
     {
-        .name = "sink.mv_min",
-        .desc = "[Power Sink]: Minimum Voltage (mV)",
+        .name = "sink.volt_min_raw",
+        .desc = "[Power Sink]: Minimum Voltage in 50mV units",
         .keyDataType = KeyBitval,
         .keyPtr = &key_mv_min,
         .nvmBackup = true,
     },
     {
-        .name = "sink.mv_max",
-        .desc = "[Power Sink]: Maximum Voltage (mV)",
+        .name = "sink.volt_max_raw",
+        .desc = "[Power Sink]: Maximum Voltage in 50mV units",
         .keyDataType = KeyBitval,
         .keyPtr = &key_mv_max,
         .nvmBackup = true,
     },
     {
-        .name = "sink.ma_min",
-        .desc = "[Power Sink]: Minimum Current (mA)",
+        .name = "sink.cur_min_raw",
+        .desc = "[Power Sink]: Minimum Current in 10mA units",
         .keyDataType = KeyBitval,
         .keyPtr = &key_ma_min,
         .nvmBackup = true,
     },
     {
-        .name = "sink.ma_max",
-        .desc = "[Power Sink]: Maximum Current (mA)",
+        .name = "sink.cur_max_raw",
+        .desc = "[Power Sink]: Maximum Current in 10mA units",
         .keyDataType = KeyBitval,
         .keyPtr = &key_ma_max,
         .nvmBackup = true,
@@ -63,10 +70,13 @@ static configKey database[] = {
 };
 const size_t database_items_count = sizeof(database) / sizeof(configKey);
 
-
 typedef struct usbpdPolicy usbpdPolicy;
 struct usbpdPolicy {
 
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
