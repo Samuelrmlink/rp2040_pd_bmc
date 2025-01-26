@@ -10,11 +10,11 @@ extern uint32_t config_reg[CONFIG_NUMBER_OF_REGISTERS];
 
 typedef struct {
     const uint8_t regNum;
-    const uint8_t _unused;
+    const uint8_t valMultp;     // Value multiplier [0, 255]
     const uint8_t lsbOffset;    // Range: [0, 31]
     const uint8_t msbOffset;    // Range: [0, 31]
-    const uint32_t minValue;
-    const uint32_t maxValue;
+    const uint32_t minValue;    // Minimum [Register] value (no multiplier applied)
+    const uint32_t maxValue;    // Maximum [Register] value (no multiplier applied)
 } keyBitValue;
 typedef union {
     char String[20];
@@ -23,7 +23,6 @@ typedef union {
 } keyData;
 typedef enum {
     KeyString,
-    KeyU32,
     KeyBitval,
 } keyDataTypes;
 typedef struct {
@@ -32,40 +31,76 @@ typedef struct {
     const uint8_t keyDataType; // Set according to keyDataTypes enum above
     const keyData* keyPtr;
     const bool nvmBackup;
+    const bool useMultp;       // Use multiplier (otherwise raw register value is returned)
 } configKey;
 
-static keyData key_mv_min = { .Bv = { .regNum = 1, .lsbOffset = 0, .msbOffset = 9, .minValue = 66, .maxValue = 1000 } };    // Range: [3.3v, 50v]
-static keyData key_mv_max = { .Bv = { .regNum = 1, .lsbOffset = 10, .msbOffset = 19, .minValue = 66, .maxValue = 1000 } };  // Range: [3.3v, 50v]
-static keyData key_ma_min = { .Bv = { .regNum = 2, .lsbOffset = 0, .msbOffset = 9, .minValue = 0, .maxValue = 500 } };      // Range: [0a, 5a]
-static keyData key_ma_max = { .Bv = { .regNum = 2, .lsbOffset = 10, .msbOffset = 19, .minValue = 0, .maxValue = 500 } };    // Range: [0a, 5a]
+static keyData key_mv_min = { .Bv = { .regNum = 1, .valMultp = 50, .lsbOffset = 0, .msbOffset = 9, .minValue = 66, .maxValue = 1000 } };    // Range: [3.3v, 50v]
+static keyData key_mv_max = { .Bv = { .regNum = 1, .valMultp = 50, .lsbOffset = 10, .msbOffset = 19, .minValue = 66, .maxValue = 1000 } };  // Range: [3.3v, 50v]
+static keyData key_ma_min = { .Bv = { .regNum = 2, .valMultp = 10, .lsbOffset = 0, .msbOffset = 9, .minValue = 0, .maxValue = 500 } };      // Range: [0a, 5a]
+static keyData key_ma_max = { .Bv = { .regNum = 2, .valMultp = 10, .lsbOffset = 10, .msbOffset = 19, .minValue = 0, .maxValue = 500 } };    // Range: [0a, 5a]
 static configKey database[] = {
     {
         .name = "sink.volt_min_raw",
-        .desc = "[Power Sink]: Minimum Voltage in 50mV units",
+        .desc = "[Power Sink]: Minimum Voltage in 50mV units (Raw)",
         .keyDataType = KeyBitval,
         .keyPtr = &key_mv_min,
         .nvmBackup = true,
+        .useMultp = false,
     },
     {
         .name = "sink.volt_max_raw",
-        .desc = "[Power Sink]: Maximum Voltage in 50mV units",
+        .desc = "[Power Sink]: Maximum Voltage in 50mV units (Raw)",
         .keyDataType = KeyBitval,
         .keyPtr = &key_mv_max,
         .nvmBackup = true,
+        .useMultp = false,
     },
     {
         .name = "sink.cur_min_raw",
-        .desc = "[Power Sink]: Minimum Current in 10mA units",
+        .desc = "[Power Sink]: Minimum Current in 10mA units (Raw)",
         .keyDataType = KeyBitval,
         .keyPtr = &key_ma_min,
         .nvmBackup = true,
+        .useMultp = false,
     },
     {
         .name = "sink.cur_max_raw",
-        .desc = "[Power Sink]: Maximum Current in 10mA units",
+        .desc = "[Power Sink]: Maximum Current in 10mA units (Raw)",
         .keyDataType = KeyBitval,
         .keyPtr = &key_ma_max,
         .nvmBackup = true,
+        .useMultp = false,
+    },{
+        .name = "sink.volt_min",
+        .desc = "[Power Sink]: Minimum Voltage (mV)",
+        .keyDataType = KeyBitval,
+        .keyPtr = &key_mv_min,
+        .nvmBackup = true,
+        .useMultp = true,
+    },
+    {
+        .name = "sink.volt_max",
+        .desc = "[Power Sink]: Maximum Voltage (mV)",
+        .keyDataType = KeyBitval,
+        .keyPtr = &key_mv_max,
+        .nvmBackup = true,
+        .useMultp = true,
+    },
+    {
+        .name = "sink.cur_min",
+        .desc = "[Power Sink]: Minimum Current (mA)",
+        .keyDataType = KeyBitval,
+        .keyPtr = &key_ma_min,
+        .nvmBackup = true,
+        .useMultp = true,
+    },
+    {
+        .name = "sink.cur_max",
+        .desc = "[Power Sink]: Maximum Current (mA)",
+        .keyDataType = KeyBitval,
+        .keyPtr = &key_ma_max,
+        .nvmBackup = true,
+        .useMultp = true,
     },
 };
 const size_t database_items_count = sizeof(database) / sizeof(configKey);

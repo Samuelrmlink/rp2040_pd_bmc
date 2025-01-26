@@ -237,11 +237,20 @@ void cli_usbpd_show(Cli *cli, std::vector<std::string>& argv) {
     return;
 }
 
+void cli_usbpd_config_printkeys() {
+    extern configKey* config_db;
+    printf("   Keys:          Description:" EOL);
+    printf("  -------        --------------" EOL);
+    for(int i = 0; i < database_items_count; i++) {
+        printf("  %s    %s" EOL, config_db[i].name, config_db[i].desc);
+    }
+}
 void cli_usbpd_config_help(const char* __unused) {
     printf("Usage: usbpd config [OPTIONS]" EOL);
     printf("  -h, --help\t[Shows this message]" EOL);
     printf("  -s, set <Key> <value>" EOL);
-    printf("  -g, get <Key>" EOL);
+    printf("  -g, get <Key>" EOL EOL);
+    cli_usbpd_config_printkeys();
 }
 void cli_usbpd_config_set(const char* key_str, const char* value_str) {
     printf("Config set: %s:%s\n", key_str, value_str);
@@ -261,15 +270,27 @@ void cli_usbpd_config_get(const char* str, const char* _unused) {
     }
     if(db_match) {
         keyData const *key = config_db[index].keyPtr;
-        
-        printf("Config description: %s, %u %u %u %u\n", config_db[index].desc, key->Bv.regNum, key->Bv.lsbOffset, key->Bv.msbOffset, config_reg[key->Bv.regNum]);
+        switch(config_db[index].keyDataType) {
+            case KeyString:
+                printf("%s: %s\n", config_db[index].name, key->String);
+                break;
+            case KeyBitval: {
+                uint8_t multiplier;
+                if(config_db[index].useMultp) { multiplier = key->Bv.valMultp; } else { multiplier = 1; }
+                printf("Config description: %s, %u %u %u %u\n", config_db[index].desc, key->Bv.regNum, key->Bv.lsbOffset, key->Bv.msbOffset, config_reg[key->Bv.regNum]);
+                uint8_t num_bits = key->Bv.msbOffset - key->Bv.lsbOffset + 1;
+                uint8_t offset_bits = key->Bv.lsbOffset;
+                uint32_t config_val = ((config_reg[key->Bv.regNum] >> offset_bits) & (0xFFFFFFFF >> (32 - num_bits))) * multiplier;
+                printf("%s: %u [0x%X]", config_db[index].name, config_val, config_val);
+                break;
+            }
+            default:
+                printf("Error: Invalid key type\n");
+        }
+
     } else {
         printf("Usage: usbpd config get <key>" EOL);
-        printf("   Keys:          Description:" EOL);
-        printf("  -------        --------------" EOL);
-        for(int i = 0; i < database_items_count; i++) {
-            printf("  %s    %s" EOL, config_db[i].name, config_db[i].desc);
-        }
+        cli_usbpd_config_printkeys();
     }
 }
 static const CliOption usbpdConfigOptions[] = {
@@ -325,6 +346,8 @@ void cli_usbpd_config(Cli *cli, std::vector<std::string>& argv) {
                     i += cmd_co.num_args;
                 } else {
                     cli_printf(cli, "Error: Option [ %s, %s ] requires at least %u arguments.\n", cmd_co.shortname, cmd_co.fullname, cmd_co.num_args);
+                    // Print usbpd config usage tips
+                    cli_usbpd_config_get("help", NULL);
                 }
             }
         }

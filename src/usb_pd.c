@@ -218,7 +218,7 @@ void thread_rx_process(void* unused_arg) {
             cPdf = &(pdq_rx->pdfPtr)[proc_counter];
             proc_counter++;
             if(bmc_validate_pdf(cPdf) && !cPdf->__padding1) {
-                individual_pin_toggle(17);
+                //individual_pin_toggle(17);
                 if(bmc_get_ordset_index(cPdf->ordered_set) == PdfTypeSop && pdf_get_sop_msg_type(cPdf) != controlMsgGoodCrc) {
                     pdf_generate_goodcrc(cPdf, tx->pdf);
                     pdf_transmit(tx, bmc_ch0);
@@ -230,7 +230,7 @@ void thread_rx_process(void* unused_arg) {
                         pdf_transmit(tx, bmc_ch0);
                     }
                 }
-                individual_pin_toggle(17);
+                //individual_pin_toggle(17);
                 //printf("%s %X\n", sopFrameTypeNames[bmc_get_ordset_index(cPdf->ordered_set)], cPdf->hdr);
                 cPdf->__padding1 = 1;
             }

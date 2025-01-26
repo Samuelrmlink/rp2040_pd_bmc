@@ -432,6 +432,7 @@ void pdf_transmit(bmcTx *txf, bmcChannel *ch) {
     while(bmc_rx_active(ch)) {
       sleep_us(20);
     }
+    individual_pin_toggle(17);
     irq_set_enabled(ch->irq, false);
     gpio_set_mask(1 << ch->tx_high);
     uint64_t timestamp = time_us_64();
@@ -455,4 +456,5 @@ void pdf_transmit(bmcTx *txf, bmcChannel *ch) {
         pio_sm_get(ch->pio, ch->sm_rx);
     }
     irq_set_enabled(ch->irq, true);
+    individual_pin_toggle(17);
 }
