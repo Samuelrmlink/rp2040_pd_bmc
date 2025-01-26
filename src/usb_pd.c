@@ -167,7 +167,7 @@ void pdf_request_from_srccap_augmented(pd_frame *input_frame, bmcTx *tx, uint8_t
 uint32_t *obj2;
 uint8_t srccap_index;
 //extern uint32_t config_reg[CONFIG_NUMBER_OF_REGISTERS];
-uint32_t config_reg[CONFIG_NUMBER_OF_REGISTERS] = {0x33, 0x77, 0x98}; //TEST - TODO: remove
+uint32_t config_reg[CONFIG_NUMBER_OF_REGISTERS] = {0xFA042, 0x7D000, 0x98}; //TEST - TODO: remove
 char* string_ptr[CONFIG_NUMBER_OF_STRINGS] = {NULL};
 extern configKey* config_db = database;
 void thread_rx_process(void* unused_arg) {

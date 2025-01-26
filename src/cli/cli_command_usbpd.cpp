@@ -146,6 +146,15 @@ static uint16_t hex_str_to_uint16(const char* str, bool swap_endian) {
         return prep;
     }
 }
+static uint32_t str_to_uint_universal(const char* str) {
+    if(str[0] == ASCII_ZERO_SYMBOL_OFFSET && str[1] == ASCII_LOWERCASE_X_SYMBOL_OFFSET) {
+        return hex_str_to_uint32(str, false);
+    } else {
+        uint32_t ret_int;
+        str_to_uint(str, &ret_int);
+        return ret_int;
+    }
+}
 void cli_usbpd_show_srccap(Cli *cli, uint32_t *argval) {
     extern bmcRx *pdq_rx;
     extern uint8_t srccap_index;
@@ -268,15 +277,26 @@ void cli_usbpd_config_set(const char* key_str, const char* value_str) {
     uint8_t index;
     if(config_key_search(config_db, key_str, &index)) {
         keyData const *key = config_db[index].keyPtr;
+        uint32_t input_uint;
         switch(config_db[index].keyDataType) {
             case KeyString:
+                // Implement
                 printf("KeyString set not implemented\n");
                 //key->Ks.ptr_str_ptr = "JJTEST";
                 break;
             case KeyBitval:
-                // Implement
-                //key->Bv.
-                printf("KeyBitval set not implemented\n");
+                input_uint = str_to_uint_universal(value_str);
+                // Divide by multiplier (if necessary)
+                if(key->Bv.valMultp > 1 & (config_db[index].useMultp)) {
+                    input_uint /= key->Bv.valMultp;
+                }
+                if(input_uint < key->Bv.minValue | input_uint > key->Bv.maxValue) {
+                    printf("Error: %u [0x%X] is outside the acceptable register range. {%u, %u} or [0x%X, 0x%X]\n", input_uint, input_uint, key->Bv.minValue, key->Bv.maxValue, key->Bv.minValue, key->Bv.maxValue);
+                    return;
+                }
+                config_reg[key->Bv.regNum] = input_uint << key->Bv.lsbOffset;
+                //config_reg[key->Bv.regNum] = 
+                printf("Dbg: %u %X\n", input_uint, input_uint);
                 break;
             default:
                 printf("Error: Invalid key type\n");
