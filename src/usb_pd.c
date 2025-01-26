@@ -168,6 +168,7 @@ uint32_t *obj2;
 uint8_t srccap_index;
 //extern uint32_t config_reg[CONFIG_NUMBER_OF_REGISTERS];
 uint32_t config_reg[CONFIG_NUMBER_OF_REGISTERS] = {0x33, 0x77, 0x98}; //TEST - TODO: remove
+char* string_ptr[CONFIG_NUMBER_OF_STRINGS] = {NULL};
 extern configKey* config_db = database;
 void thread_rx_process(void* unused_arg) {
     extern bmcChannels *bmc_ch;

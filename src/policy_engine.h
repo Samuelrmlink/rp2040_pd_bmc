@@ -8,6 +8,9 @@ extern "C" {
 #define CONFIG_NUMBER_OF_REGISTERS 3
 extern uint32_t config_reg[CONFIG_NUMBER_OF_REGISTERS];
 
+#define CONFIG_NUMBER_OF_STRINGS 1
+extern char* string_ptr[CONFIG_NUMBER_OF_STRINGS];
+
 typedef struct {
     const uint8_t regNum;
     const uint8_t valMultp;     // Value multiplier [0, 255]
@@ -16,9 +19,12 @@ typedef struct {
     const uint32_t minValue;    // Minimum [Register] value (no multiplier applied)
     const uint32_t maxValue;    // Maximum [Register] value (no multiplier applied)
 } keyBitValue;
+typedef struct {
+    char** const ptr_str_ptr;   // Pointer to string pointer (NULL when undefined)
+    const char* default_str;    // Default string pointer
+} keyString;
 typedef union {
-    char String[20];
-    uint32_t U32;
+    keyString Ks;
     keyBitValue Bv;
 } keyData;
 typedef enum {
@@ -38,6 +44,7 @@ static keyData key_mv_min = { .Bv = { .regNum = 1, .valMultp = 50, .lsbOffset = 
 static keyData key_mv_max = { .Bv = { .regNum = 1, .valMultp = 50, .lsbOffset = 10, .msbOffset = 19, .minValue = 66, .maxValue = 1000 } };  // Range: [3.3v, 50v]
 static keyData key_ma_min = { .Bv = { .regNum = 2, .valMultp = 10, .lsbOffset = 0, .msbOffset = 9, .minValue = 0, .maxValue = 500 } };      // Range: [0a, 5a]
 static keyData key_ma_max = { .Bv = { .regNum = 2, .valMultp = 10, .lsbOffset = 10, .msbOffset = 19, .minValue = 0, .maxValue = 500 } };    // Range: [0a, 5a]
+static keyData key_test = { .Ks = { .ptr_str_ptr = &(string_ptr[0]), .default_str = "TEST default :D" } };
 static configKey database[] = {
     {
         .name = "sink.volt_min_raw",
@@ -101,6 +108,14 @@ static configKey database[] = {
         .keyPtr = &key_ma_max,
         .nvmBackup = true,
         .useMultp = true,
+    },
+    {
+        .name = "test.string",
+        .desc = "[Test]: Just a test string",
+        .keyDataType = KeyString,
+        .keyPtr = &key_test,
+        .nvmBackup = true,
+        .useMultp = false,
     },
 };
 const size_t database_items_count = sizeof(database) / sizeof(configKey);

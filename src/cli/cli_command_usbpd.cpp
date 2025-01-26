@@ -252,32 +252,58 @@ void cli_usbpd_config_help(const char* __unused) {
     printf("  -g, get <Key>" EOL EOL);
     cli_usbpd_config_printkeys();
 }
-void cli_usbpd_config_set(const char* key_str, const char* value_str) {
-    printf("Config set: %s:%s\n", key_str, value_str);
-}
-void cli_usbpd_config_get(const char* str, const char* _unused) {
-    //extern uint32_t config_reg[CONFIG_NUMBER_OF_REGISTERS];
-    extern configKey* config_db;
-    uint8_t index;
+bool config_key_search(configKey *db, const char* search_key, uint8_t *index) { // Returns true if index is found
     bool db_match = false;
     for(int i = 0; i < database_items_count; i++) {
-        //printf("%s %s\n", str, config_db[i].name);
-        if(strcmp(str, (config_db[i].name)) == 0) {
-            index = i;
+        if(strcmp(search_key, (db[i].name)) == 0) {
+            *index = i;
             db_match = true;
             break;
         }
     }
-    if(db_match) {
+    return db_match;
+}
+void cli_usbpd_config_set(const char* key_str, const char* value_str) {
+    extern configKey* config_db;
+    uint8_t index;
+    if(config_key_search(config_db, key_str, &index)) {
         keyData const *key = config_db[index].keyPtr;
         switch(config_db[index].keyDataType) {
             case KeyString:
-                printf("%s: %s\n", config_db[index].name, key->String);
+                printf("KeyString set not implemented\n");
+                //key->Ks.ptr_str_ptr = "JJTEST";
+                break;
+            case KeyBitval:
+                // Implement
+                //key->Bv.
+                printf("KeyBitval set not implemented\n");
+                break;
+            default:
+                printf("Error: Invalid key type\n");
+        }
+    } else {
+        printf("Usage: usbpd config get <key>" EOL);
+        cli_usbpd_config_printkeys();
+    }
+    //printf("Config set: %s:%s\n", key_str, value_str);
+}
+void cli_usbpd_config_get(const char* str, const char* _unused) {
+    extern configKey* config_db;
+    uint8_t index;
+    if(config_key_search(config_db, str, &index)) {
+        keyData const *key = config_db[index].keyPtr;
+        switch(config_db[index].keyDataType) {
+            case KeyString:
+                if(*(key->Ks.ptr_str_ptr) == NULL) {
+                    printf("NULL STR %s: %s\n", config_db[index].name, key->Ks.default_str);
+                } else {
+                    printf("%s: %s\n", config_db[index].name, *(key->Ks.ptr_str_ptr));
+                }
                 break;
             case KeyBitval: {
                 uint8_t multiplier;
                 if(config_db[index].useMultp) { multiplier = key->Bv.valMultp; } else { multiplier = 1; }
-                printf("Config description: %s, %u %u %u %u\n", config_db[index].desc, key->Bv.regNum, key->Bv.lsbOffset, key->Bv.msbOffset, config_reg[key->Bv.regNum]);
+                //printf("Config description: %s, %u %u %u %u\n", config_db[index].desc, key->Bv.regNum, key->Bv.lsbOffset, key->Bv.msbOffset, config_reg[key->Bv.regNum]);
                 uint8_t num_bits = key->Bv.msbOffset - key->Bv.lsbOffset + 1;
                 uint8_t offset_bits = key->Bv.lsbOffset;
                 uint32_t config_val = ((config_reg[key->Bv.regNum] >> offset_bits) & (0xFFFFFFFF >> (32 - num_bits))) * multiplier;
@@ -287,7 +313,6 @@ void cli_usbpd_config_get(const char* str, const char* _unused) {
             default:
                 printf("Error: Invalid key type\n");
         }
-
     } else {
         printf("Usage: usbpd config get <key>" EOL);
         cli_usbpd_config_printkeys();
