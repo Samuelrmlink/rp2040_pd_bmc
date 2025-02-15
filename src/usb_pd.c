@@ -68,6 +68,14 @@ bool eval_pdo_augmented(uint32_t pdo_obj, pdo_accept_criteria req) {
 	return false;
     }
 }
+bool pdo_is_augmented(pd_frame *srccap_pdf, uint8_t index) {
+    uint32_t pdo_obj = srccap_pdf->obj[index];
+    if(((pdo_obj >> 30) & 0x3 == pdoTypeAugmented) && !((pdo_obj >> 28) & 0x3)) {
+        return true;
+    } else {
+        return false;
+    }
+}
 uint8_t optimal_pdo(pd_frame *pdf, pdo_accept_criteria power_req) {
     uint8_t ret = 0;
     // We are already assuming for this function that a valid Source Cap message is being passed in
@@ -170,7 +178,7 @@ uint8_t srccap_index;
 uint32_t config_reg[CONFIG_NUMBER_OF_REGISTERS] = {0xFA042, 0x7D000, 0x98}; //TEST - TODO: remove
 char* string_ptr[CONFIG_NUMBER_OF_STRINGS] = {NULL};
 extern configKey* config_db = database;
-void thread_rx_process(void* unused_arg) {
+void thread_pd_portctrl(void* unused_arg) {
     extern bmcChannels *bmc_ch;
     bmcChannel *bmc_ch0 = &(bmc_ch->chan)[0];
     extern bmcRx *pdq_rx;
@@ -196,6 +204,7 @@ void thread_rx_process(void* unused_arg) {
         .mA_max = 2000
     };
     pd_frame *cPdf;
+    pd_frame *lastsrccap;
     tx = malloc(sizeof(bmcTx));
     tx->pdf = malloc(sizeof(pd_frame));
     pd_frame_clear(tx->pdf);
@@ -225,6 +234,7 @@ void thread_rx_process(void* unused_arg) {
                     pdf_transmit(tx, bmc_ch0);
                     if(is_src_cap(cPdf)) {
                         srccap_index = proc_counter - 1;
+                        memcpy(lastsrccap, cPdf, sizeof(pd_frame));
                         tmpindex = optimal_pdo(cPdf, power_req);
                         if(!tmpindex) { tmpindex = 1; }   // If no acceptable PDO is found - just request the first one (always 5v)
                         pdf_request_from_srccap(cPdf, tx, tmpindex, power_req);
@@ -250,6 +260,13 @@ void thread_rx_process(void* unused_arg) {
             // THIS IS A HACK - instruction 27 is the PIO instruction that (at the time of this hack) leaves the tx line pulled high
             if(pio_sm_get_pc(bmc_ch0->pio, bmc_ch0->sm_tx) == 27) {
                 pio_sm_exec(bmc_ch0->pio, bmc_ch0->sm_tx, pio_encode_jmp(22) | pio_encode_sideset(1, 1));
+            }
+            // PPS re-request hackery
+            if(pdo_is_augmented(lastsrccap, tmpindex)) {
+                tmpindex = optimal_pdo(cPdf, power_req);
+                pdf_request_from_srccap(cPdf, tx, tmpindex, power_req);
+                pdf_transmit(tx, bmc_ch0);
+                printf("rt\n");
             }
         }
     sleep_us(100);

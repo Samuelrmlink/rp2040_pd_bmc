@@ -48,7 +48,7 @@ int main() {
     //bool ch_reg = bmc_channel_register(bmc_ch, pio0, 0, 1, PIO0_IRQ_0, 6, 10, 9, 26);
     bool ch_reg = bmc_channel_register(bmc_ch, pio0, 0, 1, PIO0_IRQ_0, 7, 12, 11, 27);
     assert(ch_reg);
-    BaseType_t status_task_rx_frame = xTaskCreate(thread_rx_process, "PROC_THREAD", 1024, NULL, 1, &tskhdl_pd_rxf);
+    BaseType_t status_task_rx_frame = xTaskCreate(thread_pd_portctrl, "PD_PORTCTRL", 1024, NULL, 1, &tskhdl_pd_rxf);
     assert(status_task_rx_frame == pdPASS);
     irq_set_enabled((bmc_ch->chan)[0].irq, true);
     // Start the scheduler

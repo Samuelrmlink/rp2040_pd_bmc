@@ -46,6 +46,6 @@ void pdf_generate_goodcrc(pd_frame *input_frame, pd_frame *output_frame);
 PDMessageType pdf_get_sop_msg_type(pd_frame *msg);
 bool is_src_cap(pd_frame *pdf);
 uint8_t optimal_pdo(pd_frame *pdf, pdo_accept_criteria power_req);
-void thread_rx_process(void* unused_arg);
+void thread_pd_portctrl(void* unused_arg);
 
 #endif

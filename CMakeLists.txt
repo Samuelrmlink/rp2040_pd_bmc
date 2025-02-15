@@ -10,6 +10,7 @@ set(picotoolVersion 2.0.0)
 include(${USERHOME}/.pico-sdk/cmake/pico-vscode.cmake)
 # ====================================================================================
 cmake_minimum_required(VERSION 3.13)
+set(PICO_BOARD pico2 CACHE STRING "Board type")
 
 # Include the Pico SDK
 include(pico_sdk_import.cmake)
