@@ -101,15 +101,17 @@ static uint32_t hex_str_to_uint32(const char* str, bool swap_endian) {
         }
     }
     // Return if incoming data size is invalid
-    if(num_nibbles != 2 * sizeof(uint32_t)) {
+    if(num_nibbles > 2 * sizeof(uint32_t)) {
         printf("hex_str_to_uint32(): Invalid data size [ Expected size: %u bytes (%u bits) ]\n", sizeof(uint32_t), 8 * sizeof(uint32_t));
         return 0;
     }
     // Prepare output data
     uint32_t prep = 0;
-    hex_str_to_uint8_array(str, (uint8_t*) &prep, 4);
+    //hex_str_to_uint8_array2(str, (uint8_t*) &prep, 4);
+    char* null_ptr;
+    prep = strtoul(str + 2, &null_ptr, 16);
     // hex_str_to_uint8_array actually swaps endian - so we have to swap it back if we don't want the endian to be swapped.
-    if(!swap_endian) {
+    if(swap_endian) {
         return endian_swap_u32(prep);
     } else {
         return prep;
