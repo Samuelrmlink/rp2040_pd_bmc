@@ -6,6 +6,9 @@
 #include "cli_hex_convert.h"
 #include <string.h>
 
+extern const size_t database_items_count = sizeof(database) / sizeof(configKey);
+
+
 typedef struct {
     void (*const fn)(Cli *cli, std::vector<std::string>& argv);
     const char *name;

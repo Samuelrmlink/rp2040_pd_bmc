@@ -1,5 +1,4 @@
 #include "main_i.h"
-#include "mcu_registers.h"
 
 void pd_frame_clear(pd_frame *pdf) {
     for(uint8_t i = 0; i < 56; i++) {
@@ -39,7 +38,6 @@ bool is_src_cap(pd_frame *pdf) {
         return false;
     }
 }
-
 /*
 // Setup toggle pin (used for debugging)
 gpio_init(16);
@@ -129,7 +127,12 @@ void thread_pd_portctrl(void* unused_arg) {
                     pdf_generate_goodcrc(cPdf, tx->pdf);
                     pdf_transmit(tx, bmc_ch0);
                     if(is_src_cap(cPdf)) {
-                        // TODO: Share the PDO with the PE
+                        if(mcu_reg_get_uint(&key_sop_accept, false)) {
+                            // TODO: Share the PDO with the PE
+                            printf("Share SRCCAP\n");
+                        } else {
+                            printf("Don't share SRCCAP\n");
+                        }
                     }
                 }
                 cPdf->__padding1 = 1;

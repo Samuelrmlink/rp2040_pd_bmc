@@ -1,5 +1,4 @@
 #include "main_i.h"
-#include "mcu_registers.h"
 
 /*
 uint8_t proc_counter = 0;
