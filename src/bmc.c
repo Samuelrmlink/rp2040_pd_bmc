@@ -16,10 +16,13 @@ void bmc_inc_object_offset(bmcRx *rx) {
         rx->objOffset += 1;
     }
 }
-bmcRx* bmc_rx_setup() {
+bmcRx* bmc_rx_setup() {                 // See bmc_rx.h:    struct bmcRx
     bmcRx *rx = malloc(sizeof(bmcRx));
     rx->rolloverObj = 240;
     rx->pdfPtr = malloc(sizeof(pd_frame) * rx->rolloverObj);
+    for(int i = 0; i < rx->rolloverObj; i++) {
+        pd_frame_clear(&(rx->pdfPtr)[i]);
+    }
     rx->objOffset = 0;
     rx->byteOffset = 0;
     rx->upperSymbol = false;
@@ -32,6 +35,20 @@ bmcRx* bmc_rx_setup() {
     rx->overflowCount = 0;
     rx->lastOverflow = 0;
     return rx;
+}
+bmcTx* bmc_tx_setup() {                 // See bmc_rx.h:    struct bmcTx
+    bmcTx *tx = malloc(sizeof(bmcTx));
+    tx->pdf = malloc(sizeof(pd_frame));
+    pd_frame_clear(tx->pdf);
+    tx->byteOffset = 0;
+    tx->upperSymbol = false;
+    tx->scrapBits = 0;
+    tx->numScrapBits = 0;
+    tx->msgIdOut = 0;
+    tx->num_u32 = 0;
+    tx->out = NULL;
+    tx->num_zeros = 0;
+    return tx;
 }
 void bmc_rx_overflow_protect(bmcRx *rx) {
     rx->byteOffset = 0;

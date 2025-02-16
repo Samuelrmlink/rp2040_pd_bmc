@@ -1,5 +1,5 @@
 #include "main_i.h"
-#include "policy_engine.h"
+#include "mcu_registers.h"
 
 void pd_frame_clear(pd_frame *pdf) {
     for(uint8_t i = 0; i < 56; i++) {
@@ -39,235 +39,106 @@ bool is_src_cap(pd_frame *pdf) {
         return false;
     }
 }
-bool eval_pdo_fixed(uint32_t pdo_obj, pdo_accept_criteria req) {
-    // We know this is a fixed PDO - not Augmented, Battery, etc..
-    uint32_t pdo_mV = ((pdo_obj >> 10) & 0x3FF) * 50;
-    uint16_t pdo_mA_max = (pdo_obj & 0x3FF) * 10;
-    if(pdo_mV <= req.mV_max && pdo_mV >= req.mV_min && pdo_mA_max >= req.mA_min) {
-	return true;
-    } else {
-	return false;
+
+/*
+// Setup toggle pin (used for debugging)
+gpio_init(16);
+gpio_set_dir(16, GPIO_OUT);
+gpio_init(17);
+gpio_set_dir(17, GPIO_OUT);
+individual_pin_toggle(16);
+*/
+
+
+// Polling func: Maintains procbuf ringbuffer (handles rollover)
+void poll_manage_procbuf(uint8_t proc_count) {
+    extern bmcRx *pdq_rx;
+    // If proc_counter is ready to rollover
+    if(proc_count == pdq_rx->rolloverObj) {
+        // Clear the inputRollover variable
+        pdq_rx->inputRollover = false;
+        // Reset proc_counter
+        proc_count = 0;
+        // Clear pd_frame arrays
+        for(int i = pdq_rx->objOffset; i < pdq_rx->rolloverObj; i++) {
+            pd_frame_clear(&(pdq_rx->pdfPtr)[i]);
+        }
     }
 }
-bool eval_pdo_augmented(uint32_t pdo_obj, pdo_accept_criteria req) {
-    if(!((pdo_obj >> 28) & 0x3)) {		// SPR PPS
-	// Get PPS PDO values
-	uint32_t pdo_mV_max = ((pdo_obj >> 17) & 0xFF) * 100;
-	uint32_t pdo_mV_min = ((pdo_obj >> 8) & 0xFF) * 100;
-	uint16_t pdo_mA_max = (pdo_obj & 0x7F) * 50;
-
-	// Compare PDO values with the criteria
-	if(pdo_mV_max >= req.mV_max && pdo_mV_max >= req.mV_min && pdo_mA_max >= req.mA_min) {
-	    return true;
-	}
-    } else if(((pdo_obj >> 28) & 0x3) == 0x2) {	// EPR
-	// TODO: Implement
-	return false;
-    } else {
-	// Invalid
-	return false;
+// Polling func: Returns true when new pd_frame data is available
+bool new_data_procbuf(uint8_t proc_count) {
+    extern bmcRx *pdq_rx;
+    return ((pdq_rx->objOffset > proc_count) || pdq_rx->inputRollover);
+}
+// Polling func: Clears PIO interfaces as required
+void manage_pio_rxbuf() {
+    extern bmcRx *pdq_rx;
+    extern bmcChannels *bmc_ch;
+    bmcChannel *bmc_ch0 = &(bmc_ch->chan)[0];
+    if(bmc_get_timestamp(pdq_rx) && !bmc_rx_active(bmc_ch0)) {
+        // Fill the RX FIFO with zeros until it pushes
+        while(pio_sm_is_rx_fifo_empty(bmc_ch0->pio, bmc_ch0->sm_rx)) {
+            pio_sm_exec_wait_blocking(bmc_ch0->pio, bmc_ch0->sm_rx, pio_encode_in(pio_y, 1));
+        }
+        // Retrieve data from the RX FIFO
+        bmc_rx_cb();
+    }
+    // THIS IS A HACK - instruction 27 is the PIO instruction that (at the time of this hack) leaves the tx line pulled high
+    if(pio_sm_get_pc(bmc_ch0->pio, bmc_ch0->sm_tx) == 27) {
+        pio_sm_exec(bmc_ch0->pio, bmc_ch0->sm_tx, pio_encode_jmp(22) | pio_encode_sideset(1, 1));
     }
 }
-bool pdo_is_augmented(pd_frame *srccap_pdf, uint8_t index) {
-    uint32_t pdo_obj = srccap_pdf->obj[index];
-    if(((pdo_obj >> 30) & 0x3 == pdoTypeAugmented) && !((pdo_obj >> 28) & 0x3)) {
-        return true;
-    } else {
-        return false;
-    }
-}
-uint8_t optimal_pdo(pd_frame *pdf, pdo_accept_criteria power_req) {
-    uint8_t ret = 0;
-    // We are already assuming for this function that a valid Source Cap message is being passed in
-    for(int i = 1; i <= ((pdf->hdr >> 12) & 0x7); i++) {
-	switch((pdf->obj[i - 1] >> 30) & 0x3) {
-	    case (pdoTypeFixed) :
-		if(eval_pdo_fixed(pdf->obj[i - 1], power_req)) {
-		    ret = i;
-		}
-		break;
-	    case (pdoTypeAugmented) :
-		if(eval_pdo_augmented(pdf->obj[i - 1], power_req)) {
-		    ret = i;
-		}
-		break;
-	    case (pdoTypeBattery) :
-	    case (pdoTypeVariable) :
-		break;
-	    default :
-		//TODO - Implement error handling
-		break;
-	}
-    }
-    return ret;
-}
-
-// TODO - move into a "Policy Engine"
-void pdf_request_from_srccap(pd_frame *input_frame, bmcTx *tx, uint8_t req_pdo, pdo_accept_criteria req) {
-    switch((input_frame->obj[req_pdo - 1] >> 30) & 0x3) {
-        case (pdoTypeFixed) :
-            pdf_request_from_srccap_fixed(input_frame, tx, req_pdo, req);
-            break;
-        case (pdoTypeAugmented) :
-            pdf_request_from_srccap_augmented(input_frame, tx, req_pdo, req);
-            break;
-        case (pdoTypeBattery) :
-        case (pdoTypeVariable) :
-            break;
-        default :
-            //TODO - Implement error handling
-            break;
-    }
-}
-void pdf_request_from_srccap_fixed(pd_frame *input_frame, bmcTx *tx, uint8_t req_pdo, pdo_accept_criteria req) {
-    // Ensure we start with a clean slate
-    pd_frame_clear(tx->pdf);
-
-    // Get PDO maximum current
-    uint16_t mA_max = (input_frame->obj[req_pdo - 1] & 0x3FF) * 10;
-
-    // Replace maximum current value if requested value is lower
-    if(req.mA_max < mA_max) {
-        mA_max = req.mA_max;
-    }
 
 
-    // Setup ordered_set (SOP) and header (uses hard-coded values for testing currently)
-    tx->pdf->ordered_set = input_frame->ordered_set;
-    tx->msgIdOut = 0;//TODO-fix this mess
-    tx->pdf->hdr = (0x1 << 12) | (tx->msgIdOut << 9) | (0x2 << 6) | 0x2; // TODO - remove magic numbers
-
-    // Setup RDO
-    tx->pdf->obj[0] =	(req_pdo << 28) |			// Object position
-    (((mA_max / 10) & 0x3FF) << 10) |	// Operating current
-    ((mA_max / 10) & 0x3FF);				// Max current
-
-    // Generate CRC32
-    tx->pdf->obj[1] = crc32_pdframe_calc(tx->pdf);
-}
-void pdf_request_from_srccap_augmented(pd_frame *input_frame, bmcTx *tx, uint8_t req_pdo, pdo_accept_criteria req) {
-    // Ensure we start with a clean slate
-    pd_frame_clear(tx->pdf);
-
-    // Since eval_pdo_augmented has passed we know the req_pdo.mV_max is within range of this VPDO
-    // Get PDO max current
-    uint32_t pdo_mA_max = (input_frame->obj[req_pdo - 1] & 0x7F) * 50;
-
-    // Any modification of the current value does not leave this function
-    if(req.mA_max > pdo_mA_max) {
-        // Current requested is higher than provided by the charger - just take what we can get
-        req.mA_max = pdo_mA_max;
-    }
-
-    // Setup ordered_set (SOP) and header (uses hard-coded values for testing currently)
-    tx->pdf->ordered_set = input_frame->ordered_set;
-    tx->msgIdOut = 0;//TODO-fix this mess
-    tx->pdf->hdr = (0x1 << 12) | (tx->msgIdOut << 9) | (0x2 << 6) | 0x2; // TODO - remove magic numbers
-
-    // Setup RDO
-    tx->pdf->obj[0] =	(req_pdo << 28) |			// Object position
-    (((req.mV_max / 20) & 0xFFF) << 9) |	// Output voltage
-    ((req.mA_max / 50) & 0x7F);		// Operating current
-
-    // Generate CRC32
-    tx->pdf->obj[1] = crc32_pdframe_calc(tx->pdf);
-}
+// Global variables
 uint32_t *obj2;
 uint8_t srccap_index;
 //extern uint32_t config_reg[CONFIG_NUMBER_OF_REGISTERS];
 uint32_t config_reg[CONFIG_NUMBER_OF_REGISTERS] = {0xFA042, 0x7D000, 0x98}; //TEST - TODO: remove
 char* string_ptr[CONFIG_NUMBER_OF_STRINGS] = {NULL};
 extern configKey* config_db = database;
+
+
+// USB-PD Port Controller thread 
 void thread_pd_portctrl(void* unused_arg) {
-    extern bmcChannels *bmc_ch;
-    bmcChannel *bmc_ch0 = &(bmc_ch->chan)[0];
-    extern bmcRx *pdq_rx;
-    extern bmcTx *tx;
+    // USB-PD PHY RX/TX channel structures
+    extern bmcRx *pdq_rx;   // RX queue
+    extern bmcTx *tx;       // TX queue
+    extern bmcChannels *bmc_ch;                 // Channels list
+    bmcChannel *bmc_ch0 = &(bmc_ch->chan)[0];   // Channel 1 pointer
 
-    // Clear all memory allocated to incoming pd_frame data
-    for(int i = 0; i < pdq_rx->rolloverObj; i++) {
-        pd_frame_clear(&(pdq_rx->pdfPtr)[i]);
-    }
+    // USB-PD 
 
-    // Setup toggle pin (used for debugging)
-    gpio_init(16);
-    gpio_set_dir(16, GPIO_OUT);
-    gpio_init(17);
-    gpio_set_dir(17, GPIO_OUT);
 
+    pd_frame *cPdf;         // Current *pd_frame
     uint8_t proc_counter = 0;
-    uint8_t tmpindex;
-    pdo_accept_criteria power_req = {
-        .mV_min = 5000,
-        .mV_max = 10240,
-        .mA_min = 0,
-        .mA_max = 2000
-    };
-    pd_frame *cPdf;
-    pd_frame *lastsrccap;
-    tx = malloc(sizeof(bmcTx));
-    tx->pdf = malloc(sizeof(pd_frame));
-    pd_frame_clear(tx->pdf);
+
 
     while(true) {
-        // If proc_counter is ready to rollover
-        if(proc_counter == pdq_rx->rolloverObj) {
-            // Clear the inputRollover variable
-            pdq_rx->inputRollover = false;
-             // Reset proc_counter
-            proc_counter = 0;
-            // Clear pd_frame arrays
-            for(int i = pdq_rx->objOffset; i < pdq_rx->rolloverObj; i++) {
-                pd_frame_clear(&(pdq_rx->pdfPtr)[i]);
-            }
-        }
-        // If there is a complete frame
-        if((pdq_rx->objOffset > proc_counter) || pdq_rx->inputRollover) {
-            individual_pin_toggle(16);
-            // Current pd_frame pointer (added for improved readability)
+        poll_manage_procbuf(proc_counter);      // Data buffer maintenance (rollover/data overwrite)
+        
+        if(new_data_procbuf(proc_counter)) {
+            // Fetch the fresh pd_frame
             cPdf = &(pdq_rx->pdfPtr)[proc_counter];
+            // Increment the processing buffer
             proc_counter++;
+
+            // Check whether this pd_frame is valid
             if(bmc_validate_pdf(cPdf) && !cPdf->__padding1) {
-                //individual_pin_toggle(17);
                 if(bmc_get_ordset_index(cPdf->ordered_set) == PdfTypeSop && pdf_get_sop_msg_type(cPdf) != controlMsgGoodCrc) {
                     pdf_generate_goodcrc(cPdf, tx->pdf);
                     pdf_transmit(tx, bmc_ch0);
                     if(is_src_cap(cPdf)) {
-                        srccap_index = proc_counter - 1;
-                        memcpy(lastsrccap, cPdf, sizeof(pd_frame));
-                        tmpindex = optimal_pdo(cPdf, power_req);
-                        if(!tmpindex) { tmpindex = 1; }   // If no acceptable PDO is found - just request the first one (always 5v)
-                        pdf_request_from_srccap(cPdf, tx, tmpindex, power_req);
-                        pdf_transmit(tx, bmc_ch0);
+                        // TODO: Share the PDO with the PE
                     }
                 }
-                //individual_pin_toggle(17);
-                //printf("%s %X\n", sopFrameTypeNames[bmc_get_ordset_index(cPdf->ordered_set)], cPdf->hdr);
                 cPdf->__padding1 = 1;
             }
             if(pdq_rx->inputRollover) {
                 pdq_rx->inputRollover = false;
             }
-        } else {
-            if(bmc_get_timestamp(pdq_rx) && !bmc_rx_active(bmc_ch0)) {
-                // Fill the RX FIFO with zeros until it pushes
-                while(pio_sm_is_rx_fifo_empty(bmc_ch0->pio, bmc_ch0->sm_rx)) {
-                    pio_sm_exec_wait_blocking(bmc_ch0->pio, bmc_ch0->sm_rx, pio_encode_in(pio_y, 1));
-                }
-                // Retrieve data from the RX FIFO
-                bmc_rx_cb();
-            }
-            // THIS IS A HACK - instruction 27 is the PIO instruction that (at the time of this hack) leaves the tx line pulled high
-            if(pio_sm_get_pc(bmc_ch0->pio, bmc_ch0->sm_tx) == 27) {
-                pio_sm_exec(bmc_ch0->pio, bmc_ch0->sm_tx, pio_encode_jmp(22) | pio_encode_sideset(1, 1));
-            }
-            // PPS re-request hackery
-            if(pdo_is_augmented(lastsrccap, tmpindex)) {
-                tmpindex = optimal_pdo(cPdf, power_req);
-                pdf_request_from_srccap(cPdf, tx, tmpindex, power_req);
-                pdf_transmit(tx, bmc_ch0);
-                printf("rt\n");
-            }
+        } else { // No new data is available
+            manage_pio_rxbuf(); // Clears PIO interfaces as required
         }
     sleep_us(100);
     }

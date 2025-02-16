@@ -44,6 +44,7 @@ int main() {
 
     // Setup USB-PD channels
     pdq_rx = bmc_rx_setup();
+    tx = bmc_tx_setup();
     bmc_ch = bmc_channels_alloc(4);
     //bool ch_reg = bmc_channel_register(bmc_ch, pio0, 0, 1, PIO0_IRQ_0, 6, 10, 9, 26);
     bool ch_reg = bmc_channel_register(bmc_ch, pio0, 0, 1, PIO0_IRQ_0, 7, 12, 11, 27);
