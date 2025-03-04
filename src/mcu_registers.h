@@ -45,12 +45,12 @@ static keyData key_mv_max = { .Bv = { .regNum = 1, .valMultp = 50, .lsbOffset = 
 static keyData key_ma_min = { .Bv = { .regNum = 2, .valMultp = 10, .lsbOffset = 0, .msbOffset = 9, .minValue = 0, .maxValue = 500, .defaultValue = 10 } };          // Range: [0a, 5a]
 static keyData key_ma_max = { .Bv = { .regNum = 2, .valMultp = 10, .lsbOffset = 10, .msbOffset = 19, .minValue = 0, .maxValue = 500, .defaultValue = 300 } };       // Range: [0a, 5a]
 static keyData key_sop_accept = { .Bv = { .regNum = 1, .valMultp = 1, .lsbOffset = 20, .msbOffset = 20, .minValue = 0, .maxValue = 1, .defaultValue = 1 } };        // SOP Accept               (Sends GoodCRC & Forwards pd_frame to Policy Engine if set)
-static keyData key_sopp_accept = { .Bv = { .regNum = 1, .valMultp = 1, .lsbOffset = 20, .msbOffset = 20, .minValue = 0, .maxValue = 1, .defaultValue = 0 } };       // SOP' Accept               |
-static keyData key_sopdp_accept = { .Bv = { .regNum = 1, .valMultp = 1, .lsbOffset = 20, .msbOffset = 20, .minValue = 0, .maxValue = 1, .defaultValue = 0 } };      // SOP" Accept               |
-static keyData key_soppd_accept = { .Bv = { .regNum = 1, .valMultp = 1, .lsbOffset = 20, .msbOffset = 20, .minValue = 0, .maxValue = 1, .defaultValue = 0 } };      // SOP' Debug Accept         |
-static keyData key_sopdpd_accept = { .Bv = { .regNum = 1, .valMultp = 1, .lsbOffset = 20, .msbOffset = 20, .minValue = 0, .maxValue = 1, .defaultValue = 0 } };     // SOP" Debug Accept         X
-static keyData key_sft_rst_accept = { .Bv = { .regNum = 1, .valMultp = 1, .lsbOffset = 20, .msbOffset = 20, .minValue = 0, .maxValue = 1, .defaultValue = 1 } };    // SOP Accept               (Notifies Policy Engine if set)
-static keyData key_hrd_rst_accept = { .Bv = { .regNum = 1, .valMultp = 1, .lsbOffset = 20, .msbOffset = 20, .minValue = 0, .maxValue = 1, .defaultValue = 1 } };    // SOP Accept                X
+static keyData key_sopp_accept = { .Bv = { .regNum = 1, .valMultp = 1, .lsbOffset = 21, .msbOffset = 21, .minValue = 0, .maxValue = 1, .defaultValue = 0 } };       // SOP' Accept               |
+static keyData key_sopdp_accept = { .Bv = { .regNum = 1, .valMultp = 1, .lsbOffset = 22, .msbOffset = 22, .minValue = 0, .maxValue = 1, .defaultValue = 0 } };      // SOP" Accept               |
+static keyData key_soppd_accept = { .Bv = { .regNum = 1, .valMultp = 1, .lsbOffset = 23, .msbOffset = 23, .minValue = 0, .maxValue = 1, .defaultValue = 0 } };      // SOP' Debug Accept         |
+static keyData key_sopdpd_accept = { .Bv = { .regNum = 1, .valMultp = 1, .lsbOffset = 24, .msbOffset = 24, .minValue = 0, .maxValue = 1, .defaultValue = 0 } };     // SOP" Debug Accept         X
+static keyData key_sft_rst_accept = { .Bv = { .regNum = 1, .valMultp = 1, .lsbOffset = 25, .msbOffset = 25, .minValue = 0, .maxValue = 1, .defaultValue = 1 } };    // SOP Accept               (Notifies Policy Engine if set)
+static keyData key_hrd_rst_accept = { .Bv = { .regNum = 1, .valMultp = 1, .lsbOffset = 26, .msbOffset = 26, .minValue = 0, .maxValue = 1, .defaultValue = 1 } };    // SOP Accept                X
 
 static keyData key_test = { .Ks = { .ptr_str_ptr = &(string_ptr[0]), .default_str = "TEST default :D" } };
 static configKey database[] = {

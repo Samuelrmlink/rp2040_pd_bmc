@@ -92,7 +92,7 @@ void manage_pio_rxbuf() {
 uint32_t *obj2;
 uint8_t srccap_index;
 //extern uint32_t config_reg[CONFIG_NUMBER_OF_REGISTERS];
-uint32_t config_reg[CONFIG_NUMBER_OF_REGISTERS] = {0xFA042, 0x7D000, 0x98}; //TEST - TODO: remove
+uint32_t config_reg[CONFIG_NUMBER_OF_REGISTERS] = {0xFA042, 0x17D000, 0x98}; //TEST - TODO: remove
 char* string_ptr[CONFIG_NUMBER_OF_STRINGS] = {NULL};
 extern configKey* config_db = database;
 
@@ -134,7 +134,7 @@ void thread_pd_portctrl(void* unused_arg) {
                     if(mcu_reg_get_uint(&key_sop_accept, false)) {
                         // TODO: Share the PDO with the PE : cPdf
                         xQueueSendToBack(queue_pe_in, (void *) cPdf, (TickType_t) 0);
-                        printf("T");
+                        //printf("T");
                         individual_pin_toggle(16);
                         //printf("Share SRCCAP\n");
                     }
