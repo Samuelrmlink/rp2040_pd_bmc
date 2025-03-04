@@ -106,7 +106,8 @@ void thread_pd_portctrl(void* unused_arg) {
     bmcChannel *bmc_ch0 = &(bmc_ch->chan)[0];   // Channel 1 pointer
 
     // USB-PD 
-
+    QueueHandle_t queue_pc_in;
+    QueueHandle_t queue_pe_in;
 
     pd_frame *cPdf;         // Current *pd_frame
     uint8_t proc_counter = 0;
@@ -126,13 +127,10 @@ void thread_pd_portctrl(void* unused_arg) {
                 if(bmc_get_ordset_index(cPdf->ordered_set) == PdfTypeSop && pdf_get_sop_msg_type(cPdf) != controlMsgGoodCrc) {
                     pdf_generate_goodcrc(cPdf, tx->pdf);
                     pdf_transmit(tx, bmc_ch0);
-                    if(is_src_cap(cPdf)) {
-                        if(mcu_reg_get_uint(&key_sop_accept, false)) {
-                            // TODO: Share the PDO with the PE
-                            printf("Share SRCCAP\n");
-                        } else {
-                            printf("Don't share SRCCAP\n");
-                        }
+                    if(mcu_reg_get_uint(&key_sop_accept, false)) {
+                        // TODO: Share the PDO with the PE : cPdf
+                        xQueueSendToBack(queue_pe_in, (void *) &cPdf, (TickType_t) 0);
+                        printf("Share SRCCAP\n");
                     }
                 }
                 cPdf->__padding1 = 1;

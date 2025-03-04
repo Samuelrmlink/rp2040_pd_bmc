@@ -23,6 +23,10 @@
 TaskHandle_t tskhdl_usb_cli = NULL; // Task handle: USB CDC-ACM w/CLI
 TaskHandle_t tskhdl_pd_rxf = NULL;	// Task handle: RX frame receiver
 
+// Queues
+QueueHandle_t queue_pc_in = NULL;   // Queue: Port Controller Input
+QueueHandle_t queue_pe_in = NULL;   // Queue: Policy Engine Input
+
 // Channel structures
 bmcRx *pdq_rx;
 bmcTx *tx;
@@ -49,6 +53,9 @@ int main() {
     //bool ch_reg = bmc_channel_register(bmc_ch, pio0, 0, 1, PIO0_IRQ_0, 6, 10, 9, 26);
     bool ch_reg = bmc_channel_register(bmc_ch, pio0, 0, 1, PIO0_IRQ_0, 7, 12, 11, 27);
     assert(ch_reg);
+
+    queue_pc_in = xQueueCreate(3, sizeof(pd_frame));
+    queue_pe_in = xQueueCreate(4, sizeof(pd_frame));
     BaseType_t status_task_rx_frame = xTaskCreate(thread_pd_portctrl, "PD_PORTCTRL", 1024, NULL, 1, &tskhdl_pd_rxf);
     assert(status_task_rx_frame == pdPASS);
     irq_set_enabled((bmc_ch->chan)[0].irq, true);
