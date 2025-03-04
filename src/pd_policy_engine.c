@@ -152,3 +152,28 @@ void pdf_request_from_srccap_augmented(pd_frame *input_frame, bmcTx *tx, uint8_t
     // Generate CRC32
     tx->pdf->obj[1] = crc32_pdframe_calc(tx->pdf);
 }
+
+void thread_pd_policy_engine(void* unused_arg) {
+    extern QueueHandle_t queue_pe_in;
+    extern bmcTx *tx;       // TX queue
+    extern bmcChannels *bmc_ch;
+    bmcChannel *bmc_ch0 = &(bmc_ch->chan)[0];
+    pd_frame pdf;
+    uint8_t tmpindex;
+    pdo_accept_criteria power_req = {
+        .mV_min = 5000,
+        .mV_max = 10240,
+        .mA_min = 0,
+        .mA_max = 2000
+    };
+
+    while(true) {
+        xQueueReceive(queue_pe_in, (void *) &pdf, portMAX_DELAY);
+        //printf("Data Received %X\n", pdf.hdr);
+        printf("R\n");
+        tmpindex = optimal_pdo(&pdf, power_req);
+        if(!tmpindex) { tmpindex = 1; }
+        pdf_request_from_srccap(&pdf, tx, tmpindex, power_req);
+        pdf_transmit(tx, bmc_ch0);
+    }
+}

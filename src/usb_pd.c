@@ -106,11 +106,15 @@ void thread_pd_portctrl(void* unused_arg) {
     bmcChannel *bmc_ch0 = &(bmc_ch->chan)[0];   // Channel 1 pointer
 
     // USB-PD 
-    QueueHandle_t queue_pc_in;
-    QueueHandle_t queue_pe_in;
+    extern QueueHandle_t queue_pc_in;
+    extern QueueHandle_t queue_pe_in;
 
     pd_frame *cPdf;         // Current *pd_frame
     uint8_t proc_counter = 0;
+
+    // Debug stuff
+    gpio_init(16);
+    gpio_set_dir(16, GPIO_OUT);
 
 
     while(true) {
@@ -129,8 +133,10 @@ void thread_pd_portctrl(void* unused_arg) {
                     pdf_transmit(tx, bmc_ch0);
                     if(mcu_reg_get_uint(&key_sop_accept, false)) {
                         // TODO: Share the PDO with the PE : cPdf
-                        xQueueSendToBack(queue_pe_in, (void *) &cPdf, (TickType_t) 0);
-                        printf("Share SRCCAP\n");
+                        xQueueSendToBack(queue_pe_in, (void *) cPdf, (TickType_t) 0);
+                        printf("T");
+                        individual_pin_toggle(16);
+                        //printf("Share SRCCAP\n");
                     }
                 }
                 cPdf->__padding1 = 1;

@@ -35,6 +35,7 @@ void pdf_transmit(bmcTx *txf, bmcChannel *ch);
 
 void pdf_request_from_srccap_fixed(pd_frame *input_frame, bmcTx *tx, uint8_t req_pdo, pdo_accept_criteria req);
 void pdf_request_from_srccap_augmented(pd_frame *input_frame, bmcTx *tx, uint8_t req_pdo, pdo_accept_criteria req);
+void thread_pd_policy_engine(void* unused_arg);
 
 
 /* 
