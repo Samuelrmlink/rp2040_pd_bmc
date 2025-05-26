@@ -40,8 +40,13 @@ PDMessageType pdf_get_sop_msg_type(pd_frame *msg) {
 uint8_t pdf_get_msgid(pd_frame *msg) {
     return (msg->hdr >> 9) & 0x7;
 }
+// Check MsgType (For example: controlMsgGoodCrc)
+bool is_sop_msgtype(pd_frame *pdf, uint8_t msgtype) {
+    bool ret = (pdf_get_sop_msg_type(pdf) == controlMsgGoodCrc) ? true : false;
+    return ret;
+}
 bool is_src_cap(pd_frame *pdf) {
-    if((bmc_get_ordset_index(pdf->ordered_set) == PdfTypeSop) && (pdf_get_sop_msg_type(pdf) == dataMsgSourceCap)) {
+    if((bmc_get_ordset_index(pdf->ordered_set) == PdfTypeSop) && is_sop_msgtype(pdf, dataMsgSourceCap)) {
         return true;
     } else {
         return false;
@@ -90,6 +95,7 @@ bool check_pdf_flag(pd_frame *pdf, uint8_t flag) {
 void mark_pdf_flag(pd_frame *pdf, uint8_t flag) {
     pdf->__padding1 |= (0x1 << flag);
 }
+
 /*
 // Setup toggle pin (used for debugging)
 gpio_init(16);
@@ -215,7 +221,17 @@ void thread_pd_portctrl(void* unused_arg) {
                         break;
                     case(PdfTypeSop):
                         // SOP type
-                        printf("SOP\n");
+                        if(!is_sop_msgtype(cPdf, controlMsgGoodCrc)) {
+                            pdf_generate_goodcrc(cPdf, tx->pdf);
+                            pdf_transmit(tx, bmc_ch0);
+                            printf("SOP\n");
+                            // TODO: Implement pd_frame filtering system
+                            //if(mcu_reg_get_uint(&key_sop_accept, false)) {
+                            xQueueSendToBack(queue_pe_in, (void *) cPdf, (TickType_t) 0);
+                        } else {
+                            // Debug - TODO: remove
+                            printf(" CRC ");
+                        }
                         break;
                     case(PdfTypeSopP):
                         // SOP' type

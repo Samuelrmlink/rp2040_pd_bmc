@@ -146,6 +146,8 @@ void pdf_request_from_srccap_augmented(pd_frame *input_frame, bmcTx *tx, uint8_t
 
     // Setup RDO
     tx->pdf->obj[0] =	(req_pdo << 28) |			// Object position
+    (0x1 << 25) |   // USB communications capable bit (tell upstream device that we support USB)
+    (0x1 << 24) |   // No USB suspend bit (request continuing PD contract through USB suspend)
     (((req.mV_max / 20) & 0xFFF) << 9) |	// Output voltage
     ((req.mA_max / 50) & 0x7F);		// Operating current
 
@@ -169,9 +171,11 @@ void thread_pd_policy_engine(void* unused_arg) {
 
     while(true) {
         xQueueReceive(queue_pe_in, (void *) &pdf, portMAX_DELAY);
+        printf("PE %X\n", pdf.hdr);
         //printf("Data Received %X\n", pdf.hdr);
         //printf("R\n");
         tmpindex = optimal_pdo(&pdf, power_req);
+	tmpindex = 3;
         if(!tmpindex) { tmpindex = 1; }
         pdf_request_from_srccap(&pdf, tx, tmpindex, power_req);
         pdf_transmit(tx, bmc_ch0);
