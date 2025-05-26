@@ -324,13 +324,13 @@ bool bmc_channel_register(bmcChannels *ch, PIO pio, uint sm_tx, uint sm_rx, uint
 	ch_ptr->tx_high = tx_high;
 	ch_ptr->tx_low = tx_low;
 	ch_ptr->adc = adc;
-	gpio_init(ch_ptr->tx_high);
-	gpio_set_dir(ch_ptr->tx_high, GPIO_OUT);
+	gpio_init(ch_ptr->tx_low);
+	gpio_set_dir(ch_ptr->tx_low, GPIO_OUT);
     float clock_div = (float)clock_get_hz(clk_sys) / 5000000;
 	// Init TX FIFO (if applicable)
 	if(ch_ptr->tx_low) {
 	    uint offset_tx = pio_add_program(ch_ptr->pio, &differential_manchester_tx_program);
-	    differential_manchester_tx_program_init(ch_ptr->pio, ch_ptr->sm_tx, offset_tx, ch_ptr->tx_low, clock_div); // 25.f for rp2040 28.2 for rp2350
+	    differential_manchester_tx_program_init(ch_ptr->pio, ch_ptr->sm_tx, offset_tx, ch_ptr->tx_high, clock_div); // 25.f for rp2040 28.2 for rp2350
 	    pio_sm_set_enabled(ch_ptr->pio, ch_ptr->sm_tx, true);
 	}
 	// Init RX FIFO (if applicable)
@@ -451,7 +451,7 @@ void pdf_transmit(bmcTx *txf, bmcChannel *ch) {
     }
     individual_pin_toggle(17);
     irq_set_enabled(ch->irq, false);
-    gpio_set_mask(1 << ch->tx_high);
+    gpio_set_mask(1 << ch->tx_low);
     uint64_t timestamp = time_us_64();
     //pio_sm_put_blocking(ch->pio, ch->sm_tx, txf->out[0]);
     //pio_sm_exec(ch->pio, ch->sm_tx, pio_encode_out(pio_null, txf->num_zeros));
@@ -462,7 +462,7 @@ void pdf_transmit(bmcTx *txf, bmcChannel *ch) {
     if(pio_sm_get_pc(ch->pio, ch->sm_tx) == 27) { // THIS IS A HACK - 27 is the PIO instruction that (at the time of this hack) leaves the tx line pulled high
       pio_sm_exec(ch->pio, ch->sm_tx, pio_encode_jmp(22) | pio_encode_sideset(1, 1));
     }
-    gpio_clr_mask(1 << ch->tx_high);
+    gpio_clr_mask(1 << ch->tx_low);
     free(txf->out);
     txf->byteOffset = 0;
     txf->upperSymbol = false;
