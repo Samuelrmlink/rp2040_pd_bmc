@@ -205,12 +205,12 @@ void thread_pd_portctrl(void* unused_arg) {
                 switch(bmc_get_ordset_index(cPdf->ordered_set)) {
                     case(PdfTypeHardReset):
                         // SOP' type
-                        // TODO: Implement
+                        // TODO: Implement debug & logging to non-vol flash
                         printf("Hard Reset\n");
                         break;
                     case(PdfTypeCableReset):
                         // SOP' type
-                        // TODO: Implement
+                        // TODO: Implement debug & logging to non-vol flash
                         printf("Cable Reset\n");
                         break;
                     case(PdfTypeSop):

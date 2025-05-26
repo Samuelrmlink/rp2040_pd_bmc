@@ -80,7 +80,6 @@ bool bmc_validate_pdf(pd_frame *pdf) {
             return false;       // Invalid - no valid (obviously..)
         case(PdfTypeHardReset) :
         case(PdfTypeCableReset) :
-            return true;        // Valid
         case(PdfTypeSop) :
         case(PdfTypeSopP) :
         case(PdfTypeSopDp) :
