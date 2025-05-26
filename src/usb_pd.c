@@ -5,6 +5,12 @@ void pd_frame_clear(pd_frame *pdf) {
 	pdf->raw_bytes[i] = 0;
     }
 }
+void pdf_debug_printframe(pd_frame *pdf) {
+    printf("# Hdr: %03X | ", pdf->hdr);
+    for(int i = 0; i < 56; i++) {
+        printf("%02X", pdf->raw_bytes[i]);
+    }
+}
 void pdf_generate_goodcrc(pd_frame *input_frame, pd_frame *output_frame) {
     // Ensure we start with a clean slate
     pd_frame_clear(output_frame);
@@ -31,12 +37,58 @@ PDMessageType pdf_get_sop_msg_type(pd_frame *msg) {
     frmType |= msg->hdr & 0x1f;
     return (PDMessageType) frmType;
 }
+uint8_t pdf_get_msgid(pd_frame *msg) {
+    return (msg->hdr >> 9) & 0x7;
+}
 bool is_src_cap(pd_frame *pdf) {
     if((bmc_get_ordset_index(pdf->ordered_set) == PdfTypeSop) && (pdf_get_sop_msg_type(pdf) == dataMsgSourceCap)) {
         return true;
     } else {
         return false;
     }
+}
+// Check whether this msgID has been processed or not
+bool check_msgid_done(int8_t global_msgid, int8_t current_msgid) {
+    if(global_msgid == -1) {
+        // msgID was just initialized - so this means that no messages have been processed yet.
+        return false;
+     } else if(global_msgid == current_msgid) {
+        // msgID marked as processed (Probably retransmitted by our port partner (SOP) or cable (SOP',SOP", etc.) due to timeout)
+        return true;
+    } else {
+        // For now - any other case means that ***MOST LIKELY*** this is the next frame that hasn't been evaluated yet
+        return false;
+    }
+}
+// Mark this msgID as processed
+void mark_msgid_done(int8_t *global_msgid, int8_t current_msgid) {
+    // Get next 'would-be' global_msgid (assuming we increment by 1)
+    int8_t tmp_val = (*global_msgid == 7) ? 0 : *global_msgid + 1;
+    if(tmp_val != current_msgid) {
+        // TODO: Warn user that we may be missing some PD frames (maybe in a more 'proper' fashion than below...)
+        printf("mark_msgid_done() - We may be missing some PD frames!");
+    }
+    // Mark as processed
+    *global_msgid = current_msgid;
+}
+// Check whether TCPC thread has evaluated this pd_frame
+bool check_pdf_tcpc_eval(pd_frame *pdf) {
+    // __padding1 - Bit0 indicates that the port controller thread has accepted & evaluated this frame
+    return (bool) pdf->__padding1 & 0x1;
+}
+// Mark this pd_frame as evaluated (by the USB Type-C port controller thread)
+// Note: This indicates that the frame is valid & was accepted by the TCPC thread - but does
+// *NOT* necessarily indicate that it was passed to the TCPM thread or made it to the Policy Engine.
+void mark_pdf_tcpc_eval(pd_frame *pdf) {
+    pdf->__padding1 |= 0x1; // Set Bit0
+}
+// Check __padding1 flag (Single flag only)
+bool check_pdf_flag(pd_frame *pdf, uint8_t flag) {
+    return (pdf->__padding1) & (0x1 << flag);
+}
+// Mask (set) __padding1 flag
+void mark_pdf_flag(pd_frame *pdf, uint8_t flag) {
+    pdf->__padding1 |= (0x1 << flag);
 }
 /*
 // Setup toggle pin (used for debugging)
@@ -64,9 +116,23 @@ void poll_manage_procbuf(uint8_t proc_count) {
     }
 }
 // Polling func: Returns true when new pd_frame data is available
-bool new_data_procbuf(uint8_t proc_count) {
+// Returns: [-1]Corrupted new data, [0]No new data, [1]Valid new data
+int8_t new_data_procbuf(uint8_t proc_count) {
     extern bmcRx *pdq_rx;
-    return ((pdq_rx->objOffset > proc_count) || pdq_rx->inputRollover);
+    pd_frame *cPdf = &(pdq_rx->pdfPtr)[proc_count];
+    if(!((pdq_rx->objOffset > proc_count) || pdq_rx->inputRollover)) {
+        // No new data
+        return 0;
+    }
+    if(bmc_validate_pdf(cPdf)               // Validate CRC
+       && !check_pdf_tcpc_eval(cPdf)) {     // Validate that TCPC has not handled this frame before
+       // TODO: Implement check_msgid_done() here
+
+        // Valid new data
+        return 1;
+    }
+    // Corrupted new data
+    return -1;
 }
 // Polling func: Clears PIO interfaces as required
 void manage_pio_rxbuf() {
@@ -111,15 +177,77 @@ void thread_pd_portctrl(void* unused_arg) {
 
     pd_frame *cPdf;         // Current *pd_frame
     uint8_t proc_counter = 0;
+    int8_t sop_rx_msgid = -1;
 
     // Debug stuff
-    gpio_init(16);
-    gpio_set_dir(16, GPIO_OUT);
+    gpio_init(2);
+    gpio_set_dir(2, GPIO_OUT);
 
 
     while(true) {
         poll_manage_procbuf(proc_counter);      // Data buffer maintenance (rollover/data overwrite)
         
+        // Grab pd_frame pointer (convenience)
+        cPdf = &(pdq_rx->pdfPtr)[proc_counter];
+        switch(new_data_procbuf(proc_counter)) {
+            case(-1):   // Corrupt new data
+                // Mark as corrupt
+                mark_pdf_flag(cPdf, tcpcFrameInvalid);
+                // Skip over data
+                proc_counter++;
+                break;
+            case(0):    // No new data
+                manage_pio_rxbuf(); // Clears PIO interfaces as required
+                // Do nothing.. Will wait until more data arrives
+                break;
+            case(1):    // Valid new data
+                // Check frame type (SOP, SOP', SOP", etc.) and compare against TCPC filtering policy
+                switch(bmc_get_ordset_index(cPdf->ordered_set)) {
+                    case(PdfTypeHardReset):
+                        // SOP' type
+                        // TODO: Implement
+                        printf("Hard Reset\n");
+                        break;
+                    case(PdfTypeCableReset):
+                        // SOP' type
+                        // TODO: Implement
+                        printf("Cable Reset\n");
+                        break;
+                    case(PdfTypeSop):
+                        // SOP type
+                        printf("SOP\n");
+                        break;
+                    case(PdfTypeSopP):
+                        // SOP' type
+                        // TODO: Implement
+                        //printf("SOPP\n");
+                        break;
+                    case(PdfTypeSopDp):
+                        // SOP" type
+                        // TODO: Implement
+                        //printf("SOPDp\n");
+                        break;
+                    case(PdfTypeSopPDbg):
+                        // SOP' Debug type
+                        // TODO: Implement
+                        //printf("SOPPDbg\n");
+                        break;
+                    case(PdfTypeSopDpDbg):
+                        // SOP" Debug type
+                        // TODO: Implement
+                        //printf("SOPDpDbg\n");
+                        break;
+                    default:
+                        // We should never reach here
+                        printf("Error: Unknown pd_frame type: [0x%X]", cPdf->ordered_set);
+                }
+                // Mark as processed by TCPC
+                mark_pdf_tcpc_eval(cPdf);
+                // Increment proc_counter
+                proc_counter++;
+                break;
+        }
+        /*
         if(new_data_procbuf(proc_counter)) {
             // Fetch the fresh pd_frame
             cPdf = &(pdq_rx->pdfPtr)[proc_counter];
@@ -127,19 +255,21 @@ void thread_pd_portctrl(void* unused_arg) {
             proc_counter++;
 
             // Check whether this pd_frame is valid
-            if(bmc_validate_pdf(cPdf) && !cPdf->__padding1) {
+            if(bmc_validate_pdf(cPdf) && !check_pdf_tcpc_eval(cPdf)) {
                 if(bmc_get_ordset_index(cPdf->ordered_set) == PdfTypeSop && pdf_get_sop_msg_type(cPdf) != controlMsgGoodCrc) {
                     pdf_generate_goodcrc(cPdf, tx->pdf);
                     pdf_transmit(tx, bmc_ch0);
+                    //printf("GCRC %X", cPdf->hdr);
+                    pdf_debug_printframe(cPdf);
                     if(mcu_reg_get_uint(&key_sop_accept, false)) {
                         // TODO: Share the PDO with the PE : cPdf
                         xQueueSendToBack(queue_pe_in, (void *) cPdf, (TickType_t) 0);
                         //printf("T");
-                        individual_pin_toggle(16);
+                        individual_pin_toggle(2);
                         //printf("Share SRCCAP\n");
                     }
                 }
-                cPdf->__padding1 = 1;
+                mark_pdf_tcpc_eval(cPdf);
             }
             if(pdq_rx->inputRollover) {
                 pdq_rx->inputRollover = false;
@@ -147,6 +277,7 @@ void thread_pd_portctrl(void* unused_arg) {
         } else { // No new data is available
             manage_pio_rxbuf(); // Clears PIO interfaces as required
         }
+        */
     sleep_us(100);
     }
 }

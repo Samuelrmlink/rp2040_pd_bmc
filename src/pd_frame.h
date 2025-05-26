@@ -25,3 +25,10 @@ typedef union {
 	} __attribute__((packed));
     } __attribute__((packed));
 } __attribute__((packed)) pd_frame;
+
+// __padding1 flags (see 'pd_frame' data structure above)
+enum paddingFlags {
+    tcpcFrameAccepted = 0,
+    tcpcFrameFilteredOut = 1,
+    tcpcFrameInvalid = 2,
+};
