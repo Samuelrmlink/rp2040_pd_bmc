@@ -48,6 +48,7 @@ bmcTx* bmc_tx_setup() {                 // See bmc_rx.h:    struct bmcTx
     tx->num_u32 = 0;
     tx->out = NULL;
     tx->num_zeros = 0;
+    tx->num_bits = 0;
     return tx;
 }
 void bmc_rx_overflow_protect(bmcRx *rx) {
@@ -373,7 +374,7 @@ void static tx_raw_buf_write(uint32_t input_bits, uint8_t num_input_bits, uint32
 }
 void pdf_to_uint32(bmcTx *txf) {
     uint16_t current_bit_num = 0;
-    uint8_t follower_zero_bits = 2;
+    uint8_t follower_zero_bits = 0;
 
     // Calculate the number of bytes we'll be transferring
     uint8_t num_bytes_payload = ((txf->pdf->hdr >> 12) & 0x7) * 4;
@@ -393,6 +394,9 @@ void pdf_to_uint32(bmcTx *txf) {
         8 +                     // CRC32 (4 bytes * 2 symbols/byte = 8 symbols)
         1) +                    // EOP symbol
         follower_zero_bits;     // Zero bits following the frame
+    // Record total bits required
+    txf->num_bits = total_bits_req;
+    // Figure out how many u32 objects we need
     txf->num_u32 = total_bits_req / 32;
     // Round up if more bits are required
     if(total_bits_req % 32) { txf->num_u32 += 1; }
@@ -432,6 +436,81 @@ void pdf_to_uint32(bmcTx *txf) {
         follower_zero_bits--;
     }
 }
+uint8_t get_bit_from_obj(uint32_t *obj, uint16_t bit_offset) {
+    uint8_t obj_num = bit_offset / 32;
+    uint8_t bit_num = bit_offset % 32;
+    return (obj[obj_num] >> bit_num) & 1;
+}
+void debug_getbit(uint32_t *obj, uint8_t num_objects) {
+    for(int i = 0; i < num_objects; i++) {
+        printf("%X\n", obj[i]);
+        for(int j = 0; j < 32; j++) {
+            printf(" %01X", get_bit_from_obj(&obj[i], j));
+        }
+    }
+}
+uint32_t* add_txlow_data(bmcTx *txf) {
+    uint32_t *in = txf->out;
+    uint32_t *out = malloc(sizeof(uint32_t) * 2 * txf->num_u32);
+    bool upper_data = false;
+    for(int i = 0; i < 2 * txf->num_u32; i++) {
+        out[i] = 0;
+        uint8_t input_obj = i / 2;
+        //upper_data = i % 2 ? true : false;
+        //uint8_t bit_offset = upper_data ? 16 : 0;
+        //for(int j = bit_offset; j < 16 + bit_offset; j++) {
+        for(int j = 0; j < 32; j += 2) {
+            out[i] |= get_bit_from_obj(&in[input_obj], j % 2) << j;
+        }
+    }
+    free(in);
+    txf->num_u32 *= 2;
+    return out;
+}
+/*
+uint32_t* add_txlow_data(bmcTx *txf) {
+    uint32_t *in = txf->out;
+    uint32_t *out = malloc(sizeof(uint32_t) * 2 * txf->num_u32);
+    for(int i = 0; i < 2 * txf->num_u32; i++) {
+        out[i] = 0;
+    }
+    for(int i = 0; i < 2 * txf->num_bits; i++) {
+        uint8_t obj_out_offset = i / 32;
+        out[obj_out_offset] |= (i & 1) ? get_bit_from_obj(in, i / 2) << ((i / 2) % 32) : 1 << (i / 2);
+    }
+    free(in);
+    txf->num_u32 *= 2;
+    return out;
+}
+
+void interleave_bits_with_one(uint32_t *input, uint32_t num_inputs, uint32_t *output) {
+    uint32_t result = 0;
+    uint32_t total_bits = num_inputs * 32; // Total bits in input
+    uint32_t bits_to_process = total_bits > 16 ? 16 : total_bits; // Limit to 16 bits for 32-bit output
+
+    for (uint32_t i = 0; i < bits_to_process; i++) {
+        // Extract bit i from input (LSB first)
+        uint32_t input_idx = i / 32; // Which uint32_t to read from
+        uint32_t bit_pos = i % 32;   // Bit position in the uint32_t
+        uint32_t bit = (input[input_idx] >> bit_pos) & 0x1;
+        // Place bit at position 2*i, followed by a 1 at 2*i+1
+        result |= (bit << (2 * i));
+        result |= (1U << (2 * i + 1));
+    }
+    *output = result;
+}
+*/
+/*
+uint32_t* generate_tx_stream(bmcTx *txf) {
+    // Allocate output
+    uint32_t *output = malloc(sizeof(uint32_t) * txf->num_u32);
+    // Clear output buffer
+    for(size_t i = 0; i < sizeof(output)) {
+        output[i] = 0;
+    }
+    
+}
+*/
 bool bmc_rx_active(bmcChannel *chan) {
    uint prev = pio_sm_get_pc(chan->pio, chan->sm_rx);
    bool rx_line_active = false;
@@ -446,6 +525,26 @@ bool bmc_rx_active(bmcChannel *chan) {
 }
 void pdf_transmit(bmcTx *txf, bmcChannel *ch) {
     pdf_to_uint32(txf);
+    txf->out = add_txlow_data(txf);
+    /*
+    uint32_t *output = malloc(sizeof(uint32_t) * txf->num_u32 * 2);
+    for(int i = 0; i < (txf->num_u32 * 2); i++) {
+        output[i] = 0;
+    }
+    interleave_bits_with_one(txf->out, txf->num_u32, output);
+    */
+/*
+    for(int i = 0; i < (txf->num_u32 * 2); i++) {
+        printf(" %08X", txf->out[i]);
+    }
+    printf("\nnum_zeros: %u\n", txf->num_zeros);
+    pio_sm_exec(ch->pio, ch->sm_tx, pio_encode_set(pio_y, 1));
+    for(int i = 0; i < txf->num_u32; i++) {
+        pio_sm_put_blocking(ch->pio, ch->sm_tx, txf->out[i]);
+    }
+*/  
+    debug_getbit(txf->out, txf->num_u32);
+    /*
     while(bmc_rx_active(ch)) {
       sleep_us(20);
     }
@@ -455,6 +554,8 @@ void pdf_transmit(bmcTx *txf, bmcChannel *ch) {
     uint64_t timestamp = time_us_64();
     //pio_sm_put_blocking(ch->pio, ch->sm_tx, txf->out[0]);
     //pio_sm_exec(ch->pio, ch->sm_tx, pio_encode_out(pio_null, txf->num_zeros));
+    // PIO TX SM scratch register y MUST be set to 1 initially
+    pio_sm_exec(pio, sm, pio_encode_set(pio_y, 1));
     for(int i = 0; i < txf->num_u32; i++) {
 	pio_sm_put_blocking(ch->pio, ch->sm_tx, txf->out[i]);
     }
@@ -474,4 +575,5 @@ void pdf_transmit(bmcTx *txf, bmcChannel *ch) {
     }
     irq_set_enabled(ch->irq, true);
     individual_pin_toggle(17);
+    */
 }

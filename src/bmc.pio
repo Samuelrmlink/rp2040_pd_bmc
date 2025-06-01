@@ -13,34 +13,60 @@
 ;
 ; Side-set bit 0 must be mapped to the data output pin.
 ; Autopull must be enabled.
-
+safe_state:
+    nop                 side 0
 public start:
 initial_high:
-    out x, 1                     ; Start of bit period: always assert transition
-    jmp !x high_0     side 1 [6] ; Test the data bit we just shifted out of OSR
+    mov pins, y         side 1 [4]
+    out x, 1
+    out y, 1
+    jmp !x high_0
 high_1:
     nop
-    jmp initial_high  side 0 [6] ; For `1` bits, also transition in the middle
+    jmp initial_high    side 0 [6]
 high_0:
-    jmp initial_low          [7] ; Otherwise, the line is stable in the middle
+    jmp initial_low     [7]             ; effectively 'nop' (since it drops through)
 
 initial_low:
-    out x, 1                     ; Always shift 1 bit from OSR to X so we can
-    jmp !x low_0      side 0 [6] ; branch on it. Autopull refills OSR for us.
+    jmp !y safe_state                   ; Prevent getting 'stuck' in the high state ('out' blocks until OSR has data)
+    out x, 1            side 0 [4]
+    out y, 1
+    jmp !x low_0
 low_1:
     nop
-    jmp initial_low   side 1 [6] ; If there are two transitions, return to
+    jmp initial_low     side 1 [6]
 low_0:
-    jmp initial_high         [7] ; the initial line state is flipped!
+    jmp initial_high    [7]
 
 % c-sdk {
-static inline void differential_manchester_tx_program_init(PIO pio, uint sm, uint offset, uint pin, float div) {
-    pio_sm_set_pins_with_mask(pio, sm, 0, 1u << pin);
-    pio_sm_set_consecutive_pindirs(pio, sm, pin, 1, true);
-    pio_gpio_init(pio, pin);
+/*
+ *  Original Author: Raspberry Pi (Trading) Ltd.
+ *  Original Example: differential_manchester.pio
+ *  Modified by: Samuel Hedrick
+ *
+ *  This function takes the following pins:
+ *  base_pin        : TX_HIGH - encodes the actual clock/data   - Sideset
+ *  base_pin + 1    : TX_LOW - asserts control of CC line       - OUT instruction
+ *
+ *  TX_HIGH encodes both the clock and data - it drives an N-channel mosfet that pulls the CC line high
+ *  TX_LOW drives the CC pin low - allowing the TX_HIGH pin output to drive it high again
+ *
+ *  Expected PIO operation: 
+ *      TX FIFO is set to autopull to OSR (Output shift register)
+ *      2 bits are consumed from OSR each cycle
+ *          Bit0 controls the raw BMC data encoded into the clock signal
+ *          Bit1 must be set to '1' during transmit - and then back to '0' after the EOP symbol has been transmitted
+ *
+ */
+static inline void differential_manchester_tx_program_init(PIO pio, uint sm, uint offset, uint base_pin, float div) {
+    pio_sm_set_pins_with_mask(pio, sm, 0, 3u << base_pin);
+    pio_sm_set_consecutive_pindirs(pio, sm, base_pin, 2, true);
+    pio_gpio_init(pio, base_pin);
+    pio_gpio_init(pio, base_pin + 1);
 
     pio_sm_config c = differential_manchester_tx_program_get_default_config(offset);
-    sm_config_set_sideset_pins(&c, pin);
+    sm_config_set_out_pins(&c, base_pin + 1, 1);
+    sm_config_set_sideset_pins(&c, base_pin);
     sm_config_set_out_shift(&c, true, true, 32);
     sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);
     sm_config_set_clkdiv(&c, div);

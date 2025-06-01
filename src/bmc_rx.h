@@ -32,7 +32,8 @@ struct bmcTx {
     uint8_t msgIdOut;       // Outgoing msgID value [actually only 3 bits - please use tx_msg_inc(<pointer to this variable>) to increment]
     uint8_t num_u32;        // Number of u32 objects to send to the PIO
     uint32_t *out;          // Pointer to the first aformentioned u32 object
-    uint16_t num_zeros;     // Number of zeros (to skip when transmitting via PIO)
+    uint16_t num_zeros;     // Number of zeros (to skip when transmitting via PIO) TODO: Deprecate/Remove
+    uint16_t num_bits;
 };
 
 struct bmcChannel {
