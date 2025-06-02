@@ -436,6 +436,7 @@ void pdf_to_uint32(bmcTx *txf) {
         follower_zero_bits--;
     }
 }
+/*
 uint8_t get_bit_from_obj(uint32_t *obj, uint16_t bit_offset) {
     uint8_t obj_num = bit_offset / 32;
     uint8_t bit_num = bit_offset % 32;
@@ -449,68 +450,52 @@ void debug_getbit(uint32_t *obj, uint8_t num_objects) {
         }
     }
 }
+*/
 uint32_t* add_txlow_data(bmcTx *txf) {
     uint32_t *in = txf->out;
-    uint32_t *out = malloc(sizeof(uint32_t) * 2 * txf->num_u32);
-    bool upper_data = false;
-    for(int i = 0; i < 2 * txf->num_u32; i++) {
+    txf->num_u32 *= 2;
+    uint32_t *out = malloc(sizeof(uint32_t) * txf->num_u32);
+    for(int i = 0; i < txf->num_u32; i += 2) {
         out[i] = 0;
         uint8_t input_obj = i / 2;
-        //upper_data = i % 2 ? true : false;
-        //uint8_t bit_offset = upper_data ? 16 : 0;
-        //for(int j = bit_offset; j < 16 + bit_offset; j++) {
-        for(int j = 0; j < 32; j += 2) {
-            out[i] |= get_bit_from_obj(&in[input_obj], j % 2) << j;
-        }
+        out[i] = 0xAAAAAAAA |
+                (in[input_obj] >> 15 & 1) << 30 |
+                (in[input_obj] >> 14 & 1) << 28 |
+                (in[input_obj] >> 13 & 1) << 26 |
+                (in[input_obj] >> 12 & 1) << 24 |
+                (in[input_obj] >> 11 & 1) << 22 |
+                (in[input_obj] >> 10 & 1) << 20 |
+                (in[input_obj] >> 9 & 1) << 18 |
+                (in[input_obj] >> 8 & 1) << 16 |
+                (in[input_obj] >> 7 & 1) << 14 |
+                (in[input_obj] >> 6 & 1) << 12 |
+                (in[input_obj] >> 5 & 1) << 10 |
+                (in[input_obj] >> 4 & 1) << 8 |
+                (in[input_obj] >> 3 & 1) << 6 |
+                (in[input_obj] >> 2 & 1) << 4 |
+                (in[input_obj] >> 1 & 1) << 2 |
+                (in[input_obj] >> 0 & 1) << 0;
+        out[i + 1] = 0xAAAAAAAA |
+                (in[input_obj] >> 31 & 1) << 30 |
+                (in[input_obj] >> 30 & 1) << 28 |
+                (in[input_obj] >> 29 & 1) << 26 |
+                (in[input_obj] >> 28 & 1) << 24 |
+                (in[input_obj] >> 27 & 1) << 22 |
+                (in[input_obj] >> 26 & 1) << 20 |
+                (in[input_obj] >> 25 & 1) << 18 |
+                (in[input_obj] >> 24 & 1) << 16 |
+                (in[input_obj] >> 23 & 1) << 14 |
+                (in[input_obj] >> 22 & 1) << 12 |
+                (in[input_obj] >> 21 & 1) << 10 |
+                (in[input_obj] >> 20 & 1) << 8 |
+                (in[input_obj] >> 19 & 1) << 6 |
+                (in[input_obj] >> 18 & 1) << 4 |
+                (in[input_obj] >> 17 & 1) << 2 |
+                (in[input_obj] >> 16 & 1) << 0;
     }
     free(in);
-    txf->num_u32 *= 2;
     return out;
 }
-/*
-uint32_t* add_txlow_data(bmcTx *txf) {
-    uint32_t *in = txf->out;
-    uint32_t *out = malloc(sizeof(uint32_t) * 2 * txf->num_u32);
-    for(int i = 0; i < 2 * txf->num_u32; i++) {
-        out[i] = 0;
-    }
-    for(int i = 0; i < 2 * txf->num_bits; i++) {
-        uint8_t obj_out_offset = i / 32;
-        out[obj_out_offset] |= (i & 1) ? get_bit_from_obj(in, i / 2) << ((i / 2) % 32) : 1 << (i / 2);
-    }
-    free(in);
-    txf->num_u32 *= 2;
-    return out;
-}
-
-void interleave_bits_with_one(uint32_t *input, uint32_t num_inputs, uint32_t *output) {
-    uint32_t result = 0;
-    uint32_t total_bits = num_inputs * 32; // Total bits in input
-    uint32_t bits_to_process = total_bits > 16 ? 16 : total_bits; // Limit to 16 bits for 32-bit output
-
-    for (uint32_t i = 0; i < bits_to_process; i++) {
-        // Extract bit i from input (LSB first)
-        uint32_t input_idx = i / 32; // Which uint32_t to read from
-        uint32_t bit_pos = i % 32;   // Bit position in the uint32_t
-        uint32_t bit = (input[input_idx] >> bit_pos) & 0x1;
-        // Place bit at position 2*i, followed by a 1 at 2*i+1
-        result |= (bit << (2 * i));
-        result |= (1U << (2 * i + 1));
-    }
-    *output = result;
-}
-*/
-/*
-uint32_t* generate_tx_stream(bmcTx *txf) {
-    // Allocate output
-    uint32_t *output = malloc(sizeof(uint32_t) * txf->num_u32);
-    // Clear output buffer
-    for(size_t i = 0; i < sizeof(output)) {
-        output[i] = 0;
-    }
-    
-}
-*/
 bool bmc_rx_active(bmcChannel *chan) {
    uint prev = pio_sm_get_pc(chan->pio, chan->sm_rx);
    bool rx_line_active = false;
@@ -524,26 +509,21 @@ bool bmc_rx_active(bmcChannel *chan) {
    return rx_line_active;
 }
 void pdf_transmit(bmcTx *txf, bmcChannel *ch) {
+    // Convert pd_frame object to data that can be transmitted via PIO
     pdf_to_uint32(txf);
+    // Convert data (interleave TX_HIGH and TX_LOW)
     txf->out = add_txlow_data(txf);
-    /*
-    uint32_t *output = malloc(sizeof(uint32_t) * txf->num_u32 * 2);
-    for(int i = 0; i < (txf->num_u32 * 2); i++) {
-        output[i] = 0;
+
+    // Wait until BMC line is inactive
+    while(bmc_rx_active(ch)) {
+      sleep_us(20);
     }
-    interleave_bits_with_one(txf->out, txf->num_u32, output);
-    */
-/*
-    for(int i = 0; i < (txf->num_u32 * 2); i++) {
-        printf(" %08X", txf->out[i]);
-    }
-    printf("\nnum_zeros: %u\n", txf->num_zeros);
+    // Start transmitting
     pio_sm_exec(ch->pio, ch->sm_tx, pio_encode_set(pio_y, 1));
     for(int i = 0; i < txf->num_u32; i++) {
         pio_sm_put_blocking(ch->pio, ch->sm_tx, txf->out[i]);
     }
-*/  
-    debug_getbit(txf->out, txf->num_u32);
+    //debug_getbit(txf->out, txf->num_u32);
     /*
     while(bmc_rx_active(ch)) {
       sleep_us(20);
