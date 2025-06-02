@@ -436,12 +436,13 @@ void pdf_to_uint32(bmcTx *txf) {
         follower_zero_bits--;
     }
 }
-/*
+
 uint8_t get_bit_from_obj(uint32_t *obj, uint16_t bit_offset) {
     uint8_t obj_num = bit_offset / 32;
     uint8_t bit_num = bit_offset % 32;
     return (obj[obj_num] >> bit_num) & 1;
 }
+
 void debug_getbit(uint32_t *obj, uint8_t num_objects) {
     for(int i = 0; i < num_objects; i++) {
         printf("%X\n", obj[i]);
@@ -450,7 +451,7 @@ void debug_getbit(uint32_t *obj, uint8_t num_objects) {
         }
     }
 }
-*/
+
 uint32_t* add_txlow_data(bmcTx *txf) {
     uint32_t *in = txf->out;
     txf->num_u32 *= 2;
@@ -514,6 +515,10 @@ void pdf_transmit(bmcTx *txf, bmcChannel *ch) {
     // Convert data (interleave TX_HIGH and TX_LOW)
     txf->out = add_txlow_data(txf);
 
+    // TODO : remove excess zeros
+    //149 bits / 16 = 9 remainder 5
+    //0xFFFFFFFF >> (15 - remainder) * 2
+/*
     // Wait until BMC line is inactive
     while(bmc_rx_active(ch)) {
       sleep_us(20);
@@ -523,7 +528,9 @@ void pdf_transmit(bmcTx *txf, bmcChannel *ch) {
     for(int i = 0; i < txf->num_u32; i++) {
         pio_sm_put_blocking(ch->pio, ch->sm_tx, txf->out[i]);
     }
-    //debug_getbit(txf->out, txf->num_u32);
+*/
+    debug_getbit(txf->out, txf->num_u32);
+    printf("num_bits: %u", txf->num_bits);
     /*
     while(bmc_rx_active(ch)) {
       sleep_us(20);
