@@ -18,8 +18,8 @@ safe_state:
 public start:
 initial_high:
     mov pins, y
-    out x, 1            side 1 [4]
-    out y, 1
+    out x, 1
+    out y, 1         side 1 [4]
     jmp !x high_0
 high_1:
     nop
