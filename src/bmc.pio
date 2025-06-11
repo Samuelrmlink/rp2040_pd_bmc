@@ -14,7 +14,11 @@
 ; Side-set bit 0 must be mapped to the data output pin.
 ; Autopull must be enabled.
 safe_state:
+    nop                 side 1 [7]
+    nop                 [7]
     nop                 side 0
+reset_delay:
+    nop                 [3]
 public start:
 initial_high:
     mov pins, y
@@ -28,15 +32,17 @@ high_0:
     jmp initial_low     [7]             ; effectively 'nop' (since it drops through)
 
 initial_low:
-    jmp !y safe_state                   ; Prevent getting 'stuck' in the high state ('out' blocks until OSR has data)
-    out x, 1            side 0 [4]
+    nop
+    jmp !y reset_delay   side 0 [3]
+    out x, 1
     out y, 1
     jmp !x low_0
 low_1:
     nop
     jmp initial_low     side 1 [6]
 low_0:
-    jmp initial_high    [7]
+    jmp !y safe_state   [6]
+    jmp initial_high
 
 % c-sdk {
 /*
