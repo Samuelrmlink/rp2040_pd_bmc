@@ -402,6 +402,7 @@ void pdf_to_uint32(bmcTx *txf) {
     if(total_bits_req % 32) { txf->num_u32 += 1; }
     // Store the number of remainder unused bits (used later during transmit)
     txf->num_zeros = 32 - total_bits_req % 32;
+    current_bit_num = txf->num_zeros;
     // Allocate memory for u32 values (PIO TX buffer)
     txf->out = malloc(sizeof(uint32_t) * txf->num_u32);
     // Ensure that our u32 area in memory is blank
@@ -410,8 +411,9 @@ void pdf_to_uint32(bmcTx *txf) {
     }
     // Add preamble (64-bits)
     for(int i = 0; i < 2; i++) {
-        txf->out[i] = 0xAAAAAAAA;
-        current_bit_num += 32;
+        //txf->out[i] = 0xAAAAAAAA;
+        //current_bit_num += 32;
+        tx_raw_buf_write(0xAAAAAAAA, 32, txf->out, &current_bit_num);
     }
     // Add the Ordered Set symbols
     txf->byteOffset = 4;
@@ -450,6 +452,13 @@ void debug_getbit(uint32_t *obj, uint8_t num_objects) {
             printf(" %01X", get_bit_from_obj(&obj[i], j));
         }
     }
+}
+void debug_printrawout(uint32_t *obj, uint8_t num_objects) {
+    printf("\n%u | ", num_objects);
+    for(int i = 0; i < num_objects; i++) {
+        printf(" %08X", obj[i]);
+    }
+    printf("\n");
 }
 
 uint32_t* add_txlow_data(bmcTx *txf) {
@@ -494,6 +503,7 @@ uint32_t* add_txlow_data(bmcTx *txf) {
                 (in[input_obj] >> 17 & 1) << 2 |
                 (in[input_obj] >> 16 & 1) << 0;
     }
+    out[txf->num_u32 - 1] ^= (1 << 31);
     free(in);
     return out;
 }
@@ -518,19 +528,26 @@ void pdf_transmit(bmcTx *txf, bmcChannel *ch) {
     // TODO : remove excess zeros
     //149 bits / 16 = 9 remainder 5
     //0xFFFFFFFF >> (15 - remainder) * 2
-/*
+
     // Wait until BMC line is inactive
     while(bmc_rx_active(ch)) {
       sleep_us(20);
     }
     // Start transmitting
+    pio_sm_set_enabled(ch->pio, ch->sm_tx, false);
+    pio_sm_put_blocking(ch->pio, ch->sm_tx, txf->out[0]);
+    //pio_sm_exec(ch->pio, ch->sm_tx, pio_encode_out(pio_null, txf->num_zeros));
     pio_sm_exec(ch->pio, ch->sm_tx, pio_encode_set(pio_y, 1));
-    for(int i = 0; i < txf->num_u32; i++) {
+    pio_sm_exec(ch->pio, ch->sm_tx, pio_encode_mov(pio_pins, pio_y));
+    //pio_sm_exec(ch->pio, ch->sm_tx, pio_encode_out(pio_null, txf->num_zeros));
+    pio_sm_set_enabled(ch->pio, ch->sm_tx, true);
+    for(int i = 1; i < txf->num_u32; i++) {
         pio_sm_put_blocking(ch->pio, ch->sm_tx, txf->out[i]);
     }
-*/
-    debug_getbit(txf->out, txf->num_u32);
-    printf("num_bits: %u", txf->num_bits);
+
+    //debug_printrawout(txf->out, txf->num_u32);
+    //debug_getbit(txf->out, txf->num_u32);
+    //printf("num_bits: %u", txf->num_bits);
     /*
     while(bmc_rx_active(ch)) {
       sleep_us(20);
