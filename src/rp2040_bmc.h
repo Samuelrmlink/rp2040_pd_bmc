@@ -45,6 +45,8 @@ void thread_pd_policy_engine(void* unused_arg);
 void pd_frame_clear(pd_frame* pdf);
 void pdf_generate_goodcrc(pd_frame *input_frame, pd_frame *output_frame);
 PDMessageType pdf_get_sop_msg_type(pd_frame *msg);
+uint8_t pdf_get_msgid(pd_frame *msg);
+bool is_sop_msgtype(pd_frame *pdf, uint8_t msgtype);
 bool is_src_cap(pd_frame *pdf);
 uint8_t optimal_pdo(pd_frame *pdf, pdo_accept_criteria power_req);
 void thread_pd_portctrl(void* unused_arg);

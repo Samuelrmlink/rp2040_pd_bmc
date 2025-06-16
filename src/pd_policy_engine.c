@@ -171,13 +171,18 @@ void thread_pd_policy_engine(void* unused_arg) {
 
     while(true) {
         xQueueReceive(queue_pe_in, (void *) &pdf, portMAX_DELAY);
-        printf("PE %X\n", pdf.hdr);
+        //printf("PE %X\n", pdf.hdr);
         //printf("Data Received %X\n", pdf.hdr);
         //printf("R\n");
-        tmpindex = optimal_pdo(&pdf, power_req);
-	tmpindex = 3;
-        if(!tmpindex) { tmpindex = 1; }
-        pdf_request_from_srccap(&pdf, tx, tmpindex, power_req);
-        pdf_transmit(tx, bmc_ch0);
+        if(is_sop_msgtype(&pdf, controlMsgSoftReset)) {
+            // TODO: Implement soft reset
+            printf("\nPE: Soft reset");
+        }
+        if(is_sop_msgtype(&pdf, dataMsgSourceCap)) {
+            tmpindex = optimal_pdo(&pdf, power_req);
+            if(!tmpindex) { tmpindex = 1; }
+            pdf_request_from_srccap(&pdf, tx, tmpindex, power_req);
+            pdf_transmit(tx, bmc_ch0);
+        }
     }
 }

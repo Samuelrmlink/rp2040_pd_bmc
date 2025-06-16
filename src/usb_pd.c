@@ -42,7 +42,7 @@ uint8_t pdf_get_msgid(pd_frame *msg) {
 }
 // Check MsgType (For example: controlMsgGoodCrc)
 bool is_sop_msgtype(pd_frame *pdf, uint8_t msgtype) {
-    bool ret = (pdf_get_sop_msg_type(pdf) == controlMsgGoodCrc) ? true : false;
+    bool ret = (pdf_get_sop_msg_type(pdf) == msgtype) ? true : false;
     return ret;
 }
 bool is_src_cap(pd_frame *pdf) {
@@ -224,13 +224,9 @@ void thread_pd_portctrl(void* unused_arg) {
                         if(!is_sop_msgtype(cPdf, controlMsgGoodCrc)) {
                             pdf_generate_goodcrc(cPdf, tx->pdf);
                             pdf_transmit(tx, bmc_ch0);
-                            printf("SOP\n");
                             // TODO: Implement pd_frame filtering system
                             //if(mcu_reg_get_uint(&key_sop_accept, false)) {
                             xQueueSendToBack(queue_pe_in, (void *) cPdf, (TickType_t) 0);
-                        } else {
-                            // Debug - TODO: remove
-                            printf(" CRC ");
                         }
                         break;
                     case(PdfTypeSopP):

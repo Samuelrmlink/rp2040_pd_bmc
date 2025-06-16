@@ -42,6 +42,8 @@ struct bmcChannel {
     uint sm_tx;
     uint sm_rx;
     uint irq;	// Example: PIO0_IRQ_0, etc...
+    uint sm_tx_offset;
+    uint sm_rx_offset;
 
     // Hardware pins
     uint rx;

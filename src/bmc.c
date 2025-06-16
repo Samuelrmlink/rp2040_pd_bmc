@@ -328,16 +328,17 @@ bool bmc_channel_register(bmcChannels *ch, PIO pio, uint sm_tx, uint sm_rx, uint
 	gpio_init(ch_ptr->tx_low);
 	gpio_set_dir(ch_ptr->tx_low, GPIO_OUT);
     float clock_div = (float)clock_get_hz(clk_sys) / 5000000;
+    printf("clk_div %f\n", clock_div);
 	// Init TX FIFO (if applicable)
 	if(ch_ptr->tx_low) {
-	    uint offset_tx = pio_add_program(ch_ptr->pio, &differential_manchester_tx_program);
-	    differential_manchester_tx_program_init(ch_ptr->pio, ch_ptr->sm_tx, offset_tx, ch_ptr->tx_high, clock_div); // 25.f for rp2040 28.2 for rp2350
+	    ch_ptr->sm_tx_offset = pio_add_program(ch_ptr->pio, &differential_manchester_tx_program);
+	    differential_manchester_tx_program_init(ch_ptr->pio, ch_ptr->sm_tx, ch_ptr->sm_tx_offset, ch_ptr->tx_high, clock_div); // 25.f for rp2040 28.2 for rp2350
 	    pio_sm_set_enabled(ch_ptr->pio, ch_ptr->sm_tx, true);
 	}
 	// Init RX FIFO (if applicable)
 	if(ch_ptr->rx) {
-	    uint offset_rx = pio_add_program(ch_ptr->pio, &differential_manchester_rx_program);
-	    differential_manchester_rx_program_init(ch_ptr->pio, ch_ptr->sm_rx, offset_rx, ch_ptr->rx, clock_div); // 25.f for rp2040 28.2 for rp2350
+	    ch_ptr->sm_rx_offset = pio_add_program(ch_ptr->pio, &differential_manchester_rx_program);
+	    differential_manchester_rx_program_init(ch_ptr->pio, ch_ptr->sm_rx, ch_ptr->sm_rx_offset, ch_ptr->rx, clock_div); // 25.f for rp2040 28.2 for rp2350
 	    pio_sm_set_enabled(ch_ptr->pio, ch_ptr->sm_rx, true);
 	}
 	// Init RX IRQ handler
@@ -536,10 +537,13 @@ void pdf_transmit(bmcTx *txf, bmcChannel *ch) {
     // Start transmitting
     pio_sm_set_enabled(ch->pio, ch->sm_tx, false);
     pio_sm_put_blocking(ch->pio, ch->sm_tx, txf->out[0]);
-    //pio_sm_exec(ch->pio, ch->sm_tx, pio_encode_out(pio_null, txf->num_zeros));
+    pio_sm_exec(ch->pio, ch->sm_tx, pio_encode_out(pio_null, (txf->num_zeros + 1) * 2));
     pio_sm_exec(ch->pio, ch->sm_tx, pio_encode_set(pio_y, 1));
     pio_sm_exec(ch->pio, ch->sm_tx, pio_encode_mov(pio_pins, pio_y));
+    busy_wait_us(1);
     //pio_sm_exec(ch->pio, ch->sm_tx, pio_encode_out(pio_null, txf->num_zeros));
+    //pio_sm_config c = differential_manchester_tx_program_get_default_config(ch->sm_tx_offset);
+    //pio_sm_init(ch->pio, ch->sm_tx, ch->sm_tx_offset + differential_manchester_tx_offset_start, &c);
     pio_sm_set_enabled(ch->pio, ch->sm_tx, true);
     for(int i = 1; i < txf->num_u32; i++) {
         pio_sm_put_blocking(ch->pio, ch->sm_tx, txf->out[i]);
