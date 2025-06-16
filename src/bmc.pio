@@ -14,16 +14,16 @@
 ; Side-set bit 0 must be mapped to the data output pin.
 ; Autopull must be enabled.
 safe_state:
+    nop                 [1]
     nop                 side 1 [7]
     nop                 [7]
-    nop                 side 0
 reset_delay:
-    nop                 [3]
+    nop                 side 0 [7]
+    mov pins, y
 public start:
 initial_high:
-    mov pins, y
     out x, 1
-    out y, 1         side 1 [4]
+    out y, 1         side 1 [5]
     jmp !x high_0
 high_1:
     nop
