@@ -179,6 +179,7 @@ void thread_pd_policy_engine(void* unused_arg) {
             printf("\nPE: Soft reset");
         }
         if(is_sop_msgtype(&pdf, dataMsgSourceCap)) {
+            sleep_ms(2);
             tmpindex = optimal_pdo(&pdf, power_req);
             if(!tmpindex) { tmpindex = 1; }
             pdf_request_from_srccap(&pdf, tx, tmpindex, power_req);

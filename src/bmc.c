@@ -534,6 +534,8 @@ void pdf_transmit(bmcTx *txf, bmcChannel *ch) {
     while(bmc_rx_active(ch)) {
       sleep_us(20);
     }
+    // Disable BMC RX IRQ temporarily
+    irq_set_enabled(ch->irq, false);
     // Start transmitting
     pio_sm_set_enabled(ch->pio, ch->sm_tx, false);
     pio_sm_put_blocking(ch->pio, ch->sm_tx, txf->out[0]);
@@ -548,6 +550,12 @@ void pdf_transmit(bmcTx *txf, bmcChannel *ch) {
     for(int i = 1; i < txf->num_u32; i++) {
         pio_sm_put_blocking(ch->pio, ch->sm_tx, txf->out[i]);
     }
+    // Clear BMC RX FIFO
+    while(!pio_sm_is_rx_fifo_empty(ch->pio, ch->sm_rx)) {
+        pio_sm_get(ch->pio, ch->sm_rx);
+    }
+    // Re-enable BMC RX IRQ
+    irq_set_enabled(ch->irq, true);
 
     //debug_printrawout(txf->out, txf->num_u32);
     //debug_getbit(txf->out, txf->num_u32);

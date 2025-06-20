@@ -222,11 +222,15 @@ void thread_pd_portctrl(void* unused_arg) {
                     case(PdfTypeSop):
                         // SOP type
                         if(!is_sop_msgtype(cPdf, controlMsgGoodCrc)) {
+                            individual_pin_toggle(2);
                             pdf_generate_goodcrc(cPdf, tx->pdf);
+                            individual_pin_toggle(2);
                             pdf_transmit(tx, bmc_ch0);
                             // TODO: Implement pd_frame filtering system
                             //if(mcu_reg_get_uint(&key_sop_accept, false)) {
+                            individual_pin_toggle(2);
                             xQueueSendToBack(queue_pe_in, (void *) cPdf, (TickType_t) 0);
+                            individual_pin_toggle(2);
                         }
                         break;
                     case(PdfTypeSopP):
