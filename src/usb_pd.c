@@ -108,7 +108,7 @@ individual_pin_toggle(16);
 
 // Polling func: Maintains procbuf ringbuffer (handles rollover)
 void poll_manage_procbuf(uint8_t proc_count) {
-    extern bmcRx *pdq_rx;
+    extern bmcRxBuffer *pdq_rx;
     // If proc_counter is ready to rollover
     if(proc_count == pdq_rx->rolloverObj) {
         // Clear the inputRollover variable
@@ -124,7 +124,7 @@ void poll_manage_procbuf(uint8_t proc_count) {
 // Polling func: Returns true when new pd_frame data is available
 // Returns: [-1]Corrupted new data, [0]No new data, [1]Valid new data
 int8_t new_data_procbuf(uint8_t proc_count) {
-    extern bmcRx *pdq_rx;
+    extern bmcRxBuffer *pdq_rx;
     pd_frame *cPdf = &(pdq_rx->pdfPtr)[proc_count];
     if(!((pdq_rx->objOffset > proc_count) || pdq_rx->inputRollover)) {
         // No new data
@@ -142,7 +142,7 @@ int8_t new_data_procbuf(uint8_t proc_count) {
 }
 // Polling func: Clears PIO interfaces as required
 void manage_pio_rxbuf() {
-    extern bmcRx *pdq_rx;
+    extern bmcRxBuffer *pdq_rx;
     extern bmcChannels *bmc_ch;
     bmcChannel *bmc_ch0 = &(bmc_ch->chan)[0];
     if(bmc_get_timestamp(pdq_rx) && !bmc_rx_active(bmc_ch0)) {
@@ -172,8 +172,8 @@ extern configKey* config_db = database;
 // USB-PD Port Controller thread 
 void thread_pd_portctrl(void* unused_arg) {
     // USB-PD PHY RX/TX channel structures
-    extern bmcRx *pdq_rx;   // RX queue
-    extern bmcTx *tx;       // TX queue
+    extern bmcRxBuffer *pdq_rx;   // RX queue
+    extern bmcTxBuffer *tx;       // TX queue
     extern bmcChannels *bmc_ch;                 // Channels list
     bmcChannel *bmc_ch0 = &(bmc_ch->chan)[0];   // Channel 1 pointer
 

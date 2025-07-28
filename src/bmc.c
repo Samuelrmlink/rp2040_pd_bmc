@@ -1,4 +1,5 @@
 #include "main_i.h"
+#include "hardware/dma.h"
 #include "hardware/clocks.h"
 
 
@@ -6,7 +7,7 @@
 bmcChannels *bmc_ch;
 
 // Increment object offset safely (without overflow)
-void bmc_inc_object_offset(bmcRx *rx) {
+void bmc_inc_object_offset(bmcRxBuffer *rx) {
     if(rx->objOffset >= rx->rolloverObj - 1) {
         // We need to rollover
         rx->objOffset = 0;
@@ -16,12 +17,16 @@ void bmc_inc_object_offset(bmcRx *rx) {
         rx->objOffset += 1;
     }
 }
-bmcRx* bmc_rx_setup() {                 // See bmc_rx.h:    struct bmcRx
-    bmcRx *rx = malloc(sizeof(bmcRx));
+bmcRxBuffer* bmc_rxbuf_alloc() {                 // See bmc_rx.h:    struct bmcRxBuffer
+    bmcRxBuffer *rx = malloc(sizeof(bmcRxBuffer));
     rx->rolloverObj = 240;
     rx->pdfPtr = malloc(sizeof(pd_frame) * rx->rolloverObj);
     for(int i = 0; i < rx->rolloverObj; i++) {
         pd_frame_clear(&(rx->pdfPtr)[i]);
+    }
+    rx->input_buf = malloc(sizeof(uint32_t) * BMCRX_INPUT_BUFFER_SIZE);
+    for(int i = 0; i < BMCRX_INPUT_BUFFER_SIZE; i++) {
+        rx->input_buf[rx->input_count] = 0;
     }
     rx->objOffset = 0;
     rx->byteOffset = 0;
@@ -36,8 +41,8 @@ bmcRx* bmc_rx_setup() {                 // See bmc_rx.h:    struct bmcRx
     rx->lastOverflow = 0;
     return rx;
 }
-bmcTx* bmc_tx_setup() {                 // See bmc_rx.h:    struct bmcTx
-    bmcTx *tx = malloc(sizeof(bmcTx));
+bmcTxBuffer* bmc_txbuf_alloc() {                 // See bmc_rx.h:    struct bmcTxBuffer
+    bmcTxBuffer *tx = malloc(sizeof(bmcTxBuffer));
     tx->pdf = malloc(sizeof(pd_frame));
     pd_frame_clear(tx->pdf);
     tx->byteOffset = 0;
@@ -51,7 +56,7 @@ bmcTx* bmc_tx_setup() {                 // See bmc_rx.h:    struct bmcTx
     tx->num_bits = 0;
     return tx;
 }
-void bmc_rx_overflow_protect(bmcRx *rx) {
+void bmc_rx_overflow_protect(bmcRxBuffer *rx) {
     rx->byteOffset = 0;
     rx->upperSymbol = 0;
     rx->scrapBits = 0;
@@ -67,7 +72,7 @@ void bmc_rx_overflow_protect(bmcRx *rx) {
     rx->lastOverflow = rx->objOffset;
     rx->objOffset += 1;
 }
-uint32_t bmc_get_timestamp(bmcRx *rx) {
+uint32_t bmc_get_timestamp(bmcRxBuffer *rx) {
     return (rx->pdfPtr)[rx->objOffset].timestamp_us;
 }
 // Returns true if valid, otherwise returns false
@@ -128,7 +133,7 @@ uint8_t bmc_extended_unchunked_bytes(pd_frame *pdf) {
         return 0;
     }
 }
-void bmc_locate_preamble(bmcRx *rx, uint32_t *in) {
+void bmc_locate_preamble(bmcRxBuffer *rx, uint32_t *in) {
     uint8_t offset = 0;
     // This function will align with the preamble (if found)
     switch(*in) {
@@ -149,7 +154,7 @@ void bmc_locate_preamble(bmcRx *rx, uint32_t *in) {
     rx->scrapBits = 0;
     rx->afterScrapOffset = 0;
 }
-void bmc_locate_sof(bmcRx *rx, uint32_t *in) {
+void bmc_locate_sof(bmcRxBuffer *rx, uint32_t *in) {
     uint8_t num_scrap_consuming;
     // While loop ONLY runs if there are at least 5 bits in the input buffer
     while(rx->inputOffset <= 27) {
@@ -180,7 +185,7 @@ void bmc_locate_sof(bmcRx *rx, uint32_t *in) {
     }
 }
 // Returns 4 bits (combined from both scrap and pio_raw)
-uint8_t bmc_pull_5b(bmcRx *rx, uint32_t *pio_raw) {
+uint8_t bmc_pull_5b(bmcRxBuffer *rx, uint32_t *pio_raw) {
     uint8_t decode_4b = bmc5bTo4b[(rx->scrapBits | (*pio_raw >> rx->inputOffset) << rx->afterScrapOffset) & 0x1F];
     // Increment offset to account for bits consumed from pio_raw
     rx->inputOffset += 5 - rx->afterScrapOffset;
@@ -189,7 +194,7 @@ uint8_t bmc_pull_5b(bmcRx *rx, uint32_t *pio_raw) {
     rx->afterScrapOffset = 0;
     return decode_4b;
 }
-bool bmc_load_symbols(bmcRx *rx, uint32_t *pio_raw) {
+bool bmc_load_symbols(bmcRxBuffer *rx, uint32_t *pio_raw) {
     uint8_t ordset_index;
     // While loop ONLY runs if there are at least 5 bits in the input buffer
     uint8_t decode_4b;
@@ -241,7 +246,7 @@ bool bmc_load_symbols(bmcRx *rx, uint32_t *pio_raw) {
     }
     return false;
 }
-void bmc_process_symbols(bmcRx *rx, uint32_t *pio_raw) {
+void bmc_process_symbols(bmcRxBuffer *rx, uint32_t *pio_raw) {
     // Reset inputOffset (since we are iterating through a new input buffer)
     rx->inputOffset = 0;
     // If rollover == true: Clear all memory allocated to incoming pd_frame data
@@ -268,8 +273,9 @@ void bmc_process_symbols(bmcRx *rx, uint32_t *pio_raw) {
         }
     }
 }
+/*
 void bmc_rx_check() {
-    extern bmcRx *pdq_rx;
+    extern bmcRxBuffer *pdq_rx;
     extern bmcChannels *bmc_ch;
     bmcChannel *bmc_ch0 = &(bmc_ch->chan)[0];
     uint32_t buf;
@@ -279,14 +285,27 @@ void bmc_rx_check() {
         bmc_process_symbols(pdq_rx, &buf);
     }
 }
+*/
+void bmc_rx_check() {
+    extern bmcRxBuffer *pdq_rx;
+    extern bmcChannels *bmc_ch;
+    bmcChannel *bmc_ch0 = &(bmc_ch->chan)[0];
+    //while(dma_hw->ch[bmc_ch0->rx_dma].write_addr);
+}
 void bmc_rx_cb() {
     extern bmcChannels *bmc_ch;
     bmcChannel *bmc_ch0 = &(bmc_ch->chan)[0];
     bmc_rx_check();
+    /*
     if(pio_interrupt_get(bmc_ch0->pio, 0)) {
 	pio_interrupt_clear(bmc_ch0->pio, 0);
     }
+    */
 }
+int bmc_dma_handler() {
+    printf("DMA\n");
+}
+
 // Allocates bmcChannels structure with a pointer array
 bmcChannels* bmc_channels_alloc(uint8_t numChannels) {
     bmcChannels *ch = malloc(sizeof(bmcChannels));
@@ -299,7 +318,7 @@ bmcChannels* bmc_channels_alloc(uint8_t numChannels) {
     return ch;
 }
 // Returns true when a BMC channel is successfully registered
-bool bmc_channel_register(bmcChannels *ch, PIO pio, uint sm_tx, uint sm_rx, uint irq, uint rx, uint tx_high, uint tx_low, uint adc) {
+bool bmc_channel_register(bmcChannels *ch, bmcRxBuffer *rx_buffer, bmcTxBuffer *tx_buffer, PIO pio, uint sm_tx, uint sm_rx, uint irq, uint rx, uint tx_high, uint tx_low, uint adc) {
     uint8_t chosen_channel = 0xFF;
     for(int i = 0; i < ch->maxChannels; i++) {
 	if((ch->chan)[i].irq == 0) {
@@ -314,6 +333,9 @@ bool bmc_channel_register(bmcChannels *ch, PIO pio, uint sm_tx, uint sm_rx, uint
     } else {
 	// Use pointer for better code readability
 	bmcChannel *ch_ptr = &(ch->chan)[chosen_channel];
+    // RX/TX buffers
+    ch_ptr->rx_buf = rx_buffer;
+    ch_ptr->tx_buf = tx_buffer;
 	// PIO instance and state-machines
 	ch_ptr->pio = pio;
 	ch_ptr->sm_tx = sm_tx;
@@ -342,8 +364,28 @@ bool bmc_channel_register(bmcChannels *ch, PIO pio, uint sm_tx, uint sm_rx, uint
 	    pio_sm_set_enabled(ch_ptr->pio, ch_ptr->sm_rx, true);
 	}
 	// Init RX IRQ handler
-	pio_set_irq0_source_enabled(ch_ptr->pio, pis_interrupt0, true);
-	irq_set_exclusive_handler(ch_ptr->irq, bmc_rx_cb);
+	//pio_set_irq0_source_enabled(ch_ptr->pio, pis_interrupt0, true);
+	//irq_set_exclusive_handler(ch_ptr->irq, bmc_rx_cb);
+    // Init RX DMA channel
+    ch_ptr->rx_dma = dma_claim_unused_channel(true);
+    dma_channel_config rx_dma_config = dma_channel_get_default_config(ch_ptr->rx_dma);
+    channel_config_set_transfer_data_size(&rx_dma_config, DMA_SIZE_32);
+    channel_config_set_read_increment(&rx_dma_config, false);
+    channel_config_set_write_increment(&rx_dma_config, true);
+    channel_config_set_dreq(&rx_dma_config, DREQ_PIO0_RX1);
+    dma_channel_configure(
+        ch_ptr->rx_dma,
+        &rx_dma_config,
+        &(ch_ptr->rx_buf->input_buf[0]),    // Write address - input buffer array
+        &(pio0_hw->rxf[ch_ptr->sm_rx]),     // Read address - RX FIFO (for whichever State Machine)
+        BMCRX_INPUT_BUFFER_SIZE,            // Number of u32 transfers
+        false                               // Don't start yet..
+    );
+    dma_channel_set_irq0_enabled(ch_ptr->rx_dma, true);     // Enable DMA_IRQ_0 for this channel
+    irq_set_enabled(DMA_IRQ_0, true);                       // Enable DMA_IRQ_0 on NVIC
+    irq_set_exclusive_handler(DMA_IRQ_0, bmc_dma_handler);
+    dma_channel_set_write_addr(ch_ptr->rx_dma, &(ch_ptr->rx_buf->input_buf[0]), true);
+    dma_channel_start(ch_ptr->rx_dma);
 	// Channel registered successfully
 	return true;
     }
@@ -373,7 +415,7 @@ void static tx_raw_buf_write(uint32_t input_bits, uint8_t num_input_bits, uint32
   buf[obj_offset] |= (input_bits & (0xFFFFFFFF >> (32 - num_input_bits))) << bit_offset;
   *buf_position += num_input_bits;
 }
-void pdf_to_uint32(bmcTx *txf) {
+void pdf_to_uint32(bmcTxBuffer *txf) {
     uint16_t current_bit_num = 0;
     uint8_t follower_zero_bits = 0;
 
@@ -462,7 +504,7 @@ void debug_printrawout(uint32_t *obj, uint8_t num_objects) {
     printf("\n");
 }
 
-uint32_t* add_txlow_data(bmcTx *txf) {
+uint32_t* add_txlow_data(bmcTxBuffer *txf) {
     uint32_t *in = txf->out;
     txf->num_u32 *= 2;
     uint32_t *out = malloc(sizeof(uint32_t) * txf->num_u32);
@@ -520,7 +562,7 @@ bool bmc_rx_active(bmcChannel *chan) {
    }
    return rx_line_active;
 }
-void pdf_transmit(bmcTx *txf, bmcChannel *ch) {
+void pdf_transmit(bmcTxBuffer *txf, bmcChannel *ch) {
     // Convert pd_frame object to data that can be transmitted via PIO
     pdf_to_uint32(txf);
     // Convert data (interleave TX_HIGH and TX_LOW)

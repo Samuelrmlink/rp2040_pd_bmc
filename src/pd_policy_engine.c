@@ -83,7 +83,7 @@ uint8_t optimal_pdo(pd_frame *pdf, pdo_accept_criteria power_req) {
 }
 
 // TODO - move into a "Policy Engine"
-void pdf_request_from_srccap(pd_frame *input_frame, bmcTx *tx, uint8_t req_pdo, pdo_accept_criteria req) {
+void pdf_request_from_srccap(pd_frame *input_frame, bmcTxBuffer *tx, uint8_t req_pdo, pdo_accept_criteria req) {
     switch((input_frame->obj[req_pdo - 1] >> 30) & 0x3) {
         case (pdoTypeFixed) :
             pdf_request_from_srccap_fixed(input_frame, tx, req_pdo, req);
@@ -99,7 +99,7 @@ void pdf_request_from_srccap(pd_frame *input_frame, bmcTx *tx, uint8_t req_pdo, 
             break;
     }
 }
-void pdf_request_from_srccap_fixed(pd_frame *input_frame, bmcTx *tx, uint8_t req_pdo, pdo_accept_criteria req) {
+void pdf_request_from_srccap_fixed(pd_frame *input_frame, bmcTxBuffer *tx, uint8_t req_pdo, pdo_accept_criteria req) {
     // Ensure we start with a clean slate
     pd_frame_clear(tx->pdf);
 
@@ -125,7 +125,7 @@ void pdf_request_from_srccap_fixed(pd_frame *input_frame, bmcTx *tx, uint8_t req
     // Generate CRC32
     tx->pdf->obj[1] = crc32_pdframe_calc(tx->pdf);
 }
-void pdf_request_from_srccap_augmented(pd_frame *input_frame, bmcTx *tx, uint8_t req_pdo, pdo_accept_criteria req) {
+void pdf_request_from_srccap_augmented(pd_frame *input_frame, bmcTxBuffer *tx, uint8_t req_pdo, pdo_accept_criteria req) {
     // Ensure we start with a clean slate
     pd_frame_clear(tx->pdf);
 
@@ -157,7 +157,7 @@ void pdf_request_from_srccap_augmented(pd_frame *input_frame, bmcTx *tx, uint8_t
 
 void thread_pd_policy_engine(void* unused_arg) {
     extern QueueHandle_t queue_pe_in;
-    extern bmcTx *tx;       // TX queue
+    extern bmcTxBuffer *tx;       // TX queue
     extern bmcChannels *bmc_ch;
     bmcChannel *bmc_ch0 = &(bmc_ch->chan)[0];
     pd_frame pdf;

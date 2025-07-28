@@ -2,10 +2,15 @@
 #define _BMC_RX_H
 #include "hardware/pio.h"
 
-typedef struct bmcRx bmcRx;
-typedef struct bmcTx bmcTx;
+#define BMCRX_INPUT_BUFFER_SIZE 40
 
-struct bmcRx {
+typedef struct bmcRxBuffer bmcRxBuffer;
+typedef struct bmcTxBuffer bmcTxBuffer;
+
+struct bmcRxBuffer {
+    uint32_t *input_buf;        // DMA writes to this
+    uint8_t input_count;        // Input count
+
     pd_frame *pdfPtr;           // Pointer to the first pd_frame object allocated
     uint8_t rolloverObj;        // Total number of pd_frame objects allocated
     uint8_t objOffset;          // Offset # of pd_frame objects (starts at 0 - should rollover and never actually land on the rollover_obj value)
@@ -23,7 +28,7 @@ struct bmcRx {
     uint8_t lastOverflow;       // Index of the last pio rx buffer overflow
 };
 
-struct bmcTx {
+struct bmcTxBuffer {
     pd_frame *pdf;
     uint8_t byteOffset;
     bool upperSymbol;
@@ -50,6 +55,14 @@ struct bmcChannel {
     uint tx_high;
     uint tx_low;
     uint adc;
+
+    // DMA channels
+    int rx_dma;
+    int tx_dma;
+
+    // BMC RX/TX Buffers
+    bmcRxBuffer *rx_buf;
+    bmcTxBuffer *tx_buf;
 
     // Currently unused (TO BE ADDED) - TODO:
     // connector_orientation

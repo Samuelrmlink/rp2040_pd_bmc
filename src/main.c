@@ -28,9 +28,9 @@ TaskHandle_t tskhdl_pd_pol = NULL;  // Task handle: USB-PD policy engine
 QueueHandle_t queue_pc_in = NULL;   // Queue: Port Controller Input
 QueueHandle_t queue_pe_in = NULL;   // Queue: Policy Engine Input
 
-// Channel structures
-bmcRx *pdq_rx;
-bmcTx *tx;
+// BMC TX/TX Buffers
+bmcRxBuffer *pdq_rx;
+bmcTxBuffer *tx;
 
 // USB thread
 static void thread_usb(void* unused_arg) {
@@ -48,10 +48,10 @@ int main() {
     assert(status_task_usb == pdPASS);
 
     // Setup USB-PD channels
-    pdq_rx = bmc_rx_setup();
-    tx = bmc_tx_setup();
+    pdq_rx = bmc_rxbuf_alloc();
+    tx = bmc_txbuf_alloc();
     bmc_ch = bmc_channels_alloc(4);
-    bool ch_reg = bmc_channel_register(bmc_ch, pio0, 0, 1, PIO0_IRQ_0, 6, 9, 10, 26);
+    bool ch_reg = bmc_channel_register(bmc_ch, pdq_rx, tx, pio0, 0, 1, PIO0_IRQ_0, 6, 9, 10, 26);
     //bool ch_reg = bmc_channel_register(bmc_ch, pio0, 0, 1, PIO0_IRQ_0, 7, 11, 12, 27);
     assert(ch_reg);
 

@@ -5,6 +5,7 @@
 #include "../mcu_registers.h"
 #include "cli_hex_convert.h"
 #include <string.h>
+#include "hardware/dma.h"
 
 extern const size_t database_items_count = sizeof(database) / sizeof(configKey);
 
@@ -162,7 +163,7 @@ static uint32_t str_to_uint_universal(const char* str) {
     }
 }
 void cli_usbpd_show_srccap(Cli *cli, uint32_t *argval) {
-    extern bmcRx *pdq_rx;
+    extern bmcRxBuffer *pdq_rx;
     extern uint8_t srccap_index;
     for(int i = 0; i < 56; i++) {
         cli_printf(cli, "%02X", (pdq_rx->pdfPtr)[srccap_index].raw_bytes[i]);
@@ -170,32 +171,44 @@ void cli_usbpd_show_srccap(Cli *cli, uint32_t *argval) {
     cli_printf(cli, "\n");
 }
 void cli_usbpd_show_debugstate(Cli *cli, uint32_t *argval) {
-    extern bmcRx *pdq_rx;
-    cli_printf(cli, "bmcRx objOffset=%u byteOffset=%u upperSymbol=%u inputRollover=%u scrapBits=%X afterScrapOffset=%u inputOffset=%u overflowCount=%u lastOverflow=%u" EOL, pdq_rx->objOffset, pdq_rx->byteOffset, pdq_rx->upperSymbol, pdq_rx->inputRollover, pdq_rx->scrapBits, pdq_rx->afterScrapOffset, pdq_rx->inputOffset, pdq_rx->overflowCount, pdq_rx->lastOverflow);
+    extern bmcRxBuffer *pdq_rx;
+    extern bmcChannels *bmc_ch;
+    bmcChannel *bmc_ch0 = &(bmc_ch->chan)[0];
+    cli_printf(cli, "bmcRx PIO0 sm1 level: %u\n", pio0_hw->flevel >> PIO_FLEVEL_RX1_LSB & 0xF);
+    cli_printf(cli, "Input Count: %u\n", BMCRX_INPUT_BUFFER_SIZE - dma_hw->ch[bmc_ch0->rx_dma].transfer_count);
+    cli_printf(cli, "bmcRxBuffer WriteAddr: %u\n", dma_hw->ch[bmc_ch0->rx_dma].write_addr);
+    for(int i = 0; i < BMCRX_INPUT_BUFFER_SIZE; i++) {
+        //cli_printf(cli, "%X ", bmc_ch0->rx_buf->input_buf[i]));
+        //uint32_t *input_buffer = bmc_ch0->rx_buf->input_buf;
+        cli_printf(cli, "%X ", bmc_ch0->rx_buf->input_buf[0]);
+        //cli_printf(cli, "%X ", 0);
+    }
+    cli_printf(cli, "\n");
+    cli_printf(cli, "bmcRxBuffer objOffset=%u byteOffset=%u upperSymbol=%u inputRollover=%u scrapBits=%X afterScrapOffset=%u inputOffset=%u overflowCount=%u lastOverflow=%u" EOL, pdq_rx->objOffset, pdq_rx->byteOffset, pdq_rx->upperSymbol, pdq_rx->inputRollover, pdq_rx->scrapBits, pdq_rx->afterScrapOffset, pdq_rx->inputOffset, pdq_rx->overflowCount, pdq_rx->lastOverflow);
 }
 void cli_usbpd_show_overflow(Cli *cli, uint32_t *argval) {
-    extern bmcRx *pdq_rx;
+    extern bmcRxBuffer *pdq_rx;
     for(int i = 0; i < 56; i++) {
         cli_printf(cli, "%02X", (pdq_rx->pdfPtr)[pdq_rx->lastOverflow].raw_bytes[i]);
     }
     cli_printf(cli, "\n");
 }
 void cli_usbpd_show_lastframe(Cli *cli, uint32_t *argval) {
-    extern bmcRx *pdq_rx;
+    extern bmcRxBuffer *pdq_rx;
     for(int i = 0; i < 56; i++) {
         cli_printf(cli, "%02X", (pdq_rx->pdfPtr)[pdq_rx->objOffset - 1].raw_bytes[i]);
     }
     cli_printf(cli, "\n");
 }
 void cli_usbpd_show_firstframe(Cli *cli, uint32_t *argval) {
-    extern bmcRx *pdq_rx;
+    extern bmcRxBuffer *pdq_rx;
     for(int i = 0; i < 56; i++) {
         cli_printf(cli, "%02X", (pdq_rx->pdfPtr)[0].raw_bytes[i]);
     }
     cli_printf(cli, "\n");
 }
 void cli_usbpd_show_rawframe(Cli *cli, uint32_t *framenum) {
-    extern bmcRx *pdq_rx;
+    extern bmcRxBuffer *pdq_rx;
     if(*framenum < pdq_rx->rolloverObj) {
     cli_printf(cli, "# %03u | ", *framenum);
     for(int i = 0; i < 56; i++) {
@@ -369,7 +382,7 @@ static const CliOption usbpdConfigOptions[] = {
 };
 static const size_t usbpdConfigOptions_count = sizeof(usbpdConfigOptions) / sizeof(usbpdConfigOptions[0]);
 void cli_usbpd_config(Cli *cli, std::vector<std::string>& argv) {
-    extern bmcRx *pdq_rx;
+    extern bmcRxBuffer *pdq_rx;
     if(argv.size() < 2) {
         // print help information
         cli_usbpd_config_help(NULL);
