@@ -57,8 +57,8 @@ int main() {
 
     queue_pc_in = xQueueCreate(3, sizeof(pd_frame));
     queue_pe_in = xQueueCreate(4, sizeof(pd_frame));
-    BaseType_t status_task_rx_frame = xTaskCreate(thread_pd_portctrl, "PD_PORTCTRL", 1024, NULL, 1, &tskhdl_pd_rxf);
-    BaseType_t status_task_pe = xTaskCreate(thread_pd_policy_engine, "PD_POLICY", 2048, NULL, 1, &tskhdl_pd_pol);
+    BaseType_t status_task_rx_frame = xTaskCreate(thread_pd_portctrl, "PD_PORTCTRL", 4096, NULL, 2, &tskhdl_pd_rxf);
+    BaseType_t status_task_pe = xTaskCreate(thread_pd_policy_engine, "PD_POLICY", 2048, NULL, 2, &tskhdl_pd_pol);
     assert(status_task_rx_frame == pdPASS);
     irq_set_enabled((bmc_ch->chan)[0].irq, true);
     // Start the scheduler

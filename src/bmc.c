@@ -26,7 +26,7 @@ bmcRxBuffer* bmc_rxbuf_alloc() {                 // See bmc_rx.h:    struct bmcR
     }
     rx->input_buf = malloc(sizeof(uint32_t) * BMCRX_INPUT_BUFFER_SIZE);
     for(int i = 0; i < BMCRX_INPUT_BUFFER_SIZE; i++) {
-        rx->input_buf[rx->input_count] = 0;
+        rx->input_buf[i] = 1;
     }
     rx->objOffset = 0;
     rx->byteOffset = 0;

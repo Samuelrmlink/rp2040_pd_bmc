@@ -204,7 +204,8 @@ void cli_write_prompt(Cli* cli) {
 }
 
 void cli_write_str(Cli* cli, const char* str) {
-    fputs(str, stdout);
+    //fputs(str, stdout);
+    printf("%s", str);
 }
 
 void cli_write_char(Cli* cli, char c) {
