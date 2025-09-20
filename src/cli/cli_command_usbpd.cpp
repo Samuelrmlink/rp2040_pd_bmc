@@ -176,7 +176,8 @@ void cli_usbpd_show_debugstate(Cli *cli, uint32_t *argval) {
     bmcChannel *bmc_ch0 = &(bmc_ch->chan)[0];
     cli_printf(cli, "bmcRx PIO0 sm1 level: %u\n", pio0_hw->flevel >> PIO_FLEVEL_RX1_LSB & 0xF);
     cli_printf(cli, "Input Count: %u\n", BMCRX_INPUT_BUFFER_SIZE - dma_hw->ch[bmc_ch0->rx_dma].transfer_count);
-    cli_printf(cli, "bmcRxBuffer WriteAddr: %u\n", dma_hw->ch[bmc_ch0->rx_dma].write_addr);
+    cli_printf(cli, "bmcRxBuffer WriteAddr: %X\n", dma_hw->ch[bmc_ch0->rx_dma].write_addr);
+    /*
     for(int i = 0; i < BMCRX_INPUT_BUFFER_SIZE; i++) {
         //cli_printf(cli, "%X ", bmc_ch0->rx_buf->input_buf[i]));
         //uint32_t *input_buffer = bmc_ch0->rx_buf->input_buf;
@@ -184,7 +185,8 @@ void cli_usbpd_show_debugstate(Cli *cli, uint32_t *argval) {
         //cli_printf(cli, "%X ", 0);
     }
     cli_printf(cli, "\n");
-    cli_printf(cli, "bmcRxBuffer objOffset=%u byteOffset=%u upperSymbol=%u inputRollover=%u scrapBits=%X afterScrapOffset=%u inputOffset=%u overflowCount=%u lastOverflow=%u" EOL, pdq_rx->objOffset, pdq_rx->byteOffset, pdq_rx->upperSymbol, pdq_rx->inputRollover, pdq_rx->scrapBits, pdq_rx->afterScrapOffset, pdq_rx->inputOffset, pdq_rx->overflowCount, pdq_rx->lastOverflow);
+    */
+    //cli_printf(cli, "bmcRxBuffer objOffset=%u byteOffset=%u upperSymbol=%u inputRollover=%u scrapBits=%X afterScrapOffset=%u inputOffset=%u overflowCount=%u lastOverflow=%u" EOL, pdq_rx->objOffset, pdq_rx->byteOffset, pdq_rx->upperSymbol, pdq_rx->inputRollover, pdq_rx->scrapBits, pdq_rx->afterScrapOffset, pdq_rx->inputOffset, pdq_rx->overflowCount, pdq_rx->lastOverflow);
 }
 void cli_usbpd_show_overflow(Cli *cli, uint32_t *argval) {
     extern bmcRxBuffer *pdq_rx;

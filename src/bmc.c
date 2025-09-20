@@ -292,18 +292,22 @@ void bmc_rx_check() {
     bmcChannel *bmc_ch0 = &(bmc_ch->chan)[0];
     //while(dma_hw->ch[bmc_ch0->rx_dma].write_addr);
 }
+/*
 void bmc_rx_cb() {
     extern bmcChannels *bmc_ch;
     bmcChannel *bmc_ch0 = &(bmc_ch->chan)[0];
     bmc_rx_check();
-    /*
+    / *
     if(pio_interrupt_get(bmc_ch0->pio, 0)) {
-	pio_interrupt_clear(bmc_ch0->pio, 0);
+        pio_interrupt_clear(bmc_ch0->pio, 0);
     }
-    */
+    * /
 }
+*/
 int bmc_dma_handler() {
-    printf("DMA\n");
+    dma_hw->ints0 = 1u << bmc_ch->chan->rx_dma;
+    dma_channel_set_write_addr(bmc_ch->chan->rx_dma, &(bmc_ch->chan->rx_buf->input_buf[0]), true);
+    printf("DMA ");
 }
 
 // Allocates bmcChannels structure with a pointer array
@@ -389,13 +393,6 @@ bool bmc_channel_register(bmcChannels *ch, bmcRxBuffer *rx_buffer, bmcTxBuffer *
 	// Channel registered successfully
 	return true;
     }
-}
-// TODO: find a new place for this function
-void individual_pin_toggle(uint8_t pin_num) {
-    if(gpio_get(pin_num))
-	gpio_clr_mask(1 << pin_num); // Drive pin low
-    else
-	gpio_set_mask(1 << pin_num); // Drive pin high
 }
 
 void static tx_raw_buf_write(uint32_t input_bits, uint8_t num_input_bits, uint32_t *buf, uint16_t *buf_position) {
@@ -606,7 +603,6 @@ void pdf_transmit(bmcTxBuffer *txf, bmcChannel *ch) {
     while(bmc_rx_active(ch)) {
       sleep_us(20);
     }
-    individual_pin_toggle(17);
     irq_set_enabled(ch->irq, false);
     gpio_set_mask(1 << ch->tx_low);
     uint64_t timestamp = time_us_64();
@@ -632,6 +628,5 @@ void pdf_transmit(bmcTxBuffer *txf, bmcChannel *ch) {
         pio_sm_get(ch->pio, ch->sm_rx);
     }
     irq_set_enabled(ch->irq, true);
-    individual_pin_toggle(17);
     */
 }
