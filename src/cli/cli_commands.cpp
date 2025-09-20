@@ -1,4 +1,4 @@
-#include "cli_commands.h"
+#include "cli/cli_commands.h"
 #include <string.h>
 
 void cli_gpio(Cli* cli, std::string& args);

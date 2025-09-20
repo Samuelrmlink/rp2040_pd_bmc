@@ -1,9 +1,9 @@
-#include "cli_commands.h"
-#include "../pd_frame.h"
-#include "../bmc_rx.h"
-#include "../policy_engine.h"
-#include "../mcu_registers.h"
-#include "cli_hex_convert.h"
+#include "cli/cli_commands.h"
+#include "pd_frame.h"
+#include "bmc_rx.h"
+#include "policy_engine.h"
+#include "mcu_registers.h"
+#include "cli/cli_hex_convert.h"
 #include <string.h>
 #include "hardware/dma.h"
 

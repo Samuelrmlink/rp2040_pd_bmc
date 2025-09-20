@@ -12,11 +12,26 @@ if (EXISTS ${picoVscode})
     include(${picoVscode})
 endif()
 # ====================================================================================
+
 cmake_minimum_required(VERSION 3.13)
 set(PICO_BOARD pico2 CACHE STRING "Board type")
 
+# Library Base Paths
+set(CONFIG_BASE_PATH ${CMAKE_SOURCE_DIR}/config)
+set(CMAKE_INCLUDES_PATH ${CONFIG_BASE_PATH}/cmake)
+set(LIBRARY_BASE_PATH ${CMAKE_SOURCE_DIR}/lib)
+set(PROJECT_INCLUDES_PATH ${CMAKE_SOURCE_DIR}/include)
+
+if(NOT DEFINED FREERTOS_KERNEL_PATH)
+    set(FREERTOS_KERNEL_PATH ${LIBRARY_BASE_PATH}/FreeRTOS-Kernel)
+    message(STATUS "FREERTOS_KERNEL_PATH = ${FREERTOS_KERNEL_PATH}")
+endif()
+
 # Include the Pico SDK
-include(pico_sdk_import.cmake)
+include(${CMAKE_INCLUDES_PATH}/pico_sdk_import.cmake)
+
+# Include FreeRTOS
+include(${CMAKE_INCLUDES_PATH}/FreeRTOS_Kernel_import.cmake)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
@@ -27,8 +42,6 @@ project(bmc_pd C CXX ASM)
 # Initialize the Pico SDK
 pico_sdk_init()
 
-include(FreeRTOS-Config/FreeRTOS_Kernel_import.cmake)
-
 # Add bmc_pd source code
 file(GLOB_RECURSE SOURCES "src/*.c*" "src/cli/*.c*")
 add_executable(bmc_pd ${SOURCES})
@@ -38,7 +51,7 @@ pico_generate_pio_header(bmc_pd ${CMAKE_CURRENT_LIST_DIR}/src/bmc.pio)
 
 # Link libraries used for this application
 target_link_libraries(bmc_pd PRIVATE pico_stdlib pico_unique_id hardware_pio hardware_dma pico_async_context_freertos FreeRTOS-Kernel-Heap4)
-target_include_directories(bmc_pd PRIVATE ${CMAKE_CURRENT_LIST_DIR}/FreeRTOS-Config)
+target_include_directories(bmc_pd PRIVATE ${CONFIG_BASE_PATH}/FreeRTOS ${PROJECT_INCLUDES_PATH})
 
 # Add debug & other compiler options
 add_compile_options(-Wall

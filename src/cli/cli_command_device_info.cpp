@@ -1,4 +1,4 @@
-#include "cli_commands.h"
+#include "cli/cli_commands.h"
 
 void cli_device_info(Cli* cli, std::string& args) {
     cli_printf(cli, "github: https://github.com/Samuelrmlink/rp2040_pd_bmc" EOL);
