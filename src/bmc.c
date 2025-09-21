@@ -24,9 +24,9 @@ bmcRxBuffer* bmc_rxbuf_alloc() {                 // See bmc_rx.h:    struct bmcR
     for(int i = 0; i < rx->rolloverObj; i++) {
         pd_frame_clear(&(rx->pdfPtr)[i]);
     }
-    rx->input_buf = malloc(sizeof(uint32_t) * BMCRX_INPUT_BUFFER_SIZE);
+    rx->input_raw_buf = malloc(sizeof(uint32_t) * BMCRX_INPUT_BUFFER_SIZE);
     for(int i = 0; i < BMCRX_INPUT_BUFFER_SIZE; i++) {
-        rx->input_buf[i] = 1;
+        rx->input_raw_buf[i] = 1;
     }
     rx->objOffset = 0;
     rx->byteOffset = 0;
@@ -273,6 +273,27 @@ void bmc_process_symbols(bmcRxBuffer *rx, uint32_t *pio_raw) {
         }
     }
 }
+// Processes any raw data received
+void bmc_dma_check(bmcChannel *bmc_chan) {
+    uint dma_transfer_idx = BMCRX_INPUT_BUFFER_SIZE - dma_channel_hw_addr(bmc_chan->rx_dma)->transfer_count;
+    uint8_t *process_count = &bmc_chan->rx_buf->input_raw_count;
+    if(dma_transfer_idx == *process_count) {
+        // No new data received
+        return;
+    }
+    // New data was received
+    uint32_t *raw_data = &(bmc_chan->rx_buf->input_raw_buf[*process_count]);
+    printf("%s", *raw_data);
+    /*
+    // Process symbols
+    bmc_process_symbols(bmc_chan->rx_buf, raw_data);
+    // Increment process counter
+    if(*process_count >= BMCRX_INPUT_BUFFER_SIZE)
+        *process_count = 0;
+    else
+        (*process_count)++;
+    */
+}
 /*
 void bmc_rx_check() {
     extern bmcRxBuffer *pdq_rx;
@@ -306,7 +327,7 @@ void bmc_rx_cb() {
 */
 int bmc_dma_handler() {
     dma_hw->ints0 = 1u << bmc_ch->chan->rx_dma;
-    dma_channel_set_write_addr(bmc_ch->chan->rx_dma, &(bmc_ch->chan->rx_buf->input_buf[0]), true);
+    dma_channel_set_write_addr(bmc_ch->chan->rx_dma, &(bmc_ch->chan->rx_buf->input_raw_buf[0]), true);
     printf("DMA ");
 }
 
@@ -380,7 +401,7 @@ bool bmc_channel_register(bmcChannels *ch, bmcRxBuffer *rx_buffer, bmcTxBuffer *
     dma_channel_configure(
         ch_ptr->rx_dma,
         &rx_dma_config,
-        &(ch_ptr->rx_buf->input_buf[0]),    // Write address - input buffer array
+        &(ch_ptr->rx_buf->input_raw_buf[0]),    // Write address - input buffer array
         &(pio0_hw->rxf[ch_ptr->sm_rx]),     // Read address - RX FIFO (for whichever State Machine)
         BMCRX_INPUT_BUFFER_SIZE,            // Number of u32 transfers
         false                               // Don't start yet..
@@ -388,7 +409,7 @@ bool bmc_channel_register(bmcChannels *ch, bmcRxBuffer *rx_buffer, bmcTxBuffer *
     dma_channel_set_irq0_enabled(ch_ptr->rx_dma, true);     // Enable DMA_IRQ_0 for this channel
     irq_set_enabled(DMA_IRQ_0, true);                       // Enable DMA_IRQ_0 on NVIC
     irq_set_exclusive_handler(DMA_IRQ_0, bmc_dma_handler);
-    dma_channel_set_write_addr(ch_ptr->rx_dma, &(ch_ptr->rx_buf->input_buf[0]), true);
+    dma_channel_set_write_addr(ch_ptr->rx_dma, &(ch_ptr->rx_buf->input_raw_buf[0]), true);
     dma_channel_start(ch_ptr->rx_dma);
 	// Channel registered successfully
 	return true;

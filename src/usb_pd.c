@@ -170,6 +170,7 @@ void thread_pd_portctrl(void* unused_arg) {
                 break;
             case(0):    // No new data
                 //manage_pio_rxbuf(); // Clears PIO interfaces as required
+                bmc_dma_check(bmc_ch0);
                 // Do nothing.. Will wait until more data arrives
                 break;
             case(1):    // Valid new data

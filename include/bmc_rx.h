@@ -8,8 +8,8 @@ typedef struct bmcRxBuffer bmcRxBuffer;
 typedef struct bmcTxBuffer bmcTxBuffer;
 
 struct bmcRxBuffer {
-    uint32_t *input_buf;        // DMA writes to this
-    uint8_t input_count;        // Input count
+    uint32_t *input_raw_buf;    // DMA writes to this
+    uint8_t input_raw_count;    // Raw BMC processing counter
 
     pd_frame *pdfPtr;           // Pointer to the first pd_frame object allocated
     uint8_t rolloverObj;        // Total number of pd_frame objects allocated
