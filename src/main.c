@@ -36,6 +36,7 @@ int main() {
     BaseType_t status_task_usb = xTaskCreate(thread_usb, "USB_THREAD", 1024, NULL, 1, &tskhdl_usb_cli);
     assert(status_task_usb == pdPASS);
 
+    BaseType_t status_task_tcpc = xTaskCreate(tcpc_task, "TCPC_THREAD", 2048, NULL, 1, &tskhdl_pd_rxf);
 
     // Start the scheduler
     vTaskStartScheduler();

@@ -1,5 +1,5 @@
-#ifndef _TCPC_BMC_PHY
-#define _TCPC_BMC_PHY
+#ifndef _TCPC_BMC_PHY_H
+#define _TCPC_BMC_PHY_H
 
 struct tcpcPhyChannel {
     PIO pio;

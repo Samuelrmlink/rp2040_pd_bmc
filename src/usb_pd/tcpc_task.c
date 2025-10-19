@@ -2,6 +2,8 @@
 #include "hardware/dma.h"
 #include "hardware/clocks.h"
 
+uint tcpc_dma_channel;
+
 static int tcpc_pio_rx_init(PIO pio, uint sm_rx, uint pin_rx) {
     float clock_div = (float)clock_get_hz(clk_sys) / 5000000;
     uint sm_rx_offset = pio_add_program(pio, &differential_manchester_rx_program);
@@ -10,12 +12,12 @@ static int tcpc_pio_rx_init(PIO pio, uint sm_rx, uint pin_rx) {
 }
 
 static int tcpc_dma_handler() {
-    extern tcpc_dma_channel;
+    extern uint tcpc_dma_channel;
     // Clear DMA interrupt
     dma_hw->ints0 = 1u << tcpc_dma_channel;
 
     // Do something - TODO: Add actual functionality
-    printf("DMA interrupt!\n");
+    //printf("DMA interrupt!\n");
 }
 //  
 //  tcpc_rx_dma_init - Initializes USB-PD RX DMA channel
@@ -40,7 +42,7 @@ static int tcpc_rx_dma_init(void *pio_rx_fifo, uint pio_dreq, void *raw_rx_buf, 
         buf_size,
         false       // Delay DMA start
     );
-    dma_channel_set_irq0_enable(dma_channel, true);
+    dma_channel_set_irq0_enabled(dma_channel, true);
     irq_set_exclusive_handler(DMA_IRQ_0, tcpc_dma_handler);
     irq_set_enabled(DMA_IRQ_0, true);
     dma_channel_start(dma_channel);
@@ -55,17 +57,37 @@ static void tcpc_poll_dma(tcpcPhyChannel *phy_ch) {
     }
     // New data was received
     uint32_t *raw_data = &(phy_ch->raw_buf_rx[*process_count]);
-    printf("%s", *raw_data);
+    printf("%x  %x\n", raw_data, *raw_data);
+    (*process_count)++;
 }
+
+tcpcPhyChannel tcpc_phy_chan = {
+    pio0,           // pio
+    1,              // sm_rx
+    PIO0_IRQ_0,     // irq
+    6,              // pin_rx
+    0,              // dma_rx
+    0,              // *raw_buf_rx
+    40,             // raw_buf_rx_size
+    0               // process_idx_rx
+};
 
 void tcpc_task(void *arg) {
     (void)arg;
-    tcpcPhyChannel tcpc_phy_chan = {
-        pio0,
-        0,
-        PIO0_IRQ_0,
-        6,
-    };
-    
+    extern tcpcPhyChannel tcpc_phy_chan;
+    tcpc_phy_chan.raw_buf_rx = malloc(sizeof(uint32_t) * tcpc_phy_chan.raw_buf_rx_size);
+    memset(tcpc_phy_chan.raw_buf_rx, 0, sizeof(uint32_t) * tcpc_phy_chan.raw_buf_rx_size);
+    tcpc_phy_chan.dma_rx = tcpc_rx_dma_init(
+        &(pio0_hw->rxf[tcpc_phy_chan.sm_rx]),
+        DREQ_PIO0_RX1, // TODO : Dynamically assign?
+        tcpc_phy_chan.raw_buf_rx,
+        tcpc_phy_chan.raw_buf_rx_size
+    );
+    tcpc_dma_channel = tcpc_phy_chan.dma_rx;
+    //static int tcpc_pio_rx_init(PIO pio, uint sm_rx, uint pin_rx) {
+    tcpc_pio_rx_init(tcpc_phy_chan.pio, tcpc_phy_chan.sm_rx, tcpc_phy_chan.pin_rx);
 
+    while(true) {
+        tcpc_poll_dma(&tcpc_phy_chan);
+    }
 }
