@@ -57,7 +57,9 @@ static void tcpc_poll_dma(tcpcPhyChannel *phy_ch) {
     }
     // New data was received
     uint32_t *raw_data = &(phy_ch->raw_buf_rx[*process_count]);
-    printf("%x  %x\n", raw_data, *raw_data);
+    static pd_frame current_frame;
+    typec_4b5b_decode(&current_frame, *raw_data);
+    //printf("%u  %x\n", test_counter, *raw_data);
     (*process_count)++;
 }
 
