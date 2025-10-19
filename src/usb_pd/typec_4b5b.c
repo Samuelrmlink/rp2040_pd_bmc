@@ -62,6 +62,50 @@ bool typec_4b5b_find_ordered_set(uint *input_offset, uint *after_scrap_offset, u
     }
     return found_ordset;
 }
+// Returns 4 bits (combined from both scrap and input)
+uint typec_4b5b_pull_5b(uint *input_offset, uint *after_scrap_offset, uint *scrap_bits, uint32_t input) {
+    uint decode_4b = bmc5bTo4b[(*scrap_bits | (input >> *input_offset) << *after_scrap_offset) & 0x1F];
+    // Increment to account for bits consumed from input
+    *input_offset += 5 - *after_scrap_offset;
+    // We can reset to zero since the *scrap_bits variable never holds more than 4 bits
+    *scrap_bits = 0;
+    *after_scrap_offset = 0;
+    return decode_4b;
+}
+// Returns true if EOP is found
+bool typec_4b5b_symbols_decode(uint *input_offset, uint *after_scrap_offset, uint *scrap_bits, uint *output_offset, uint32_t input, pd_frame *pdf) {
+    uint decoded_4b;
+    bool upper_symbol = false;
+    // Exit if there aren't enough bits to process
+    if(*input_offset > 27) { return false; }
+    while(*input_offset <= 27) {
+        decoded_4b = typec_4b5b_pull_5b(input_offset, after_scrap_offset, scrap_bits, input);
+        if(decoded_4b == symKcodeEop) {
+            // End of panel symbol
+            return true;
+        }
+        // Once we reach the end of the Ordered Set - we skip the padding
+        // (put there for ARM Cortex-M alignment purposes.)
+        if(*output_offset == 8) {
+            // Skip to main Header field
+            *output_offset = 10;
+        }
+        assert(*output_offset < MAX_BYTES_IN_PDFRAME_STRUCT);
+        //printf("%1X ", decoded_4b);
+        pdf->raw_bytes[*output_offset] |= decoded_4b << (4 * (upper_symbol & 1u));
+        if(upper_symbol || decoded_4b & 0x10) {
+            upper_symbol = false;
+            *output_offset += 1;
+        } else {
+            upper_symbol = true;
+        }
+    }
+    if(*input_offset > 27) {
+        *scrap_bits = input >> *input_offset;
+        *after_scrap_offset = 32 - *input_offset;
+    }
+    return false;
+}
 void typec_4b5b_decode(pd_frame *pdf, uint32_t raw_data) {
     static uint input_offset;       // [ >> shift direction ]
     static uint after_scrap_offset; // [ << shift direction ]
@@ -73,13 +117,21 @@ void typec_4b5b_decode(pd_frame *pdf, uint32_t raw_data) {
     if(!preamble_aligned) {
         if(typec_4b5b_preamble_align(&input_offset, raw_data)) {
             preamble_aligned = true;
+            pdf->timestamp_us = time_us_32();
         }
     }
     // Locate first symbol of the Ordered Set
-    if(typec_4b5b_find_ordered_set(&input_offset, &after_scrap_offset, &scrap_bits, &output_offset, raw_data)) {
-        // Ordered Set has been found
-        output_offset = 4;
-        printf("%X ioffset: %u\n", raw_data, input_offset);
+    if(!output_offset) {
+        if(typec_4b5b_find_ordered_set(&input_offset, &after_scrap_offset, &scrap_bits, &output_offset, raw_data)) {
+            // Ordered Set has been found
+            output_offset = 4;
+        }
+    }
+    if(typec_4b5b_symbols_decode(&input_offset, &after_scrap_offset, &scrap_bits, &output_offset, raw_data, pdf)) {
+        printf("EOP\n");
+        printf("%u %X %X\n", pdf->timestamp_us / 1000, pdf->hdr, pdf->obj[0]);
+    } else {
+        //printf("%X ", pdf->hdr, pdf->obj[0]);
     }
 
     input_offset = 0;
