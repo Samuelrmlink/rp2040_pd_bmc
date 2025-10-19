@@ -22,15 +22,6 @@
 // Task Handles (Thread Handles)
 TaskHandle_t tskhdl_usb_cli = NULL; // Task handle: USB CDC-ACM w/CLI
 TaskHandle_t tskhdl_pd_rxf = NULL;	// Task handle: RX frame receiver
-TaskHandle_t tskhdl_pd_pol = NULL;  // Task handle: USB-PD policy engine
-
-// Queues
-QueueHandle_t queue_pc_in = NULL;   // Queue: Port Controller Input
-QueueHandle_t queue_pe_in = NULL;   // Queue: Policy Engine Input
-
-// BMC TX/TX Buffers
-bmcRxBuffer *pdq_rx;
-bmcTxBuffer *tx;
 
 // USB thread
 static void thread_usb(void* unused_arg) {
@@ -40,27 +31,12 @@ static void thread_usb(void* unused_arg) {
 }
 
 int main() {
-    extern bmcChannels *bmc_ch;
-
     // Initialize IO & PIO
     stdio_init_all();
     BaseType_t status_task_usb = xTaskCreate(thread_usb, "USB_THREAD", 1024, NULL, 1, &tskhdl_usb_cli);
     assert(status_task_usb == pdPASS);
 
-    // Setup USB-PD channels
-    pdq_rx = bmc_rxbuf_alloc();
-    tx = bmc_txbuf_alloc();
-    bmc_ch = bmc_channels_alloc(4);
-    bool ch_reg = bmc_channel_register(bmc_ch, pdq_rx, tx, pio0, 0, 1, PIO0_IRQ_0, 6, 9, 10, 26);
-    //bool ch_reg = bmc_channel_register(bmc_ch, pio0, 0, 1, PIO0_IRQ_0, 7, 11, 12, 27);
-    assert(ch_reg);
 
-    queue_pc_in = xQueueCreate(3, sizeof(pd_frame));
-    queue_pe_in = xQueueCreate(4, sizeof(pd_frame));
-    BaseType_t status_task_rx_frame = xTaskCreate(thread_pd_portctrl, "PD_PORTCTRL", 4096, NULL, 2, &tskhdl_pd_rxf);
-    BaseType_t status_task_pe = xTaskCreate(thread_pd_policy_engine, "PD_POLICY", 2048, NULL, 2, &tskhdl_pd_pol);
-    assert(status_task_rx_frame == pdPASS);
-    irq_set_enabled((bmc_ch->chan)[0].irq, true);
     // Start the scheduler
     vTaskStartScheduler();
 }

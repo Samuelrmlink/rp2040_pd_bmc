@@ -43,11 +43,15 @@ project(bmc_pd C CXX ASM)
 pico_sdk_init()
 
 # Add bmc_pd source code
-file(GLOB_RECURSE SOURCES "src/*.c*" "src/cli/*.c*")
+file(GLOB_RECURSE SOURCES
+    "src/*.c*"
+    "src/cli/*.c*"
+    "src/usb_pd/*.c*"
+    )
 add_executable(bmc_pd ${SOURCES})
 
 # Add bmc RP2 PIO interface
-pico_generate_pio_header(bmc_pd ${CMAKE_CURRENT_LIST_DIR}/src/bmc.pio)
+pico_generate_pio_header(bmc_pd ${CMAKE_CURRENT_LIST_DIR}/src/usb_pd/bmc.pio)
 
 # Link libraries used for this application
 target_link_libraries(bmc_pd PRIVATE pico_stdlib pico_unique_id hardware_pio hardware_dma pico_async_context_freertos FreeRTOS-Kernel-Heap4)
