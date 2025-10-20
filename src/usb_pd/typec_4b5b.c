@@ -84,6 +84,10 @@ bool typec_4b5b_symbols_decode(uint *input_offset, uint *after_scrap_offset, uin
             // End of panel symbol
             return true;
         }
+        if(*output_offset >= 56) {
+            // Overflow protection
+            return true;
+        }
         // Once we reach the end of the Ordered Set - we skip the padding
         // (put there for ARM Cortex-M alignment purposes.)
         if(*output_offset == 8) {
