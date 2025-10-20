@@ -3,6 +3,7 @@
 #include "hardware/clocks.h"
 
 uint tcpc_dma_channel;
+uint *tcpc_dma_buf_rx;
 
 static int tcpc_pio_rx_init(PIO pio, uint sm_rx, uint pin_rx) {
     float clock_div = (float)clock_get_hz(clk_sys) / 5000000;
@@ -13,9 +14,11 @@ static int tcpc_pio_rx_init(PIO pio, uint sm_rx, uint pin_rx) {
 
 static int tcpc_dma_handler() {
     extern uint tcpc_dma_channel;
+    extern uint *tcpc_dma_buf_rx;
     // Clear DMA interrupt
     dma_hw->ints0 = 1u << tcpc_dma_channel;
-
+    // Reset write address
+    dma_channel_set_write_addr(tcpc_dma_channel, tcpc_dma_buf_rx, true);
     // Do something - TODO: Add actual functionality
     //printf("DMA interrupt!\n");
 }
@@ -49,17 +52,27 @@ static int tcpc_rx_dma_init(void *pio_rx_fifo, uint pio_dreq, void *raw_rx_buf, 
     return dma_channel;
 }
 static void tcpc_poll_dma(tcpcPhyChannel *phy_ch) {
+    static uint32_t last_frame_timestamp;
+    static pd_frame current_frame;
     uint dma_transfer_idx = phy_ch->raw_buf_rx_size - dma_channel_hw_addr(phy_ch->dma_rx)->transfer_count;
     uint *process_count = &phy_ch->process_idx_rx;
+    // Reset *process_count if we are past max
+    if(*process_count >= phy_ch->raw_buf_rx_size) {
+        *process_count = 0;
+    }
     if(dma_transfer_idx == *process_count) {
         // No new data received
+        if(last_frame_timestamp + 200 > time_us_32() && current_frame.timestamp_us) {
+            // There should be a new pd_frame or EOP symbol
+            // We need to get the PIO SM to push its ISR to the FIFO
+            //pio_sm_exec(phy_ch->pio, phy_ch->sm_rx, pio_encode_in(pio_y, 1));
+        }
         return;
     }
     // New data was received
+    last_frame_timestamp = time_us_32();
     uint32_t *raw_data = &(phy_ch->raw_buf_rx[*process_count]);
-    static pd_frame current_frame;
     typec_4b5b_decode(&current_frame, *raw_data);
-    //printf("%u  %x\n", test_counter, *raw_data);
     (*process_count)++;
 }
 
@@ -86,7 +99,7 @@ void tcpc_task(void *arg) {
         tcpc_phy_chan.raw_buf_rx_size
     );
     tcpc_dma_channel = tcpc_phy_chan.dma_rx;
-    //static int tcpc_pio_rx_init(PIO pio, uint sm_rx, uint pin_rx) {
+    tcpc_dma_buf_rx = tcpc_phy_chan.raw_buf_rx;
     tcpc_pio_rx_init(tcpc_phy_chan.pio, tcpc_phy_chan.sm_rx, tcpc_phy_chan.pin_rx);
 
     while(true) {

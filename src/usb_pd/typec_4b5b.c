@@ -128,8 +128,12 @@ void typec_4b5b_decode(pd_frame *pdf, uint32_t raw_data) {
         }
     }
     if(typec_4b5b_symbols_decode(&input_offset, &after_scrap_offset, &scrap_bits, &output_offset, raw_data, pdf)) {
-        printf("EOP\n");
+        // TODO: Add pd_frame handling
         printf("%u %X %X\n", pdf->timestamp_us / 1000, pdf->hdr, pdf->obj[0]);
+        // EOP Received - Prepare for next pd_frame
+        memset(pdf, 0, sizeof(pd_frame));
+        preamble_aligned = false;
+        output_offset = 0;
     } else {
         //printf("%X ", pdf->hdr, pdf->obj[0]);
     }
