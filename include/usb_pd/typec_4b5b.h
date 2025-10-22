@@ -29,6 +29,15 @@ typedef enum {
     symKcodeS3	= 0b00110
 } BMC5bSymbols;
 
+typedef enum {
+    sym4bKcodeS1    = 0x10,
+    sym4bKcodeS2    = 0x11,
+    sym4bKcodeR1    = 0x12,
+    sym4bKcodeR2    = 0x13,
+    sym4bKcodeEop   = 0x14,
+    sym4bKcodeS3    = 0x15
+} BMC4bSymbols;
+
 static const uint8_t const bmc5bTo4b[] = {
     [(uint8_t)symHex0]	    = 0x0,
     [(uint8_t)symHex1]	    = 0x1,
