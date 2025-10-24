@@ -35,12 +35,13 @@ bool typec_4b5b_preamble_align(uint *input_offset, uint32_t in) {
 */
 bool typec_4b5b_find_ordered_set(uint *input_offset, uint *after_scrap_offset, uint *scrap_bits, uint *output_offset, uint32_t in) {
     bool found_ordset = false;
-    while(*input_offset <= 27) {
-        if( ((*scrap_bits | (in >> *input_offset) << *after_scrap_offset) & 0x1F) == symKcodeS1 ||  // K-Code S1 (starting symbol for ordsetSop*) ---or---
-            ((*scrap_bits | (in >> *input_offset) << *after_scrap_offset) & 0x1F) == symKcodeR1) {  // K-Code R1 (starting symbol for ordsetHardReset, ordsetCableReset)
-            // Ordered Set HAS been found
-            found_ordset = true;
-            break;
+    while(*input_offset + *after_scrap_offset <= 30) {
+        if( (*input_offset + *after_scrap_offset <= 27 && (
+            ((*scrap_bits | (in >> *input_offset) << *after_scrap_offset) & 0x1F) == symKcodeS1 ||  // K-Code S1 (starting symbol for ordsetSop*) ---or---
+            ((*scrap_bits | (in >> *input_offset) << *after_scrap_offset) & 0x1F) == symKcodeR1))) {  // K-Code R1 (starting symbol for ordsetHardReset, ordsetCableReset)
+                // Ordered Set HAS been found
+                found_ordset = true;
+                break;
         } else {
             // Ordered Set has not been found yet
             // Consume bits - while maintaining alignment with the preamble
@@ -77,11 +78,15 @@ bool typec_4b5b_symbols_decode(uint *input_offset, uint *after_scrap_offset, uin
     uint decoded_4b;
     static bool upper_symbol;
     // Exit if there aren't enough bits to process
-    if(*input_offset > 27) { return false; }
-    while(*input_offset <= 27) {
+    if(*input_offset + *after_scrap_offset > 27) { return false; }
+    while(*input_offset + *after_scrap_offset <= 27) {
         decoded_4b = typec_4b5b_pull_5b(input_offset, after_scrap_offset, scrap_bits, input);
 //        printf("[%u]%X ", *output_offset, decoded_4b);
         //printf("%X ", decoded_4b);
+        // Ensure that hexadecimal data discovered near the start of frame ends up as header
+        if(*output_offset < 10 && !(decoded_4b & 0x10)) {
+            *output_offset = 10;
+        }
         if(decoded_4b == sym4bKcodeEop) {
             // End of panel symbol
             return true;
@@ -89,14 +94,17 @@ bool typec_4b5b_symbols_decode(uint *input_offset, uint *after_scrap_offset, uin
         if(*output_offset >= 56) {
             // Overflow protection
             printf("\nOVERFLOW\n");
+            pdf->timestamp_us = 0;
             return true;
         }
+/*
         // Once we reach the end of the Ordered Set - we skip the padding
         // (put there for ARM Cortex-M alignment purposes.)
         if(*output_offset == 8) {
             // Skip to main Header field
             *output_offset = 10;
         }
+*/
         assert(*output_offset < MAX_BYTES_IN_PDFRAME_STRUCT);
         //printf("%1X ", decoded_4b);
         pdf->raw_bytes[*output_offset] |= decoded_4b << (4 * (upper_symbol & 1u));
@@ -136,9 +144,11 @@ void typec_4b5b_decode(pd_frame *pdf, uint32_t raw_data) {
             output_offset = 4;
         }
     }
+//    printf(" %X %u{%X %u}|", raw_data, input_offset, scrap_bits, after_scrap_offset);
     if(typec_4b5b_symbols_decode(&input_offset, &after_scrap_offset, &scrap_bits, &output_offset, raw_data, pdf)) {
         // TODO: Add pd_frame handling
-        printf("\n%X:%X:%X %X\n", pdf->ordered_set, pdf->hdr, pdf->obj[0], pdf->obj[1]);
+//        printf("%X:%X:%X %X\n", pdf->ordered_set, pdf->hdr, pdf->obj[0], pdf->obj[1]);
+        printf("%X\n", pdf->hdr);
         // EOP Received - Prepare for next pd_frame
         memset(pdf, 0, sizeof(pd_frame));
         preamble_aligned = false;

@@ -51,6 +51,14 @@ static int tcpc_rx_dma_init(void *pio_rx_fifo, uint pio_dreq, void *raw_rx_buf, 
     dma_channel_start(dma_channel);
     return dma_channel;
 }
+void individual_pin_toggle(uint8_t pin_num) {
+    gpio_set_function(pin_num, GPIO_FUNC_SIO);
+    gpio_set_dir(pin_num, true);
+    if(gpio_get(pin_num))
+        gpio_clr_mask(1 << pin_num); // Drive pin low
+    else
+        gpio_set_mask(1 << pin_num); // Drive pin high
+}
 static void tcpc_poll_dma(tcpcPhyChannel *phy_ch) {
     static uint32_t last_frame_timestamp;
     static pd_frame current_frame;
@@ -62,19 +70,21 @@ static void tcpc_poll_dma(tcpcPhyChannel *phy_ch) {
     }
     if(dma_transfer_idx == *process_count) {
         // No new data received
-        if(last_frame_timestamp + 200 > time_us_32() && current_frame.timestamp_us) {
+        if(last_frame_timestamp + 200 < time_us_32() && current_frame.timestamp_us) {
+    individual_pin_toggle(15);
             // There should be a new pd_frame or EOP symbol
             // We need to get the PIO SM to push its ISR to the FIFO
-            //pio_sm_exec(phy_ch->pio, phy_ch->sm_rx, pio_encode_in(pio_y, 1));
+            pio_sm_exec(phy_ch->pio, phy_ch->sm_rx, pio_encode_in(pio_y, 1));
         }
         return;
+    } else {
+        // New data was received
+        individual_pin_toggle(16);
+        last_frame_timestamp = time_us_32();
+        uint32_t *raw_data = &(phy_ch->raw_buf_rx[*process_count]);
+        typec_4b5b_decode(&current_frame, *raw_data);
+        (*process_count)++;
     }
-    // New data was received
-    last_frame_timestamp = time_us_32();
-    uint32_t *raw_data = &(phy_ch->raw_buf_rx[*process_count]);
-//    printf("%X\n", *raw_data);
-    typec_4b5b_decode(&current_frame, *raw_data);
-    (*process_count)++;
 }
 
 tcpcPhyChannel tcpc_phy_chan = {
