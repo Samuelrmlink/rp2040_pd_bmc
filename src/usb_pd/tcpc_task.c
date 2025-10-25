@@ -2,6 +2,7 @@
 #include "hardware/dma.h"
 #include "hardware/clocks.h"
 
+// Utilized by the 'tcpc_dma_handler' function
 uint tcpc_dma_channel;
 uint *tcpc_dma_buf_rx;
 
@@ -11,16 +12,20 @@ static int tcpc_pio_rx_init(PIO pio, uint sm_rx, uint pin_rx) {
     differential_manchester_rx_program_init(pio, sm_rx, sm_rx_offset, pin_rx, clock_div);
     pio_sm_set_enabled(pio, sm_rx, true);
 }
+static int tcpc_pio_tx_init(PIO pio, uint sm_tx, uint pin_tx_high) {
+    float clock_div = (float)clock_get_hz(clk_sys) / 5000000;
+    uint sm_tx_offset = pio_add_program(pio, &differential_manchester_tx_program);
+    differential_manchester_tx_program_init(pio, sm_tx, sm_tx_offset, pin_tx_high, clock_div);
+    pio_sm_set_enabled(pio, sm_tx, true);
+}
 
-static int tcpc_dma_handler() {
+static void tcpc_dma_handler() {
     extern uint tcpc_dma_channel;
     extern uint *tcpc_dma_buf_rx;
     // Clear DMA interrupt
     dma_hw->ints0 = 1u << tcpc_dma_channel;
     // Reset write address
     dma_channel_set_write_addr(tcpc_dma_channel, tcpc_dma_buf_rx, true);
-    // Do something - TODO: Add actual functionality
-    //printf("DMA interrupt!\n");
 }
 //  
 //  tcpc_rx_dma_init - Initializes USB-PD RX DMA channel
@@ -51,17 +56,10 @@ static int tcpc_rx_dma_init(void *pio_rx_fifo, uint pio_dreq, void *raw_rx_buf, 
     dma_channel_start(dma_channel);
     return dma_channel;
 }
-void individual_pin_toggle(uint8_t pin_num) {
-    gpio_set_function(pin_num, GPIO_FUNC_SIO);
-    gpio_set_dir(pin_num, true);
-    if(gpio_get(pin_num))
-        gpio_clr_mask(1 << pin_num); // Drive pin low
-    else
-        gpio_set_mask(1 << pin_num); // Drive pin high
-}
 static void tcpc_poll_dma(tcpcPhyChannel *phy_ch) {
     static uint32_t last_frame_timestamp;
     static pd_frame current_frame;
+    pd_frame goodcrc_resp_frame;
     uint dma_transfer_idx = phy_ch->raw_buf_rx_size - dma_channel_hw_addr(phy_ch->dma_rx)->transfer_count;
     uint *process_count = &phy_ch->process_idx_rx;
     // Reset *process_count if we are past max
@@ -71,7 +69,7 @@ static void tcpc_poll_dma(tcpcPhyChannel *phy_ch) {
     if(dma_transfer_idx == *process_count) {
         // No new data received
         if(last_frame_timestamp + 200 < time_us_32() && current_frame.timestamp_us) {
-    individual_pin_toggle(15);
+            debug_pin_toggle(15);
             // There should be a new pd_frame or EOP symbol
             // We need to get the PIO SM to push its ISR to the FIFO
             pio_sm_exec(phy_ch->pio, phy_ch->sm_rx, pio_encode_in(pio_y, 1));
@@ -79,12 +77,17 @@ static void tcpc_poll_dma(tcpcPhyChannel *phy_ch) {
         return;
     } else {
         // New data was received
-        individual_pin_toggle(16);
+        debug_pin_toggle(16);
         last_frame_timestamp = time_us_32();
         uint32_t *raw_data = &(phy_ch->raw_buf_rx[*process_count]);
         if(typec_4b5b_decode(&current_frame, *raw_data)) {
             // Valid frame was received
-            if(typec_4b5b_valid_pdframe(&current_frame)) { printf("V %X %X\n", current_frame.hdr, current_frame.ordered_set); } else { printf("Iv %X %X\n", current_frame.hdr, current_frame.ordered_set); }
+            if(typec_pdframe_valid(&current_frame) && typec_pdframe_orderedset_get_idx(current_frame.ordered_set) == pdfTypeSop) {
+                memset(&goodcrc_resp_frame, 0, sizeof(pd_frame));
+                typec_pdframe_generate_goodcrc(&current_frame, &goodcrc_resp_frame);
+//                printf("SOP resp: %X %X\n", goodcrc_resp_frame.hdr, goodcrc_resp_frame.obj[0]);
+            }
+            if(typec_pdframe_valid(&current_frame)) { printf("V %X %X\n", current_frame.hdr, current_frame.ordered_set); } else { printf("Iv %X %X\n", current_frame.hdr, current_frame.ordered_set); }
             memset(&current_frame, 0, sizeof(pd_frame));
         }
         (*process_count)++;
@@ -93,9 +96,12 @@ static void tcpc_poll_dma(tcpcPhyChannel *phy_ch) {
 
 tcpcPhyChannel tcpc_phy_chan = {
     pio0,           // pio
+    0,              // sm_tx
     1,              // sm_rx
     PIO0_IRQ_0,     // irq
     6,              // pin_rx
+    9,              // pin_tx_high
+    10,             // pin_tx_low
     0,              // dma_rx
     0,              // *raw_buf_rx
     40,             // raw_buf_rx_size
@@ -116,6 +122,7 @@ void tcpc_task(void *arg) {
     tcpc_dma_channel = tcpc_phy_chan.dma_rx;
     tcpc_dma_buf_rx = tcpc_phy_chan.raw_buf_rx;
     tcpc_pio_rx_init(tcpc_phy_chan.pio, tcpc_phy_chan.sm_rx, tcpc_phy_chan.pin_rx);
+    tcpc_pio_tx_init(tcpc_phy_chan.pio, tcpc_phy_chan.sm_tx, tcpc_phy_chan.pin_tx_high);
 
     while(true) {
         tcpc_poll_dma(&tcpc_phy_chan);
