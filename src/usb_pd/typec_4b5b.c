@@ -96,7 +96,6 @@ bool typec_4b5b_symbols_decode(uint *input_offset, uint *after_scrap_offset, uin
             return true;
         }
         assert(*output_offset < MAX_BYTES_IN_PDFRAME_STRUCT);
-        //printf("%1X ", decoded_4b);
         pdf->raw_bytes[*output_offset] |= decoded_4b << (4 * (upper_symbol & 1u));
         if(upper_symbol || decoded_4b & 0x10) {
             upper_symbol = false;
@@ -169,12 +168,13 @@ uint8_t typec_pdframe_extended_unchunked_bytes(pd_frame *pdf) {
         return 0;
     }
 }
-void typec_4b5b_decode(pd_frame *pdf, uint32_t raw_data) {
+bool typec_4b5b_decode(pd_frame *pdf, uint32_t raw_data) {
     static uint input_offset;       // [ >> shift direction ]
     static uint after_scrap_offset; // [ << shift direction ]
     static uint scrap_bits;
     static uint output_offset;
     static bool preamble_aligned;
+    bool ret = false;
     assert(output_offset < MAX_BYTES_IN_PDFRAME_STRUCT);
     // Ensure preamble alignment
     if(!preamble_aligned) {
@@ -192,22 +192,16 @@ void typec_4b5b_decode(pd_frame *pdf, uint32_t raw_data) {
             output_offset = 4;
         }
     }
-//    printf(" %X %u{%X %u}|", raw_data, input_offset, scrap_bits, after_scrap_offset);
     if(typec_4b5b_symbols_decode(&input_offset, &after_scrap_offset, &scrap_bits, &output_offset, raw_data, pdf)) {
-        // TODO: Add pd_frame handling
-//        printf("%X:%X:%X %X\n", pdf->ordered_set, pdf->hdr, pdf->obj[0], pdf->obj[1]);
-        if(typec_4b5b_valid_pdframe(pdf)) { printf("V %X %X\n", pdf->hdr, pdf->ordered_set); } else { printf("Iv %X %X\n", pdf->hdr, pdf->ordered_set); }
-        // EOP Received - Prepare for next pd_frame
-        memset(pdf, 0, sizeof(pd_frame));
+        // EOP Received
+        // Reset internal variables
         preamble_aligned = false;
         output_offset = 0;
         scrap_bits = 0;
         after_scrap_offset = 0;
-    } else {
-        //printf("%X ", pdf->hdr, pdf->obj[0]);
+        // Set return flag
+        ret = true;
     }
-
     input_offset = 0;
-
-    // TODO: Reset all variables upon error, EOP, etc...
+    return ret;
 }

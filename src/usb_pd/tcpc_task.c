@@ -82,7 +82,11 @@ static void tcpc_poll_dma(tcpcPhyChannel *phy_ch) {
         individual_pin_toggle(16);
         last_frame_timestamp = time_us_32();
         uint32_t *raw_data = &(phy_ch->raw_buf_rx[*process_count]);
-        typec_4b5b_decode(&current_frame, *raw_data);
+        if(typec_4b5b_decode(&current_frame, *raw_data)) {
+            // Valid frame was received
+            if(typec_4b5b_valid_pdframe(&current_frame)) { printf("V %X %X\n", current_frame.hdr, current_frame.ordered_set); } else { printf("Iv %X %X\n", current_frame.hdr, current_frame.ordered_set); }
+            memset(&current_frame, 0, sizeof(pd_frame));
+        }
         (*process_count)++;
     }
 }
@@ -94,7 +98,7 @@ tcpcPhyChannel tcpc_phy_chan = {
     6,              // pin_rx
     0,              // dma_rx
     0,              // *raw_buf_rx
-    400,             // raw_buf_rx_size
+    40,             // raw_buf_rx_size
     0               // process_idx_rx
 };
 
