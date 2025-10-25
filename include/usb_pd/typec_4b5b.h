@@ -38,6 +38,60 @@ typedef enum {
     sym4bKcodeS3    = 0x15
 } BMC4bSymbols;
 
+typedef enum {
+    ordsetHardReset =   sym4bKcodeR1 |
+                        sym4bKcodeR1 << 8 |
+                        sym4bKcodeR1 << 16 |
+                        sym4bKcodeR2 << 24,
+    ordsetCableReset =  sym4bKcodeR1 |
+                        sym4bKcodeS1 << 8 |
+                        sym4bKcodeR1 << 16 |
+                        sym4bKcodeS3 << 24,
+    ordsetSop =         sym4bKcodeS1 |
+                        sym4bKcodeS1 << 8 |
+                        sym4bKcodeS1 << 16 |
+                        sym4bKcodeS2 << 24,
+    ordsetSopP =        sym4bKcodeS1 |
+                        sym4bKcodeS1 << 8 |
+                        sym4bKcodeS3 << 16 |
+                        sym4bKcodeS3 << 24,
+    ordsetSopDp =       sym4bKcodeS1 |
+                        sym4bKcodeS3 << 8 |
+                        sym4bKcodeS1 << 16 |
+                        sym4bKcodeS3 << 24,
+    ordsetSopPDbg =     sym4bKcodeS1 |
+                        sym4bKcodeR2 << 8 |
+                        sym4bKcodeR2 << 16 |
+                        sym4bKcodeS3 << 24,
+    ordsetSopDpDbg =    sym4bKcodeS1 |
+                        sym4bKcodeR2 << 8 |
+                        sym4bKcodeS3 << 16 |
+                        sym4bKcodeS2 << 24
+} BMC4bOrderedSets;
+
+// Returns the 20 bit Ordered Set
+static const uint32_t const bmcFrameType[] = {
+    0,			// PdfTypeInvalid
+    ordsetHardReset,	// PdfTypeHardReset
+    ordsetCableReset,	// PdfTypeCableReset
+    ordsetSop,		// PdfTypeSop
+    ordsetSopP,		// PdfTypeSopP
+    ordsetSopDp,	// PdfTypeSopDp
+    ordsetSopPDbg,	// PdfTypeSopPDbg
+    ordsetSopDpDbg	// PdfTypeSopDpDbg
+};
+
+typedef enum {
+    pdfTypeInvalid,	    // 0
+    pdfTypeHardReset,	// 1
+    pdfTypeCableReset,	// 2
+    pdfTypeSop,		    // 3
+    pdfTypeSopP,	    // 4
+    pdfTypeSopDp,	    // 5
+    pdfTypeSopPDbg,	    // 6
+    pdfTypeSopDpDbg	    // 7
+} pdfTypes;
+
 static const uint8_t const bmc5bTo4b[] = {
     [(uint8_t)symHex0]	    = 0x0,
     [(uint8_t)symHex1]	    = 0x1,

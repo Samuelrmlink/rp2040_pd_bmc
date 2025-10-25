@@ -14,7 +14,7 @@ uint32_t crc32_pdframe_calc(pd_frame *pdf) {
     uint8_t num_bytes = 2;  // Frame Header = (2 bytes)
     
     // Is this frame extended unchunked? (If so - how many bytes is the payload?)
-    uint8_t num_ext_bytes = bmc_extended_unchunked_bytes(pdf);
+    uint8_t num_ext_bytes = typec_pdframe_extended_unchunked_bytes(pdf);
     if(num_ext_bytes) {
         // Account for the extended header + payload bytes
         num_bytes += 2 + num_ext_bytes;

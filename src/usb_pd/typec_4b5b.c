@@ -81,8 +81,6 @@ bool typec_4b5b_symbols_decode(uint *input_offset, uint *after_scrap_offset, uin
     if(*input_offset + *after_scrap_offset > 27) { return false; }
     while(*input_offset + *after_scrap_offset <= 27) {
         decoded_4b = typec_4b5b_pull_5b(input_offset, after_scrap_offset, scrap_bits, input);
-//        printf("[%u]%X ", *output_offset, decoded_4b);
-        //printf("%X ", decoded_4b);
         // Ensure that hexadecimal data discovered near the start of frame ends up as header
         if(*output_offset < 10 && !(decoded_4b & 0x10)) {
             *output_offset = 10;
@@ -97,14 +95,6 @@ bool typec_4b5b_symbols_decode(uint *input_offset, uint *after_scrap_offset, uin
             pdf->timestamp_us = 0;
             return true;
         }
-/*
-        // Once we reach the end of the Ordered Set - we skip the padding
-        // (put there for ARM Cortex-M alignment purposes.)
-        if(*output_offset == 8) {
-            // Skip to main Header field
-            *output_offset = 10;
-        }
-*/
         assert(*output_offset < MAX_BYTES_IN_PDFRAME_STRUCT);
         //printf("%1X ", decoded_4b);
         pdf->raw_bytes[*output_offset] |= decoded_4b << (4 * (upper_symbol & 1u));
@@ -120,6 +110,64 @@ bool typec_4b5b_symbols_decode(uint *input_offset, uint *after_scrap_offset, uin
         *after_scrap_offset = 32 - *input_offset;
     }
     return false;
+}
+// Returns the index value of the 'Ordered Set'
+uint typec_4b5b_orderedset_get_idx(uint32_t input) {
+    uint idx;
+    // TODO: Debug RX PD PHY - sometimes first symbol is droppped
+    // ----- Workaround solution: shift bits if symbol is dropped
+    if(input & 0xFF000000) {
+        switch(input) {
+            case(ordsetHardReset):  idx = 1; break;
+            case(ordsetCableReset): idx = 2; break;
+            case(ordsetSop):        idx = 3; break;
+            case(ordsetSopP):       idx = 4; break;
+            case(ordsetSopDp):      idx = 5; break;
+            case(ordsetSopPDbg):    idx = 6; break;
+            case(ordsetSopDpDbg):   idx = 7; break;
+            default:                idx = 0;
+        }
+    } else {
+        switch(input) {
+            case(ordsetHardReset >> 8):     idx = 1; break;
+            case(ordsetCableReset >> 8):    idx = 2; break;
+            case(ordsetSop >> 8):           idx = 3; break;
+            case(ordsetSopP >> 8):          idx = 4; break;
+            case(ordsetSopDp >> 8):         idx = 5; break;
+            case(ordsetSopPDbg >> 8):       idx = 6; break;
+            case(ordsetSopDpDbg >> 8):      idx = 7; break;
+            default:                        idx = 0;
+        }
+    }
+    return idx;
+}
+// Returns true if valid (valid 'Ordered Set' and CRC32)
+bool typec_4b5b_valid_pdframe(pd_frame *pdf) {
+    if(!pdf->timestamp_us) {
+        return false;       // No timestamp - not valid
+    }
+    uint ordset_idx = typec_4b5b_orderedset_get_idx(pdf->ordered_set);
+    switch(ordset_idx) {
+        case(pdfTypeInvalid):
+            return false;   // Invalid
+        case(pdfTypeHardReset):
+        case(pdfTypeCableReset):
+            return true;    // Valid - Hard/Cable resets don't have a CRC32 value
+        case(pdfTypeSop):
+        case(pdfTypeSopP):
+        case(pdfTypeSopDp):
+        case(pdfTypeSopPDbg):
+        case(pdfTypeSopDpDbg):
+            return crc32_pdframe_valid(pdf);    // Valid if CRC32 matches
+    }
+}
+// Returns the number of unchunked extended bytes (chunked extended frames, or non-extended frames will return 0)
+uint8_t typec_pdframe_extended_unchunked_bytes(pd_frame *pdf) {
+    if((pdf->hdr >> 15) && !(pdf->raw_bytes[12] >> 7)) {
+        return (pdf->raw_bytes[12] | (pdf->raw_bytes[12] & 0x1) << 8);
+    } else {
+        return 0;
+    }
 }
 void typec_4b5b_decode(pd_frame *pdf, uint32_t raw_data) {
     static uint input_offset;       // [ >> shift direction ]
@@ -148,7 +196,7 @@ void typec_4b5b_decode(pd_frame *pdf, uint32_t raw_data) {
     if(typec_4b5b_symbols_decode(&input_offset, &after_scrap_offset, &scrap_bits, &output_offset, raw_data, pdf)) {
         // TODO: Add pd_frame handling
 //        printf("%X:%X:%X %X\n", pdf->ordered_set, pdf->hdr, pdf->obj[0], pdf->obj[1]);
-        printf("%X\n", pdf->hdr);
+        if(typec_4b5b_valid_pdframe(pdf)) { printf("V %X %X\n", pdf->hdr, pdf->ordered_set); } else { printf("Iv %X %X\n", pdf->hdr, pdf->ordered_set); }
         // EOP Received - Prepare for next pd_frame
         memset(pdf, 0, sizeof(pd_frame));
         preamble_aligned = false;
