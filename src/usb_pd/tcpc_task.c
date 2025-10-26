@@ -85,11 +85,31 @@ static void tcpc_poll_dma(tcpcPhyChannel *phy_ch) {
             if(typec_pdframe_valid(&current_frame) && typec_pdframe_orderedset_get_idx(current_frame.ordered_set) == pdfTypeSop) {
                 memset(&goodcrc_resp_frame, 0, sizeof(pd_frame));
                 typec_pdframe_generate_goodcrc(&current_frame, &goodcrc_resp_frame);
+                
                 uint32_t *bitstream = typec_pretx_convert(&goodcrc_resp_frame);
-                printf("%X |", bitstream[0]);
-                for(uint i = 1; i <= bitstream[0]; i++) {
-                    printf("%08X ", bitstream[i]);
+                uint num_zeros = 8 + typec_pretx_num_leading_zeros(&bitstream[1]);
+                typec_tx_convert(bitstream);
+/*
+                //free(bitstream);
+                uint32_t test_data[] = {
+                    0x5, 0xEEEEEEEE, 0xAAAAAAAA, 0xEEEEEEEE, 0xFFFFFFFF, 0x00000000
+                };
+                uint32_t *bitstream = &test_data;
+                uint num_zeros = 11;
+*/
+                //pio_sm_set_enabled(phy_ch->pio, phy_ch->sm_tx, false);
+                //pio_sm_put_blocking(phy_ch->pio, phy_ch->sm_tx, &bitstream[1]);
+                pio_sm_put_blocking(phy_ch->pio, phy_ch->sm_tx, bitstream[1]);
+                pio_sm_exec(phy_ch->pio, phy_ch->sm_tx, pio_encode_out(pio_null, (num_zeros + 1) * 2));
+                pio_sm_exec(phy_ch->pio, phy_ch->sm_tx, pio_encode_set(pio_y, 1));
+                pio_sm_exec(phy_ch->pio, phy_ch->sm_tx, pio_encode_mov(pio_pins, pio_y));
+                busy_wait_us(1);
+                pio_sm_set_enabled(phy_ch->pio, phy_ch->sm_tx, true);
+                for(uint i = 0; i < bitstream[0]; i++) {
+                    pio_sm_put_blocking(phy_ch->pio, phy_ch->sm_tx, bitstream[1 + i]);
                 }
+                printf("NZ: %u\n", num_zeros);
+                printf("%X |", bitstream[0]); for(uint i = 1; i <= 10; i++) { printf("%08X ", bitstream[i]); } printf("\n");
 //                printf("SOP resp: %X %X\n", goodcrc_resp_frame.hdr, goodcrc_resp_frame.obj[0]);
             }
 //            if(typec_pdframe_valid(&current_frame)) { printf("V %X %X\n", current_frame.hdr, current_frame.ordered_set); } else { printf("Iv %X %X\n", current_frame.hdr, current_frame.ordered_set); }
