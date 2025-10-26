@@ -85,9 +85,14 @@ static void tcpc_poll_dma(tcpcPhyChannel *phy_ch) {
             if(typec_pdframe_valid(&current_frame) && typec_pdframe_orderedset_get_idx(current_frame.ordered_set) == pdfTypeSop) {
                 memset(&goodcrc_resp_frame, 0, sizeof(pd_frame));
                 typec_pdframe_generate_goodcrc(&current_frame, &goodcrc_resp_frame);
+                uint32_t *bitstream = typec_pretx_convert(&goodcrc_resp_frame);
+                printf("%X |", bitstream[0]);
+                for(uint i = 1; i <= bitstream[0]; i++) {
+                    printf("%08X ", bitstream[i]);
+                }
 //                printf("SOP resp: %X %X\n", goodcrc_resp_frame.hdr, goodcrc_resp_frame.obj[0]);
             }
-            if(typec_pdframe_valid(&current_frame)) { printf("V %X %X\n", current_frame.hdr, current_frame.ordered_set); } else { printf("Iv %X %X\n", current_frame.hdr, current_frame.ordered_set); }
+//            if(typec_pdframe_valid(&current_frame)) { printf("V %X %X\n", current_frame.hdr, current_frame.ordered_set); } else { printf("Iv %X %X\n", current_frame.hdr, current_frame.ordered_set); }
             memset(&current_frame, 0, sizeof(pd_frame));
         }
         (*process_count)++;

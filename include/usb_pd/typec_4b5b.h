@@ -71,14 +71,23 @@ typedef enum {
 
 // Returns the 20 bit Ordered Set
 static const uint32_t const bmcFrameType[] = {
-    0,			// PdfTypeInvalid
-    ordsetHardReset,	// PdfTypeHardReset
-    ordsetCableReset,	// PdfTypeCableReset
-    ordsetSop,		// PdfTypeSop
-    ordsetSopP,		// PdfTypeSopP
-    ordsetSopDp,	// PdfTypeSopDp
-    ordsetSopPDbg,	// PdfTypeSopPDbg
-    ordsetSopDpDbg	// PdfTypeSopDpDbg
+    0,                  // PdfTypeInvalid
+    ordsetHardReset,    // PdfTypeHardReset
+    ordsetCableReset,   // PdfTypeCableReset
+    ordsetSop,          // PdfTypeSop
+    ordsetSopP,         // PdfTypeSopP
+    ordsetSopDp,        // PdfTypeSopDp
+    ordsetSopPDbg,      // PdfTypeSopPDbg
+    ordsetSopDpDbg      // PdfTypeSopDpDbg
+};
+
+static const uint8_t const bmc4bTo5b[] = {
+    symHex0, symHex1, symHex2, symHex3,
+    symHex4, symHex5, symHex6, symHex7,
+    symHex8, symHex9, symHexA, symHexB,
+    symHexC, symHexD, symHexE, symHexF,
+    symKcodeS1, symKcodeS2, symKcodeR1,
+    symKcodeR2, symKcodeEop, symKcodeS3
 };
 
 static const uint8_t const bmc5bTo4b[] = {

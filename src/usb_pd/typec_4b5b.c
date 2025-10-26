@@ -1,9 +1,11 @@
 #include "main_i.h"
 
+#define NUM_BITS_SYMBOL 5
+
 // Ensures that the raw bits are aligned before interpretation
 //      * Does NOT modify the input data - but DOES change the input_offset variable if needed
 //      Returns true if preamble is found & in alignment
-bool typec_4b5b_preamble_align(uint *input_offset, uint32_t in) {
+static bool typec_4b5b_preamble_align(uint *input_offset, uint32_t in) {
     uint offset = 0;
     bool aligned;
     switch(in & 0x0FFFFFF0) {
@@ -32,7 +34,7 @@ bool typec_4b5b_preamble_align(uint *input_offset, uint32_t in) {
  *          Cable Reset - Used to reset the USB Type-C E-Marker state machines
  *          Hard Reset  - Terminates any active power contract & resets the state machines on the attached devices
 */
-bool typec_4b5b_find_ordered_set(uint *input_offset, uint *after_scrap_offset, uint *scrap_bits, uint *output_offset, uint32_t in) {
+static bool typec_4b5b_find_ordered_set(uint *input_offset, uint *after_scrap_offset, uint *scrap_bits, uint *output_offset, uint32_t in) {
     bool found_ordset = false;
     while(*input_offset + *after_scrap_offset <= 30) {
         if( (*input_offset + *after_scrap_offset <= 27 && (
@@ -63,7 +65,7 @@ bool typec_4b5b_find_ordered_set(uint *input_offset, uint *after_scrap_offset, u
     return found_ordset;
 }
 // Returns 4 bits (combined from both scrap and input)
-uint typec_4b5b_pull_5b(uint *input_offset, uint *after_scrap_offset, uint *scrap_bits, uint32_t input) {
+static uint typec_4b5b_pull_5b(uint *input_offset, uint *after_scrap_offset, uint *scrap_bits, uint32_t input) {
     uint decode_4b = bmc5bTo4b[(*scrap_bits | (input >> *input_offset) << *after_scrap_offset) & 0x1F];
     // Increment to account for bits consumed from input
     *input_offset += 5 - *after_scrap_offset;
@@ -73,7 +75,7 @@ uint typec_4b5b_pull_5b(uint *input_offset, uint *after_scrap_offset, uint *scra
     return decode_4b;
 }
 // Returns true if EOP is found
-bool typec_4b5b_symbols_decode(uint *input_offset, uint *after_scrap_offset, uint *scrap_bits, uint *output_offset, uint32_t input, pd_frame *pdf) {
+static bool typec_4b5b_symbols_decode(uint *input_offset, uint *after_scrap_offset, uint *scrap_bits, uint *output_offset, uint32_t input, pd_frame *pdf) {
     uint decoded_4b;
     static bool upper_symbol;
     // Exit if there aren't enough bits to process
@@ -145,4 +147,75 @@ bool typec_4b5b_decode(pd_frame *pdf, uint32_t raw_data) {
     }
     input_offset = 0;
     return ret;
+}
+static uint typec_pretx_unchunked_bytes(pd_frame *pdf) {
+    return (pdf->hdr >> 15) ? 2 + typec_pdframe_extended_unchunked_bytes(pdf) : 0;
+}
+static uint typec_pretx_num_leading_zeros(uint32_t *buf) {
+    for(uint i = 0; i < 32; i++) {
+        if(buf[0] & (1u << i)) { return i - 1; }
+    }
+    return 0;
+}
+static void typec_pretx_buf_write(uint32_t input_bits, uint num_input_bits, uint32_t *out_buf, uint *out_buf_pos) {
+    uint input_lshift = 0;
+    // Loop while there is data to transfer
+    while(num_input_bits) {
+        // Determine how many bits we can transfer this round
+        uint out_obj_empty_bits = 32 - (*out_buf_pos % 32);
+        uint num_transfer_bits = num_input_bits <= out_obj_empty_bits ? num_input_bits : out_obj_empty_bits;
+        // Transfer bits
+        out_buf[*out_buf_pos / 32] |= ((input_bits >> input_lshift) & (0xFFFFFFFF >> (32 - num_transfer_bits))) << (*out_buf_pos % 32);
+        *out_buf_pos += num_transfer_bits;
+        num_input_bits -= num_transfer_bits;
+        input_lshift += num_transfer_bits;
+    }
+}
+// Convert pd_frame to raw bitstream
+uint32_t* typec_pretx_convert(pd_frame *pdf) {
+    // Calculate payload bytes (excluding K-Code symbols)
+    uint num_payload_bytes =
+        2 +                                 // Header
+        (((pdf->hdr >> 12) & 0x7) * 4) +    // Data Objects
+        typec_pretx_unchunked_bytes(pdf) +  // Ext Header/Payload
+        4;                                  // CRC32
+    // Calculate the number of output bits required
+    uint16_t total_bits_req =
+        64 + 5 * (              // Preamble + [5 bits per symbol]
+        4 +                     // Ordered Set symbols
+        2 * num_payload_bytes + // Payload (2 symbols per byte)
+        1);                     // EOP symbol
+    // Determine number of leading zeros
+    uint num_zeros = (total_bits_req % 32) ? (32 - total_bits_req % 32) : 0; // Zero if no remainder
+    // Determine number of u32 objects requires
+    uint num_u32 = num_zeros ? total_bits_req / 32 + 1 : total_bits_req / 32;
+    // Allocate u32 objects + 1 extra
+    uint *out = malloc(sizeof(uint32_t) * (num_u32 + 1));
+    // The first u32 object will store the allocation size
+    out[0] = (uint32_t)num_u32;
+    // Clear output buffer allocation
+    memset(&out[1], 0, sizeof(uint32_t) * num_u32);
+    // Offset for leading zeros
+    uint out_bit_pos = num_zeros;
+    // Add preamble (64-bits)
+    typec_pretx_buf_write(0xAAAAAAAA, 32, &out[1], &out_bit_pos);
+    typec_pretx_buf_write(0xAAAAAAAA, 32, &out[1], &out_bit_pos);
+    // Add the Ordered Set symbols
+    uint input_byte_offset = 4;
+    for(uint i = 0; i < 4; i++) {
+        typec_pretx_buf_write(bmc4bTo5b[pdf->raw_bytes[input_byte_offset]], (uint)NUM_BITS_SYMBOL, &out[1], &out_bit_pos);
+        input_byte_offset++;
+    }
+    // Add the Payload (non K-Code symbols)
+    for(uint i = 0; i < num_payload_bytes; i++) {
+        // Skip the __padding1 field in the pd_frame structure
+        if(input_byte_offset == 8) { input_byte_offset = 10; }
+        // Write both the upper and lower symbols (With the exception of K-Code symbols - each byte is represented by 2 symbols)
+        typec_pretx_buf_write(bmc4bTo5b[(pdf->raw_bytes)[input_byte_offset] & 0xF], (uint)NUM_BITS_SYMBOL, &out[1], &out_bit_pos);
+        typec_pretx_buf_write(bmc4bTo5b[((pdf->raw_bytes)[input_byte_offset] >> 4) & 0xF], (uint)NUM_BITS_SYMBOL, &out[1], &out_bit_pos);
+        input_byte_offset++;
+    }
+    // Add the EOP symbol
+    typec_pretx_buf_write(symKcodeEop, (uint)NUM_BITS_SYMBOL, &out[1], &out_bit_pos);
+    return out;
 }
