@@ -11,7 +11,7 @@ struct tcpcPhyChannel {
     uint pin_tx_high;
     uint pin_tx_low;
     uint dma_rx;
-    uint *raw_buf_rx;
+    uint32_t *raw_buf_rx;
     uint raw_buf_rx_size;
     uint process_idx_rx;
 };

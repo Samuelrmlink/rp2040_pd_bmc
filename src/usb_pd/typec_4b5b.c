@@ -151,9 +151,9 @@ bool typec_4b5b_decode(pd_frame *pdf, uint32_t raw_data) {
 static uint typec_pretx_unchunked_bytes(pd_frame *pdf) {
     return (pdf->hdr >> 15) ? 2 + typec_pdframe_extended_unchunked_bytes(pdf) : 0;
 }
-uint typec_pretx_num_leading_zeros(uint32_t *buf) {
+uint typec_pretx_num_leading_zeros(uint32_t obj) {
     for(uint i = 0; i < 32; i++) {
-        if(buf[0] & (1u << i)) { return i - 1; }
+        if(obj & (1u << i)) { return i - 1; }
     }
     return 0;
 }
@@ -190,7 +190,7 @@ uint32_t* typec_pretx_convert(pd_frame *pdf) {
     // Determine number of u32 objects requires
     uint num_u32 = num_zeros ? total_bits_req / 32 + 1 : total_bits_req / 32;
     // Allocate u32 objects + 1 extra
-    uint *out = malloc(sizeof(uint32_t) * (num_u32 + 1));
+    uint32_t *out = malloc(sizeof(uint32_t) * (num_u32 + 1));
     // The first u32 object will store the allocation size
     out[0] = (uint32_t)num_u32;
     // Clear output buffer allocation
@@ -219,54 +219,58 @@ uint32_t* typec_pretx_convert(pd_frame *pdf) {
     typec_pretx_buf_write(symKcodeEop, (uint)NUM_BITS_SYMBOL, &out[1], &out_bit_pos);
     return out;
 }
-void typec_tx_convert(uint32_t *buf) {
+uint32_t* typec_tx_convert(uint32_t *in, uint num_in_obj) {
     // We should have twice are many bits at the output
-    uint num_u32 = buf[0] * 2;
-    uint32_t *in_buf = buf;
-    uint32_t *out_buf = malloc(sizeof(uint32_t) * (num_u32 + 1));
-    out_buf[0] = num_u32;
-    uint32_t *in = &buf[1];
-    uint32_t *out = &buf[1];
-    memset(out, 0, sizeof(uint32_t) * num_u32);
-    for(uint i = 0; i <= num_u32; i += 2) {
+    uint num_out_obj = 2 * num_in_obj;
+    uint32_t *out = malloc(sizeof(uint32_t) * num_out_obj);
+    memset(out, 0, sizeof(uint32_t) * num_out_obj);
+    for(uint i = 0; i <= num_out_obj; i += 2) {
         uint input_obj = i / 2;
         out[i] = 0xAAAAAAAA |
-                (in[input_obj] >> 15 & 1) << 30 |
-                (in[input_obj] >> 14 & 1) << 28 |
-                (in[input_obj] >> 13 & 1) << 26 |
-                (in[input_obj] >> 12 & 1) << 24 |
-                (in[input_obj] >> 11 & 1) << 22 |
-                (in[input_obj] >> 10 & 1) << 20 |
-                (in[input_obj] >> 9 & 1) << 18 |
-                (in[input_obj] >> 8 & 1) << 16 |
-                (in[input_obj] >> 7 & 1) << 14 |
-                (in[input_obj] >> 6 & 1) << 12 |
-                (in[input_obj] >> 5 & 1) << 10 |
-                (in[input_obj] >> 4 & 1) << 8 |
-                (in[input_obj] >> 3 & 1) << 6 |
-                (in[input_obj] >> 2 & 1) << 4 |
-                (in[input_obj] >> 1 & 1) << 2 |
-                (in[input_obj] >> 0 & 1) << 0;
+                ((in[input_obj] >> 15) & 1) << 30 |
+                ((in[input_obj] >> 14) & 1) << 28 |
+                ((in[input_obj] >> 13) & 1) << 26 |
+                ((in[input_obj] >> 12) & 1) << 24 |
+                ((in[input_obj] >> 11) & 1) << 22 |
+                ((in[input_obj] >> 10) & 1) << 20 |
+                ((in[input_obj] >> 9) & 1) << 18 |
+                ((in[input_obj] >> 8) & 1) << 16 |
+                ((in[input_obj] >> 7) & 1) << 14 |
+                ((in[input_obj] >> 6) & 1) << 12 |
+                ((in[input_obj] >> 5) & 1) << 10 |
+                ((in[input_obj] >> 4) & 1) << 8 |
+                ((in[input_obj] >> 3) & 1) << 6 |
+                ((in[input_obj] >> 2) & 1) << 4 |
+                ((in[input_obj] >> 1) & 1) << 2 |
+                ((in[input_obj] >> 0) & 1) << 0;
         out[i + 1] = 0xAAAAAAAA |
-                (in[input_obj] >> 31 & 1) << 30 |
-                (in[input_obj] >> 30 & 1) << 28 |
-                (in[input_obj] >> 29 & 1) << 26 |
-                (in[input_obj] >> 28 & 1) << 24 |
-                (in[input_obj] >> 27 & 1) << 22 |
-                (in[input_obj] >> 26 & 1) << 20 |
-                (in[input_obj] >> 25 & 1) << 18 |
-                (in[input_obj] >> 24 & 1) << 16 |
-                (in[input_obj] >> 23 & 1) << 14 |
-                (in[input_obj] >> 22 & 1) << 12 |
-                (in[input_obj] >> 21 & 1) << 10 |
-                (in[input_obj] >> 20 & 1) << 8 |
-                (in[input_obj] >> 19 & 1) << 6 |
-                (in[input_obj] >> 18 & 1) << 4 |
-                (in[input_obj] >> 17 & 1) << 2 |
-                (in[input_obj] >> 16 & 1) << 0;
+                ((in[input_obj] >> 31) & 1) << 30 |
+                ((in[input_obj] >> 30) & 1) << 28 |
+                ((in[input_obj] >> 29) & 1) << 26 |
+                ((in[input_obj] >> 28) & 1) << 24 |
+                ((in[input_obj] >> 27) & 1) << 22 |
+                ((in[input_obj] >> 26) & 1) << 20 |
+                ((in[input_obj] >> 25) & 1) << 18 |
+                ((in[input_obj] >> 24) & 1) << 16 |
+                ((in[input_obj] >> 23) & 1) << 14 |
+                ((in[input_obj] >> 22) & 1) << 12 |
+                ((in[input_obj] >> 21) & 1) << 10 |
+                ((in[input_obj] >> 20) & 1) << 8 |
+                ((in[input_obj] >> 19) & 1) << 6 |
+                ((in[input_obj] >> 18) & 1) << 4 |
+                ((in[input_obj] >> 17) & 1) << 2 |
+                ((in[input_obj] >> 16) & 1) << 0;
     }
-    out[num_u32 - 1] ^= (1 << 31);
-    free(in_buf);  // in pointer was offset by 1
-    buf = out_buf;
-    return;
+    out[num_in_obj - 1] ^= (1 << 31);
+    return out;
+}
+void typec_operation_test() {
+    uint32_t test_data[] = { 0x5, 0x55555000, 0x55555555, 0xC718C555, 0xFD5FBD24, 0x6BAAA4DE };
+    uint num_u32 = test_data[0];
+    uint32_t *test_ptr = &test_data[1];
+    //printf("%u | %X %X", num_u32, test_ptr[0], test_ptr[1]);
+    uint32_t *test_ptr2 = typec_tx_convert(test_ptr, num_u32);
+    for(uint i = 0; i < num_u32 * 2; i++) {
+        printf("%X ", test_ptr2[i]);
+    }
 }

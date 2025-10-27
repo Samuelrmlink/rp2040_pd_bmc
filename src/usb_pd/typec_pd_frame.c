@@ -83,5 +83,5 @@ void typec_pdframe_inc_msgid(pd_frame *pdf, uint msgid) {
     // Increment MsgID (bit overflow will reset to zero)
     val++;
     // Write MsgID
-    typec_pd_frame_set_msgid(pdf, val);
+    typec_pdframe_set_msgid(pdf, val);
 }
