@@ -17,5 +17,15 @@ struct tcpcPhyChannel {
 };
 typedef struct tcpcPhyChannel tcpcPhyChannel;
 
+struct tcpcBmcPhyTxData {
+    uint32_t *pio_raw_tx;
+    uint num_zeros;
+    uint num_u32;
+};
+typedef struct tcpcBmcPhyTxData tcpcBmcPhyTxData;
+
+tcpcBmcPhyTxData* tcpc_bmc_phy_tx_prepare(pd_frame *pdf);
+void tcpc_bmc_phy_tx_send(tcpcPhyChannel *phy_ch, tcpcBmcPhyTxData *tx_data);
+
 #endif
 

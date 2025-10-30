@@ -82,36 +82,15 @@ static void tcpc_poll_dma(tcpcPhyChannel *phy_ch) {
         if(typec_4b5b_decode(&current_frame, *raw_data)) {
             // Valid frame was received
             if(typec_pdframe_valid(&current_frame) && typec_pdframe_orderedset_get_idx(current_frame.ordered_set) == pdfTypeSop) {
+                // Clear response frame
                 memset(&goodcrc_resp_frame, 0, sizeof(pd_frame));
+                // Write GoodCRC response
                 typec_pdframe_generate_goodcrc(&current_frame, &goodcrc_resp_frame);
-                
-                uint32_t *bitstream = typec_pretx_convert(&goodcrc_resp_frame);
-            debug_pin_toggle(15);
-                uint num_u32 = bitstream[0];
-                uint num_zeros = typec_pretx_num_leading_zeros(bitstream[1]);
-            debug_pin_toggle(15);
-                uint32_t *converted = typec_tx_convert(&bitstream[1], bitstream[0]);
-                //printf("%X %X %X %X %X %X %X %X %X %X %X\n", converted[0], converted[1], converted[2], converted[3], converted[4], converted[5], converted[6], converted[7], converted[8], converted[9], converted[10]);
-                free(bitstream);
-/*
-                //free(bitstream);
-                uint32_t test_data[] = {
-                    0x5, 0xEEEEEEEE, 0xAAAAAAAA, 0xEEEEEEEE, 0xFFFFFFFF, 0x00000000
-                };
-                uint32_t *bitstream = &test_data;
-                uint num_zeros = 11;
-*/
-                pio_sm_put_blocking(phy_ch->pio, phy_ch->sm_tx, converted[0]);
-                for(uint i = 0; i < num_zeros; i++) { pio_sm_exec(phy_ch->pio, phy_ch->sm_tx, pio_encode_out(pio_null, 2)); }
-                pio_sm_exec(phy_ch->pio, phy_ch->sm_tx, pio_encode_set(pio_y, 1));
-                pio_sm_exec(phy_ch->pio, phy_ch->sm_tx, pio_encode_mov(pio_pins, pio_y));
-                busy_wait_us(1);
-                pio_sm_set_enabled(phy_ch->pio, phy_ch->sm_tx, true);
-                for(uint i = 1; i < (num_u32 * 2); i++) {
-                    pio_sm_put_blocking(phy_ch->pio, phy_ch->sm_tx, converted[i]);
-                }
-                //for(uint i = 0; i < 10; i++) { printf("%08X ", converted[i]); } printf("\n");
-                free(converted);
+                // Generate raw PIO data stream
+                tcpcBmcPhyTxData *raw_frame = tcpc_bmc_phy_tx_prepare(&goodcrc_resp_frame);
+                // Send raw PIO data stream
+                tcpc_bmc_phy_tx_send(phy_ch, raw_frame);
+                free(raw_frame);
             }
 //            if(typec_pdframe_valid(&current_frame)) { printf("V %X %X\n", current_frame.hdr, current_frame.ordered_set); } else { printf("Iv %X %X\n", current_frame.hdr, current_frame.ordered_set); }
             memset(&current_frame, 0, sizeof(pd_frame));
