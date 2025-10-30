@@ -81,7 +81,7 @@ static void tcpc_poll_dma(tcpcPhyChannel *phy_ch) {
         uint32_t *raw_data = &(phy_ch->raw_buf_rx[*process_count]);
         if(typec_4b5b_decode(&current_frame, *raw_data)) {
             // Valid frame was received
-            if(typec_pdframe_valid(&current_frame) && typec_pdframe_orderedset_get_idx(current_frame.ordered_set) == pdfTypeSop) {
+            if(typec_pdframe_valid(&current_frame) && typec_pdframe_orderedset_get_idx(current_frame.ordered_set) == pdfTypeSop && !typec_pdframe_compare(&current_frame, &goodcrc_resp_frame, sizeof(pd_frame))) {
                 // Clear response frame
                 memset(&goodcrc_resp_frame, 0, sizeof(pd_frame));
                 // Write GoodCRC response

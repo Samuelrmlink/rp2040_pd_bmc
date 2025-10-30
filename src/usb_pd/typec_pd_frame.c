@@ -85,3 +85,15 @@ void typec_pdframe_inc_msgid(pd_frame *pdf, uint msgid) {
     // Write MsgID
     typec_pdframe_set_msgid(pdf, val);
 }
+// Returns true if pd_frame objects match
+bool typec_pdframe_compare(pd_frame *pdf_a, pd_frame *pdf_b) {
+    // Compare frame type (SOP, SOP', SOP", etc..)
+    uint32_t ordset_a = bmcFrameType[typec_pdframe_orderedset_get_idx(pdf_a->ordered_set)];
+    uint32_t ordset_b = bmcFrameType[typec_pdframe_orderedset_get_idx(pdf_b->ordered_set)];
+    // This is done with the 'Ordered Set' idx value intentionally
+    if(ordset_a != ordset_b) { return false; }
+    // Compare the rest of the frame
+    if(memcpy(&((pdf_a->raw_bytes)[10]), &((pdf_b->raw_bytes)[10]), sizeof(uint8_t) * 50) != 0) { return false; }
+    // Return if we're still here
+    return true;
+}
