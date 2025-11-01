@@ -14,7 +14,7 @@ typedef struct {
 } mailerLabel;
 
 typedef struct {
-    pd_frame *pdf;
+    pd_frame pdf;
 } powerDeliveryMsg;
 
 void policy_engine_task(void *unused_arg);

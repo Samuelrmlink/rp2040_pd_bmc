@@ -60,9 +60,9 @@ void tcpc_mailbox_send_to_pe(pd_frame *frame) {
     extern QueueHandle_t mailbox_tcpc;
     extern QueueHandle_t mailbox_pe;
     mailerLabel parcel_out;
-    powerDeliveryMsg *pd_msg = malloc(sizeof(PowerDeliveryMsg));
-    pd_msg->pdf = malloc(sizeof(pd_frame));
-    memcpy(pd_msg->pdf, frame, sizeof(pd_frame));
+    powerDeliveryMsg *pd_msg = malloc(sizeof(powerDeliveryMsg));
+    //pd_msg->pdf = malloc(sizeof(pd_frame));
+    memcpy(&pd_msg->pdf, frame, sizeof(pd_frame));
     parcel_out.sender = mailbox_tcpc;
     parcel_out.payload_type = PowerDeliveryMsg;
     parcel_out.payload_ptr = (void *) pd_msg;
