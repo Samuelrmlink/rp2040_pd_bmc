@@ -85,6 +85,9 @@ static bool typec_4b5b_symbols_decode(uint *input_offset, uint *after_scrap_offs
         // Ensure that hexadecimal data discovered near the start of frame ends up as header
         if(*output_offset < 10 && !(decoded_4b & 0x10)) {
             *output_offset = 10;
+            // Check whether this is a Hard/Cable Reset - those types don't have an EOP symbol
+            uint ordset_idx = typec_pdframe_orderedset_get_idx(pdf->ordered_set);
+            if(ordset_idx == pdfTypeHardReset || ordset_idx == pdfTypeCableReset) { return true; }
         }
         if(decoded_4b == sym4bKcodeEop) {
             // End of panel symbol
