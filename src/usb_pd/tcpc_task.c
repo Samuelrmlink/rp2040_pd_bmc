@@ -56,9 +56,22 @@ static int tcpc_rx_dma_init(const volatile io_ro_32 *pio_rx_fifo, uint pio_dreq,
     dma_channel_start(dma_channel);
     return dma_channel;
 }
+void tcpc_mailbox_send_to_pe(pd_frame *frame) {
+    extern QueueHandle_t mailbox_tcpc;
+    extern QueueHandle_t mailbox_pe;
+    mailerLabel parcel_out;
+    powerDeliveryMsg *pd_msg = malloc(sizeof(PowerDeliveryMsg));
+    pd_msg->pdf = malloc(sizeof(pd_frame));
+    memcpy(pd_msg->pdf, frame, sizeof(pd_frame));
+    parcel_out.sender = mailbox_tcpc;
+    parcel_out.payload_type = PowerDeliveryMsg;
+    parcel_out.payload_ptr = (void *) pd_msg;
+    xQueueSendToBack(mailbox_pe, &parcel_out, 0);
+}
 static void tcpc_poll_dma(tcpcPhyChannel *phy_ch) {
     static uint32_t last_frame_timestamp;
     static pd_frame current_frame;
+    static pd_frame previously_sent_frame;
     pd_frame goodcrc_resp_frame;
     uint dma_transfer_idx = phy_ch->raw_buf_rx_size - dma_channel_hw_addr(phy_ch->dma_rx)->transfer_count;
     uint *process_count = &phy_ch->process_idx_rx;
@@ -68,20 +81,22 @@ static void tcpc_poll_dma(tcpcPhyChannel *phy_ch) {
     }
     if(dma_transfer_idx == *process_count) {
         // No new data received
-        if(last_frame_timestamp + 200 < time_us_32() && current_frame.timestamp_us) {
+        if(last_frame_timestamp + 120 < time_us_32() && current_frame.timestamp_us) {
             // There should be a new pd_frame or EOP symbol
             // We need to get the PIO SM to push its ISR to the FIFO
             pio_sm_exec(phy_ch->pio, phy_ch->sm_rx, pio_encode_in(pio_y, 1));
+            debug_pin_toggle(15);
         }
         return;
     } else {
         // New data was received
-        debug_pin_toggle(16);
         last_frame_timestamp = time_us_32();
         uint32_t *raw_data = &(phy_ch->raw_buf_rx[*process_count]);
         if(typec_4b5b_decode(&current_frame, *raw_data)) {
             // Valid frame was received
-            if(typec_pdframe_valid(&current_frame) && typec_pdframe_orderedset_get_idx(current_frame.ordered_set) == pdfTypeSop && !typec_pdframe_compare(&current_frame, &goodcrc_resp_frame, sizeof(pd_frame))) {
+            if(typec_pdframe_valid(&current_frame) && typec_pdframe_orderedset_get_idx(current_frame.ordered_set) == pdfTypeSop && !typec_pdframe_compare(&current_frame, &previously_sent_frame)) {
+                debug_pin_toggle(16);
+//                (current_frame.hdr == previously_sent_frame.hdr) ? printf("M\n") : printf("N\n");
                 // Clear response frame
                 memset(&goodcrc_resp_frame, 0, sizeof(pd_frame));
                 // Write GoodCRC response
@@ -91,6 +106,11 @@ static void tcpc_poll_dma(tcpcPhyChannel *phy_ch) {
                 // Send raw PIO data stream
                 tcpc_bmc_phy_tx_send(phy_ch, raw_frame);
                 free(raw_frame);
+                // Save previously sent frame
+                memcpy(&previously_sent_frame, &goodcrc_resp_frame, sizeof(pd_frame));
+                // Send pd_frame to policy engine
+                tcpc_mailbox_send_to_pe(&current_frame);
+                memset(&current_frame, 0, sizeof(pd_frame));
             }
 //            if(typec_pdframe_valid(&current_frame)) { printf("V %X %X\n", current_frame.hdr, current_frame.ordered_set); } else { printf("Iv %X %X\n", current_frame.hdr, current_frame.ordered_set); }
             memset(&current_frame, 0, sizeof(pd_frame));
@@ -132,6 +152,7 @@ void tcpc_task(void *arg) {
     //typec_operation_test();
 
     while(true) {
+        busy_wait_us(2);
         tcpc_poll_dma(&tcpc_phy_chan);
     }
 }

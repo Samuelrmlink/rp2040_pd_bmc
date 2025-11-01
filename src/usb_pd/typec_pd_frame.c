@@ -93,7 +93,7 @@ bool typec_pdframe_compare(pd_frame *pdf_a, pd_frame *pdf_b) {
     // This is done with the 'Ordered Set' idx value intentionally
     if(ordset_a != ordset_b) { return false; }
     // Compare the rest of the frame
-    if(memcpy(&((pdf_a->raw_bytes)[10]), &((pdf_b->raw_bytes)[10]), sizeof(uint8_t) * 50) != 0) { return false; }
+    if(memcmp(&((pdf_a->raw_bytes)[10]), &((pdf_b->raw_bytes)[10]), sizeof(uint8_t) * 50) != 0) { return false; }
     // Return if we're still here
     return true;
 }

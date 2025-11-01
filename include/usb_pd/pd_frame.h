@@ -171,3 +171,4 @@ void typec_pdframe_generate_goodcrc(pd_frame *input_frame, pd_frame *output_fram
 uint typec_pdframe_get_msgid(pd_frame *pdf);
 void typec_pdframe_set_msgid(pd_frame *pdf, uint msgid);
 void typec_pdframe_inc_msgid(pd_frame *pdf, uint msgid);
+bool typec_pdframe_compare(pd_frame *pdf_a, pd_frame *pdf_b);
