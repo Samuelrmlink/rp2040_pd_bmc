@@ -8,12 +8,6 @@ typedef struct {
     // Mode of operation (passive sniffer, source, sink, etc..)
 } tcpcLocalPolicy;
 
-typedef struct {
-    uint mV_min;
-    uint mV_max;
-    uint mA_min;
-    uint mA_max;
-} tcpcSinkPowerCriteria;
 
 void tcpc_task(void *arg);
 

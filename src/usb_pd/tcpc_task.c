@@ -112,6 +112,7 @@ static void tcpc_received_pdframe_handler(tcpcPhyChannel *phy_ch, tcpcLocalPolic
     memset(received_frame, 0, sizeof(pd_frame));
 }
 static void tcpc_poll_dma(tcpcPhyChannel *phy_ch, tcpcLocalPolicy *tcpc_policy) {
+    extern QueueHandle_t mailbox_tcpc;
     static uint32_t last_frame_timestamp;
     static pd_frame current_frame;
     static pd_frame previously_sent_frame;
@@ -148,6 +149,26 @@ static void tcpc_poll_dma(tcpcPhyChannel *phy_ch, tcpcLocalPolicy *tcpc_policy) 
         }
         (*process_count)++;
     }
+    // Check for messages from the PolicyEngine or CLI
+    if(!current_frame.timestamp_us && last_frame_timestamp + 260 < time_us_32()) {
+        mailerLabel parcel_incoming;
+        if(xQueueReceive(mailbox_tcpc, (void *)&parcel_incoming, 0) == pdPASS) {
+            if(parcel_incoming.payload_type == PowerDeliveryMsg) {
+                // Receive pd_frame data
+                powerDeliveryMsg *pd_msg = (powerDeliveryMsg *) parcel_incoming.payload_ptr;
+                pd_frame *pdf = &pd_msg->pdf;
+                free(pd_msg);
+                // Generate raw PIO data stream
+                tcpcBmcPhyTxData *raw_frame = tcpc_bmc_phy_tx_prepare(pdf);
+                // Send raw PIO data stream
+                tcpc_bmc_phy_tx_send(phy_ch, raw_frame);
+                free(raw_frame);
+                // Save previously sent frame
+                memcpy(&previously_sent_frame, pdf, sizeof(pd_frame));
+                free(pdf);
+            }
+        }
+    }
 }
 
 tcpcPhyChannel tcpc_phy_chan = {
@@ -168,15 +189,6 @@ tcpcLocalPolicy tcpc_policy = {
     false,          // accept_sopp
     false           // accept_sopdp
 };
-/*
-// Move into policy engine
-tcpcSinkPowerCriteria tcpc_sink_criteria = {
-    mV_min = 5000;
-    mV_max = 11000;
-    mA_min = 500;
-    mA_max = 2000;
-};
-*/
 
 void tcpc_task(void *arg) {
     (void)arg;

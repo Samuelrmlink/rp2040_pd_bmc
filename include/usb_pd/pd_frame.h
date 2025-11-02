@@ -163,6 +163,25 @@ static const char* const pdMsgTypeNames[] = {
     [(int)extMsgSecurityResponse]       = "Security_Response",
     [(int)extMsgFirmwareUpdateRequest]  = "Firmware_Update_Request",
 };
+typedef enum {
+    pdoTypeFixed,
+    pdoTypeBattery,
+    pdoTypeVariable,
+    pdoTypeAugmented
+} pdoBaseTypes;
+typedef enum {
+    pdoTypeAugmentedSprPps,
+    pdoTypeAugmentedEprAvs,
+    pdoTypeAugmentedSprAvs,
+    pdoTypeAugmentedReserved
+} pdoAugmentedTypes;
+
+typedef enum {
+    pdSpecRev1,
+    pdSpecRev2,
+    pdSpecRev3,
+    pdSpecReserved
+} pdSpecRevisions;
 
 uint typec_pdframe_orderedset_get_idx(uint32_t input);
 bool typec_pdframe_valid(pd_frame *pdf);
@@ -170,5 +189,5 @@ uint typec_pdframe_extended_unchunked_bytes(pd_frame *pdf);
 void typec_pdframe_generate_goodcrc(pd_frame *input_frame, pd_frame *output_frame);
 uint typec_pdframe_get_msgid(pd_frame *pdf);
 void typec_pdframe_set_msgid(pd_frame *pdf, uint msgid);
-void typec_pdframe_inc_msgid(pd_frame *pdf, uint msgid);
+void typec_pdframe_inc_msgid(pd_frame *pdf);
 bool typec_pdframe_compare(pd_frame *pdf_a, pd_frame *pdf_b);

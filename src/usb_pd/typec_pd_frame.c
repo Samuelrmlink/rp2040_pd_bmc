@@ -68,18 +68,25 @@ void typec_pdframe_generate_goodcrc(pd_frame *input_frame, pd_frame *output_fram
     // Generate CRC32
     output_frame->obj[0] = crc32_pdframe_calc(output_frame);
 }
-uint typec_pdframe_get_msgid(pd_frame *pdf) {
+PDMessageType typec_pdframe_get_sop_msg_type(pd_frame *msg) {
+    uint frame_type;
+    if(msg->hdr & 0x8000) { frame_type = 1u << 7;           // Extended message
+    } else if(msg->hdr & 0x7000) { frame_type = 1u << 6;    // Data message
+    } else { frame_type = 0; }                              // Control message
+    return (PDMessageType) frame_type | (msg->hdr & 0x1F);
+}
+uint typec_pdframe_get_hdr_msgid(pd_frame *pdf) {
     return (pdf->hdr >> 9) & 0x7;
 }
-void typec_pdframe_set_msgid(pd_frame *pdf, uint msgid) {
+void typec_pdframe_set_hdr_msgid(pd_frame *pdf, uint msgid) {
     // Clear MsgID field
     pdf->hdr &= (pdf->hdr >> 9) & 0x7;
     // Write to MsgID field
     pdf->hdr &= msgid & 0x7;
 }
-void typec_pdframe_inc_msgid(pd_frame *pdf, uint msgid) {
+void typec_pdframe_inc_msgid(pd_frame *pdf) {
     // Read MsgID
-    uint val = typec_pdframe_get_msgid(pdf);
+    uint val = typec_pdframe_get_hdr_msgid(pdf);
     // Increment MsgID (bit overflow will reset to zero)
     val++;
     // Write MsgID

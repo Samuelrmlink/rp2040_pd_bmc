@@ -22,6 +22,7 @@
 #include "mailbox_ipc.h"
 #include "usb_pd/tcpc_bmc_phy.h"
 #include "usb_pd/typec_4b5b.h"
+#include "usb_pd/policy_engine.h"
 #include "usb_pd/tcpc_task.h"
 #include "usb_pd/crc32.h"
 #include "cli/cli.h"
