@@ -55,7 +55,7 @@ void pe_request_from_srccap_fixed(pd_frame *input_frame, pd_frame *output_frame,
     // Replace maximum current value if requested current is lower
     mA_max = (power_req.mA_max < mA_max) ? power_req.mA_max : mA_max;
     // Setup 'Ordered Set' and Message Header (hard-coded values are currently used)
-    output_frame->ordered_set = bmcFrameType[ordsetSop];
+    output_frame->ordered_set = bmcFrameType[typec_pdframe_orderedset_get_idx(input_frame->ordered_set)];
     // Generate Message Header
     output_frame->hdr = (1u << 12)  // # of Data Objects
         | (msg_id & 0x7) << 9       // MsgID
@@ -78,6 +78,7 @@ void pe_request_from_srccap(pd_frame *input_frame, uint req_pdo, peSinkPowerCrit
     switch((input_frame->obj[req_pdo - 1] >> 30) & 0x3) {
         case(pdoTypeFixed):
             pe_request_from_srccap_fixed(input_frame, output_frame, req_pdo, power_req, msg_id, (uint)pdSpecRev3);
+            printf("PE %X %X\n", output_frame->ordered_set, output_frame->hdr);
             break;
         case(pdoTypeAugmented):
         case(pdoTypeBattery):
