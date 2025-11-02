@@ -152,23 +152,17 @@ static void tcpc_poll_dma(tcpcPhyChannel *phy_ch, tcpcLocalPolicy *tcpc_policy) 
     if(!current_frame.timestamp_us && last_frame_timestamp + 260 < time_us_32()) {
         mailerLabel parcel_incoming;
         if(xQueueReceive(mailbox_tcpc, (void *)&parcel_incoming, 0) == pdPASS) {
-            printf("Q");
             if(parcel_incoming.payload_type == PowerDeliveryMsg) {
                 // Receive pd_frame data
                 powerDeliveryMsg *pd_msg = (powerDeliveryMsg *) parcel_incoming.payload_ptr;
-                pd_frame *pdf = &pd_msg->pdf;
-                printf("%X %X %X %X\n", pdf->ordered_set, pdf->hdr, pdf->obj[0], pdf->obj[1]);
                 free(pd_msg);
                 // Generate raw PIO data stream
-                tcpcBmcPhyTxData *raw_frame = tcpc_bmc_phy_tx_prepare(pdf);
-                printf("%u %u ", raw_frame->num_u32, raw_frame->num_zeros);
-                for(uint i = 0; i < raw_frame->num_u32; i++) { printf("%X ", raw_frame->pio_raw_tx[i]); }
+                tcpcBmcPhyTxData *raw_frame = tcpc_bmc_phy_tx_prepare(&pd_msg->pdf);
                 // Send raw PIO data stream
                 tcpc_bmc_phy_tx_send(phy_ch, raw_frame);
                 free(raw_frame);
                 // Save previously sent frame
-                memcpy(&previously_sent_frame, pdf, sizeof(pd_frame));
-                free(pdf);
+                memcpy(&previously_sent_frame, &pd_msg->pdf, sizeof(pd_frame));
             }
         }
     }

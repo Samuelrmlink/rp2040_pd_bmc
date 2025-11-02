@@ -225,7 +225,7 @@ uint32_t* typec_pretx_convert(pd_frame *pdf) {
 uint32_t* typec_tx_convert(uint32_t *in, uint num_in_obj) {
     // We should have twice are many bits at the output
     uint num_out_obj = 2 * num_in_obj;
-    uint32_t *out = malloc(sizeof(uint32_t) * num_out_obj);
+    uint32_t *out = malloc(sizeof(uint32_t) * (num_out_obj + 1));
     memset(out, 0, sizeof(uint32_t) * num_out_obj);
     for(uint i = 0; i < num_out_obj; i += 2) {
         uint input_obj = i / 2;

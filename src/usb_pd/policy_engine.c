@@ -89,7 +89,10 @@ void pe_request_from_srccap(pd_frame *input_frame, uint req_pdo, peSinkPowerCrit
             break;
     }
     // Send to TCPC (Type-C Port Controller) thread
-    mailerLabel parcel_outgoing = { mailbox_pe, PowerDeliveryMsg, (void *)output_frame };
+    powerDeliveryMsg *pd_msg = malloc(sizeof(powerDeliveryMsg));
+    memcpy(&pd_msg->pdf, output_frame, sizeof(pd_frame));
+    free(output_frame);
+    mailerLabel parcel_outgoing = { mailbox_pe, PowerDeliveryMsg, pd_msg };
     xQueueSendToBack(mailbox_tcpc, &parcel_outgoing, 0);
     // Debugging - log to serial
     //printf("Req: %X %X %X\n", output_frame->hdr, output_frame->obj[0], output_frame->obj[1]);
@@ -123,7 +126,7 @@ void policy_engine_task(void *unused_arg) {
                 pd_frame *pdf = &pd_msg->pdf;
                 switch(typec_pdframe_orderedset_get_idx(pdf->ordered_set)) {
                     case(pdfTypeSop):
-                        printf("PE %s HDR: %X Obj: %X\n", sopFrameTypeNames[typec_pdframe_orderedset_get_idx(pdf->ordered_set)], pdf->hdr, (pdf->obj)[0]);
+                        //printf("PE %s HDR: %X Obj: %X\n", sopFrameTypeNames[typec_pdframe_orderedset_get_idx(pdf->ordered_set)], pdf->hdr, (pdf->obj)[0]);
                         pe_handle_sop_frame(pdf, pe_sink_criteria);
                         break;
                     case(pdfTypeSopP):
