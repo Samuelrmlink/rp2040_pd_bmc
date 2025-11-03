@@ -63,10 +63,53 @@ void pe_request_from_srccap_fixed(pd_frame *input_frame, pd_frame *output_frame,
         | (uint)dataMsgRequest;     // Request [Power Contract]
     // Generate RDO (Request Data Object)
     output_frame->obj[0] = (req_pdo & 0xF) << 28    // Object position
+        | 1u << 25                                  // USB communication capable bit (tell upstream device that we support USB)
+        | 1u << 24                                  // No USB suspend bit (request continuing PD contract through USB suspend)
         | ((mA_max / 10) & 0x3FF) << 10             // Operating current
         | ((mA_max / 10) & 0x3FF);                  // Max current
     // Generate CRC32
     output_frame->obj[1] = crc32_pdframe_calc(output_frame);
+}
+void pe_request_from_srccap_augmented_spr_pps(pd_frame *input_frame, pd_frame *output_frame, uint req_pdo, peSinkPowerCriteria power_req, uint msg_id, uint spec_rev) {
+    memset(output_frame, 0, sizeof(pd_frame));
+    // Since eval_pdo_augmented has passed we know that the req_pdo.mV_max is within range of this APDO
+    // Get PDO maximum current
+    uint pdo_mA_max = (input_frame->obj[req_pdo - 1] & 0x7F) * 50;
+    // Any modification of the current value does not leave this function
+    if(power_req.mA_max > pdo_mA_max) {
+        // Max current requested is higher than provided by the charger - just take what we can get
+        power_req.mA_max = pdo_mA_max;
+    }
+    // Setup 'Ordered Set' and Message Header (hard-coded values are currently used)
+    output_frame->ordered_set = bmcFrameType[typec_pdframe_orderedset_get_idx(input_frame->ordered_set)];
+    // Generate Message Header
+    output_frame->hdr = (1u << 12)  // # of Data Objects
+        | (msg_id & 0x7) << 9       // MsgID
+        | (spec_rev & 0x3) << 6     // PD Spec Rev.
+        | (uint)dataMsgRequest;     // Request [Power Contract]
+    // Generate RDO (Request Data Object)
+    output_frame->obj[0] = (req_pdo & 0xF) << 28    // Object position
+        | 1u << 25                                  // USB communication capable bit (tell upstream device that we support USB)
+        | 1u << 24                                  // No USB suspend bit (request continuing PD contract through USB suspend)
+        | ((power_req.mV_max / 20) & 0xFFF) << 9    // Operating voltage
+        | ((pdo_mA_max / 50) & 0x7F);               // Operating current
+    // Generate CRC32
+    output_frame->obj[1] = crc32_pdframe_calc(output_frame);
+}
+void pe_request_from_srccap_augmented(pd_frame *input_frame, pd_frame *output_frame, uint req_pdo, peSinkPowerCriteria power_req, uint msg_id, uint spec_rev) {
+    // Determine which type of request to generate
+    switch((input_frame->obj[req_pdo - 1] >> 28) & 0x3) {
+        case(pdoTypeAugmentedSprPps):
+            pe_request_from_srccap_augmented_spr_pps(input_frame, output_frame, req_pdo, power_req, msg_id, (uint)pdSpecRev3);
+            break;
+        case(pdoTypeAugmentedEprAvs):
+        case(pdoTypeAugmentedSprAvs):
+        case(pdoTypeAugmentedReserved):
+            printf("Unimplemented\n");
+            break;
+        default:
+            break;
+    }
 }
 void pe_request_from_srccap(pd_frame *input_frame, uint req_pdo, peSinkPowerCriteria power_req, uint msg_id) {
     extern QueueHandle_t mailbox_pe;
@@ -81,6 +124,8 @@ void pe_request_from_srccap(pd_frame *input_frame, uint req_pdo, peSinkPowerCrit
             //printf("PE %X %X\n", output_frame->ordered_set, output_frame->hdr);
             break;
         case(pdoTypeAugmented):
+            pe_request_from_srccap_augmented(input_frame, output_frame, req_pdo, power_req, msg_id, (uint)pdSpecRev3);
+            break;
         case(pdoTypeBattery):
         case(pdoTypeVariable):
             printf("Unimplemented\n");
@@ -98,13 +143,25 @@ void pe_request_from_srccap(pd_frame *input_frame, uint req_pdo, peSinkPowerCrit
     //printf("Req: %X %X %X\n", output_frame->hdr, output_frame->obj[0], output_frame->obj[1]);
 }
 
-void pe_handle_sop_frame(pd_frame *pdf, peSinkPowerCriteria pe_sink_criteria) {
-    printf("SOP %X\n", pdf->hdr);
+void pe_handle_sop_frame(pd_frame *pdf, peSinkPowerCriteria pe_sink_criteria, pd_frame *last_srccap_pdf) {
     uint frametype_idx = typec_pdframe_get_sop_msg_type(pdf);
-    printf("%s\n", pdMsgTypeNames[frametype_idx]);
-    uint req_pdo = optimal_pdo(pdf, pe_sink_criteria);
-    printf("%u\n", req_pdo);
-    pe_request_from_srccap(pdf, req_pdo, pe_sink_criteria, 0);
+    switch(frametype_idx) {
+        case(controlMsgGoodCrc):
+            printf("GoodCRC\n");
+            break;
+        case(controlMsgAccept):
+            printf("Accept\n");
+            break;
+        case(controlMsgPsReady):
+            printf("PS Ready :D");
+            break;
+        case(dataMsgSourceCap):
+            uint req_pdo = optimal_pdo(pdf, pe_sink_criteria);
+            pe_request_from_srccap(pdf, req_pdo, pe_sink_criteria, 0);
+            break;
+        default:
+            printf("Unimplemented: %s\n", pdMsgTypeNames[frametype_idx]);
+    }
 }
 
 peSinkPowerCriteria pe_sink_criteria = {
@@ -118,6 +175,7 @@ void policy_engine_task(void *unused_arg) {
     extern peSinkPowerCriteria pe_sink_criteria;
     extern QueueHandle_t mailbox_pe;
     mailerLabel parcel_recv;
+    pd_frame last_srccap;
     while(true) {
         if(xQueueReceive(mailbox_pe, (void *) &parcel_recv, 0) == pdPASS) {
             // New data received
@@ -127,7 +185,7 @@ void policy_engine_task(void *unused_arg) {
                 switch(typec_pdframe_orderedset_get_idx(pdf->ordered_set)) {
                     case(pdfTypeSop):
                         //printf("PE %s HDR: %X Obj: %X\n", sopFrameTypeNames[typec_pdframe_orderedset_get_idx(pdf->ordered_set)], pdf->hdr, (pdf->obj)[0]);
-                        pe_handle_sop_frame(pdf, pe_sink_criteria);
+                        pe_handle_sop_frame(pdf, pe_sink_criteria, &last_srccap);
                         break;
                     case(pdfTypeSopP):
                     case(pdfTypeSopDp):
