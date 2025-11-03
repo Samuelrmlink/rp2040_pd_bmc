@@ -90,21 +90,32 @@ static bool tcpc_check_policy(tcpcLocalPolicy *tcpc_policy, pd_frame *pdf) {
     }
     return false;
 }
+// Returns true if TCPC should respond with a 'GoodCRC' message
+static bool tcpc_should_respond_with_goodcrc(tcpcLocalPolicy *tcpc_policy, pd_frame *pdf) {
+    // Don't respond if CRC reply is disabled
+    if(!tcpc_policy->crc32_reply) { return false; }
+    // Don't respond to a 'GoodCRC' message
+    if(typec_pdframe_get_sop_msg_type(pdf) == controlMsgGoodCrc) { return false; }
+    // All other cases - respond with GoodCRC
+    return true;
+}
 // Determines what we do with a received frame that we know is valid
 static void tcpc_received_pdframe_handler(tcpcPhyChannel *phy_ch, tcpcLocalPolicy *tcpc_policy, pd_frame *received_frame, pd_frame *previously_sent_frame) {
     // If the local TCPC policy allows - we respond with a 'GoodCRC' message and send a copy to the policy engine
     if(tcpc_check_policy(tcpc_policy, received_frame)) {
-        pd_frame goodcrc_resp_frame;
-        // Write GoodCRC response
-        memset(&goodcrc_resp_frame, 0, sizeof(pd_frame));
-        typec_pdframe_generate_goodcrc(received_frame, &goodcrc_resp_frame);
-        // Generate raw PIO data stream
-        tcpcBmcPhyTxData *raw_frame = tcpc_bmc_phy_tx_prepare(&goodcrc_resp_frame);
-        // Send raw PIO data stream
-        tcpc_bmc_phy_tx_send(phy_ch, raw_frame);
-        free(raw_frame);
-        // Save previously sent frame
-        memcpy(previously_sent_frame, &goodcrc_resp_frame, sizeof(pd_frame));
+        if(tcpc_should_respond_with_goodcrc(tcpc_policy, received_frame)) {
+            pd_frame goodcrc_resp_frame;
+            // Write GoodCRC response
+            memset(&goodcrc_resp_frame, 0, sizeof(pd_frame));
+            typec_pdframe_generate_goodcrc(received_frame, &goodcrc_resp_frame);
+            // Generate raw PIO data stream
+            tcpcBmcPhyTxData *raw_frame = tcpc_bmc_phy_tx_prepare(&goodcrc_resp_frame);
+            // Send raw PIO data stream
+            tcpc_bmc_phy_tx_send(phy_ch, raw_frame);
+            free(raw_frame);
+            // Save previously sent frame
+            memcpy(previously_sent_frame, &goodcrc_resp_frame, sizeof(pd_frame));
+        }
         // Send pd_frame to policy engine
         tcpc_mailbox_send_to_pe(received_frame);
     }
@@ -184,7 +195,8 @@ tcpcPhyChannel tcpc_phy_chan = {
 tcpcLocalPolicy tcpc_policy = {
     true,           // accept_sop
     false,          // accept_sopp
-    false           // accept_sopdp
+    false,          // accept_sopdp
+    true,           // crc32_reply
 };
 
 void tcpc_task(void *arg) {

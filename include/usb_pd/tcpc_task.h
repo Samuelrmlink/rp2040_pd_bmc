@@ -5,6 +5,7 @@ typedef struct {
     uint accept_sop : 1;
     uint accept_sopp : 1;
     uint accept_sopdp : 1;
+    uint crc32_reply : 1;
     // Mode of operation (passive sniffer, source, sink, etc..)
 } tcpcLocalPolicy;
 

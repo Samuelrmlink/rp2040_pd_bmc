@@ -18,13 +18,13 @@ bool pe_eval_pdo_augmented(uint32_t pdo_obj, peSinkPowerCriteria req) {
             if(pdo_mV_max >= req.mV_max && pdo_mV_max >= req.mV_min && pdo_mA_max >= req.mA_min) { return true; }
             break;
         case(pdoTypeAugmentedEprAvs):
-            printf("EPR AVS\n");
+            //printf("EPR AVS\n");
             break;
         case(pdoTypeAugmentedSprAvs):
-            printf("SPR AVS\n");
+            //printf("SPR AVS\n");
             break;
         default:
-            printf("Invalid/Reserved\n");
+            //printf("Invalid/Reserved\n");
     }
     return false;
 }
@@ -78,7 +78,7 @@ void pe_request_from_srccap(pd_frame *input_frame, uint req_pdo, peSinkPowerCrit
     switch((input_frame->obj[req_pdo - 1] >> 30) & 0x3) {
         case(pdoTypeFixed):
             pe_request_from_srccap_fixed(input_frame, output_frame, req_pdo, power_req, msg_id, (uint)pdSpecRev3);
-            printf("PE %X %X\n", output_frame->ordered_set, output_frame->hdr);
+            //printf("PE %X %X\n", output_frame->ordered_set, output_frame->hdr);
             break;
         case(pdoTypeAugmented):
         case(pdoTypeBattery):
