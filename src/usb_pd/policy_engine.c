@@ -48,6 +48,12 @@ uint optimal_pdo(pd_frame *pdf, peSinkPowerCriteria power_req) {
     }
     return ret;
 }
+bool pe_pdo_is_augmented(uint32_t pdo) {
+    return (bool) (((pdo >> 30) & 0x3) == pdoTypeAugmented);
+}
+bool pe_pdo_is_augmented_idx(pd_frame *pdf, uint pdo_idx) {
+    return (pdo_idx > 1) ? pe_pdo_is_augmented(pdf->obj[pdo_idx - 1]) : false;
+}
 void pe_request_from_srccap_fixed(pd_frame *input_frame, pd_frame *output_frame, uint req_pdo, peSinkPowerCriteria power_req, uint msg_id, uint spec_rev) {
     memset(output_frame, 0, sizeof(pd_frame));
     // Get PDO maximum current
@@ -143,7 +149,7 @@ void pe_request_from_srccap(pd_frame *input_frame, uint req_pdo, peSinkPowerCrit
     //printf("Req: %X %X %X\n", output_frame->hdr, output_frame->obj[0], output_frame->obj[1]);
 }
 
-void pe_handle_sop_frame(pd_frame *pdf, peSinkPowerCriteria pe_sink_criteria, pd_frame *last_srccap_pdf) {
+void pe_handle_sop_frame(pd_frame *pdf, peSinkPowerCriteria pe_sink_criteria, pd_frame *last_srccap_pdf, uint *hdr_msgid, uint *req_pdo) {
     uint frametype_idx = typec_pdframe_get_sop_msg_type(pdf);
     switch(frametype_idx) {
         case(controlMsgGoodCrc):
@@ -156,17 +162,21 @@ void pe_handle_sop_frame(pd_frame *pdf, peSinkPowerCriteria pe_sink_criteria, pd
             printf("PS Ready :D");
             break;
         case(dataMsgSourceCap):
-            uint req_pdo = optimal_pdo(pdf, pe_sink_criteria);
-            pe_request_from_srccap(pdf, req_pdo, pe_sink_criteria, 0);
+            *req_pdo = optimal_pdo(pdf, pe_sink_criteria);
+            pe_request_from_srccap(pdf, *req_pdo, pe_sink_criteria, *hdr_msgid);
+            memcpy(last_srccap_pdf, pdf, sizeof(pd_frame));
             break;
         default:
             printf("Unimplemented: %s\n", pdMsgTypeNames[frametype_idx]);
     }
+    // Increment msgID
+    (*hdr_msgid)++;
+    *hdr_msgid &= 0x7;
 }
 
 peSinkPowerCriteria pe_sink_criteria = {
     5000,       // mV_min
-    11000,      // mV_max
+    12800,      // mV_max
     500,        // mA_min
     2000        // mA_max
 };
@@ -176,6 +186,9 @@ void policy_engine_task(void *unused_arg) {
     extern QueueHandle_t mailbox_pe;
     mailerLabel parcel_recv;
     pd_frame last_srccap;
+    uint sop_msgid = 0;
+    uint pdo_idx = 0;
+    uint32_t apdo_last_timestamp = 0;
     while(true) {
         if(xQueueReceive(mailbox_pe, (void *) &parcel_recv, 0) == pdPASS) {
             // New data received
@@ -185,7 +198,7 @@ void policy_engine_task(void *unused_arg) {
                 switch(typec_pdframe_orderedset_get_idx(pdf->ordered_set)) {
                     case(pdfTypeSop):
                         //printf("PE %s HDR: %X Obj: %X\n", sopFrameTypeNames[typec_pdframe_orderedset_get_idx(pdf->ordered_set)], pdf->hdr, (pdf->obj)[0]);
-                        pe_handle_sop_frame(pdf, pe_sink_criteria, &last_srccap);
+                        pe_handle_sop_frame(pdf, pe_sink_criteria, &last_srccap, &sop_msgid, &pdo_idx);
                         break;
                     case(pdfTypeSopP):
                     case(pdfTypeSopDp):
@@ -199,6 +212,14 @@ void policy_engine_task(void *unused_arg) {
 //                printf("K");
                 sleep_ms(5000);
             }
+        } else if(pe_pdo_is_augmented_idx(&last_srccap, pdo_idx) && time_us_32() > (apdo_last_timestamp + 5000000)) {
+            printf("RT\n");
+            pe_request_from_srccap(&last_srccap, pdo_idx, pe_sink_criteria, sop_msgid);
+            // Increment msgID
+            sop_msgid++;
+            sop_msgid &= 0x7;
+            // Record timestamp
+            apdo_last_timestamp = time_us_32();
         }
     }
 }
