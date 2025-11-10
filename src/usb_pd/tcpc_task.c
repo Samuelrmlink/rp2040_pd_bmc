@@ -92,8 +92,26 @@ static bool tcpc_check_policy(tcpcLocalPolicy *tcpc_policy, pd_frame *pdf) {
 }
 // Returns true if TCPC should respond with a 'GoodCRC' message
 static bool tcpc_should_respond_with_goodcrc(tcpcLocalPolicy *tcpc_policy, pd_frame *pdf) {
-    // Don't respond if CRC reply is disabled
-    if(!tcpc_policy->crc32_reply) { return false; }
+    // Check whether GoodCRC response is enabled for this Ordered Set (SOP, SOP', SOP")
+    switch(typec_pdframe_orderedset_get_idx(pdf->ordered_set)) {
+        case(pdfTypeSopPDbg):
+        case(pdfTypeSopDpDbg):
+        case(pdfTypeHardReset):
+        case(pdfTypeCableReset):
+            return false;
+            break;
+        case(pdfTypeSop):
+            if(!tcpc_policy->goodcrc_sop) { return false; }
+            break;  // Continue - other policies MAY be enforced
+        case(pdfTypeSopP):
+            if(!tcpc_policy->goodcrc_sopp) { return false; }
+            break;  // Continue - other policies MAY be enforced
+        case(pdfTypeSopDp):
+            if(!tcpc_policy->goodcrc_sopdp) { return false; }
+            break;  // Continue - other policies MAY be enforced
+        default:
+            return false;
+    }
     // Don't respond to a 'GoodCRC' message
     if(typec_pdframe_get_sop_msg_type(pdf) == controlMsgGoodCrc) { return false; }
     // All other cases - respond with GoodCRC
@@ -166,7 +184,6 @@ static void tcpc_poll_dma(tcpcPhyChannel *phy_ch, tcpcLocalPolicy *tcpc_policy) 
             if(parcel_incoming.payload_type == PowerDeliveryMsg) {
                 // Receive pd_frame data
                 powerDeliveryMsg *pd_msg = (powerDeliveryMsg *) parcel_incoming.payload_ptr;
-                free(pd_msg);
                 // Generate raw PIO data stream
                 tcpcBmcPhyTxData *raw_frame = tcpc_bmc_phy_tx_prepare(&pd_msg->pdf);
                 // Send raw PIO data stream
@@ -174,6 +191,7 @@ static void tcpc_poll_dma(tcpcPhyChannel *phy_ch, tcpcLocalPolicy *tcpc_policy) 
                 free(raw_frame);
                 // Save previously sent frame
                 memcpy(&previously_sent_frame, &pd_msg->pdf, sizeof(pd_frame));
+                free(pd_msg);
             }
         }
     }
@@ -196,7 +214,7 @@ tcpcLocalPolicy tcpc_policy = {
     true,           // accept_sop
     false,          // accept_sopp
     false,          // accept_sopdp
-    true,           // crc32_reply
+    true,           // goodcrc_sop
 };
 
 void tcpc_task(void *arg) {

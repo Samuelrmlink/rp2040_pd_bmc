@@ -7,25 +7,25 @@ uint typec_pdframe_orderedset_get_idx(uint32_t input) {
     // ----- Workaround solution: shift bits if symbol is dropped
     if(input & 0xFF000000) {
         switch(input) {
-            case(ordsetHardReset):  idx = 1; break;
-            case(ordsetCableReset): idx = 2; break;
-            case(ordsetSop):        idx = 3; break;
-            case(ordsetSopP):       idx = 4; break;
-            case(ordsetSopDp):      idx = 5; break;
-            case(ordsetSopPDbg):    idx = 6; break;
-            case(ordsetSopDpDbg):   idx = 7; break;
-            default:                idx = 0;
+            case(ordsetHardReset):          idx = pdfTypeHardReset; /* 1 */ break;
+            case(ordsetCableReset):         idx = pdfTypeCableReset;/* 2 */ break;
+            case(ordsetSop):                idx = pdfTypeSop;       /* 3 */ break;
+            case(ordsetSopP):               idx = pdfTypeSopP;      /* 4 */ break;
+            case(ordsetSopDp):              idx = pdfTypeSopDp;     /* 5 */ break;
+            case(ordsetSopPDbg):            idx = pdfTypeSopPDbg;   /* 6 */ break;
+            case(ordsetSopDpDbg):           idx = pdfTypeSopDpDbg;  /* 7 */ break;
+            default:                        idx = 0;                /* 0 */
         }
     } else {
         switch(input) {
-            case(ordsetHardReset >> 8):     idx = 1; break;
-            case(ordsetCableReset >> 8):    idx = 2; break;
-            case(ordsetSop >> 8):           idx = 3; break;
-            case(ordsetSopP >> 8):          idx = 4; break;
-            case(ordsetSopDp >> 8):         idx = 5; break;
-            case(ordsetSopPDbg >> 8):       idx = 6; break;
-            case(ordsetSopDpDbg >> 8):      idx = 7; break;
-            default:                        idx = 0;
+            case(ordsetHardReset >> 8):     idx = pdfTypeHardReset; /* 1 */ break;
+            case(ordsetCableReset >> 8):    idx = pdfTypeCableReset;/* 2 */ break;
+            case(ordsetSop >> 8):           idx = pdfTypeSop;       /* 3 */ break;
+            case(ordsetSopP >> 8):          idx = pdfTypeSopP;      /* 4 */ break;
+            case(ordsetSopDp >> 8):         idx = pdfTypeSopDp;     /* 5 */ break;
+            case(ordsetSopPDbg >> 8):       idx = pdfTypeSopPDbg;   /* 6 */ break;
+            case(ordsetSopDpDbg >> 8):      idx = pdfTypeSopDpDbg;  /* 7 */ break;
+            default:                        idx = 0;                /* 0 */
         }
     }
     return idx;

@@ -161,7 +161,7 @@ void pe_handle_sop_frame(pd_frame *pdf, peSinkPowerCriteria pe_sink_criteria, pd
             printf("Accept\n");
             break;
         case(controlMsgPsReady):
-            printf("PS Ready :D");
+            printf("PS Ready\n");
             break;
         case(dataMsgSourceCap):
             *req_pdo = optimal_pdo(pdf, pe_sink_criteria);
@@ -218,7 +218,7 @@ void policy_engine_task(void *unused_arg) {
                 sleep_ms(5000);
             }
         } else if(pe_pdo_is_augmented_idx(&last_srccap, pdo_idx) && time_us_32() > (apdo_last_timestamp + 5000000)) {
-            printf("RT\n");
+            printf("APDO RT\n");
             pe_request_from_srccap(&last_srccap, pdo_idx, pe_sink_criteria, sop_msgid);
             // Increment msgID
             sop_msgid++;

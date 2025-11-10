@@ -22,7 +22,6 @@ void tcpc_bmc_phy_tx_send(tcpcPhyChannel *phy_ch, tcpcBmcPhyTxData *tx_data) {
         pio_sm_put_blocking(phy_ch->pio, phy_ch->sm_tx, (tx_data->pio_raw_tx)[i]);
     }
     taskEXIT_CRITICAL();
-    printf("ZI %u %u\n", tx_data->num_zeros, tx_data->num_u32);
-    //for(uint i = 0; i < 10; i++) { printf("%08X ", (tx_data->pio_raw_tx)[i]); } printf("\n");
+    //printf("ZI %u %u\n", tx_data->num_zeros, tx_data->num_u32);
     free(tx_data->pio_raw_tx);
 }
