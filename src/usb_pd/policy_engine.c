@@ -9,13 +9,12 @@ bool pe_eval_pdo_fixed(uint32_t pdo_obj, peSinkPowerCriteria req) {
 bool pe_eval_pdo_augmented(uint32_t pdo_obj, peSinkPowerCriteria req) {
     switch((pdo_obj >> 28) & 0x3) {
         case(pdoTypeAugmentedSprPps):
-            printf("SPR PPS\n");
             // Get SPR PPS PDO values
             uint32_t pdo_mV_max = ((pdo_obj >> 17) & 0xFF) * 100;
             uint32_t pdo_mV_min = ((pdo_obj >> 8) & 0xFF) * 100;
             uint pdo_mA_max = (pdo_obj & 0x7F) * 50;
             // Compare PDO values with the criteria
-            if(pdo_mV_max >= req.mV_max && pdo_mV_max >= req.mV_min && pdo_mA_max >= req.mA_min) { return true; }
+            if(pdo_mV_max >= req.mV_min && pdo_mA_max >= req.mA_min) { return true; }
             break;
         case(pdoTypeAugmentedEprAvs):
             //printf("EPR AVS\n");
@@ -75,17 +74,18 @@ void pe_request_from_srccap_fixed(pd_frame *input_frame, pd_frame *output_frame,
         | ((mA_max / 10) & 0x3FF);                  // Max current
     // Generate CRC32
     output_frame->obj[1] = crc32_pdframe_calc(output_frame);
+    printf("ReqFixed\n");
 }
 void pe_request_from_srccap_augmented_spr_pps(pd_frame *input_frame, pd_frame *output_frame, uint req_pdo, peSinkPowerCriteria power_req, uint msg_id, uint spec_rev) {
     memset(output_frame, 0, sizeof(pd_frame));
     // Since eval_pdo_augmented has passed we know that the req_pdo.mV_max is within range of this APDO
     // Get PDO maximum current
     uint pdo_mA_max = (input_frame->obj[req_pdo - 1] & 0x7F) * 50;
-    // Any modification of the current value does not leave this function
-    if(power_req.mA_max > pdo_mA_max) {
-        // Max current requested is higher than provided by the charger - just take what we can get
-        power_req.mA_max = pdo_mA_max;
-    }
+    uint pdo_mV_max = ((input_frame->obj[req_pdo - 1] >> 17) & 0xFF) * 100;
+    // Our PD Sink mode requests the maximum voltage/current both specified in the 'peSinkPowerCriteria' and available from the PD Source
+    // We don't request any higher than the Policy Engine requests - but will take less voltage/current as long as we are still above the minimum threshold.
+    uint request_mA = (power_req.mA_max > pdo_mA_max) ? pdo_mA_max : power_req.mA_max;
+    uint request_mV = (power_req.mV_max > pdo_mV_max) ? pdo_mV_max : power_req.mV_max;
     // Setup 'Ordered Set' and Message Header (hard-coded values are currently used)
     output_frame->ordered_set = bmcFrameType[typec_pdframe_orderedset_get_idx(input_frame->ordered_set)];
     // Generate Message Header
@@ -97,10 +97,12 @@ void pe_request_from_srccap_augmented_spr_pps(pd_frame *input_frame, pd_frame *o
     output_frame->obj[0] = (req_pdo & 0xF) << 28    // Object position
         | 1u << 25                                  // USB communication capable bit (tell upstream device that we support USB)
         | 1u << 24                                  // No USB suspend bit (request continuing PD contract through USB suspend)
-        | ((power_req.mV_max / 20) & 0xFFF) << 9    // Operating voltage
-        | ((pdo_mA_max / 50) & 0x7F);               // Operating current
+        | ((request_mV / 20) & 0xFFF) << 9    // Operating voltage
+        | ((request_mA / 50) & 0x7F);               // Operating current
     // Generate CRC32
     output_frame->obj[1] = crc32_pdframe_calc(output_frame);
+    printf("ReqAugmented %u %u\n", request_mV, request_mA);
+    printf("Req raw: %X %X %X\n", output_frame->hdr, output_frame->obj[0], output_frame->obj[1]);
 }
 void pe_request_from_srccap_augmented(pd_frame *input_frame, pd_frame *output_frame, uint req_pdo, peSinkPowerCriteria power_req, uint msg_id, uint spec_rev) {
     // Determine which type of request to generate
@@ -165,6 +167,9 @@ void pe_handle_sop_frame(pd_frame *pdf, peSinkPowerCriteria pe_sink_criteria, pd
             *req_pdo = optimal_pdo(pdf, pe_sink_criteria);
             pe_request_from_srccap(pdf, *req_pdo, pe_sink_criteria, *hdr_msgid);
             memcpy(last_srccap_pdf, pdf, sizeof(pd_frame));
+            break;
+        case(dataMsgRequest):
+            printf("Request frame - Hdr: %X RDO: %X CRC: %X\n", pdf->hdr, pdf->obj[0], pdf->obj[1]);
             break;
         default:
             printf("Unimplemented: %s\n", pdMsgTypeNames[frametype_idx]);
