@@ -268,7 +268,7 @@ void policy_engine_task(void *unused_arg) {
                 free(pd_msg);
             } else {
                 // TODO: Invalid condition...
-//                printf("K");
+                printf("Policy Engine: Invalid data received.");
                 sleep_ms(5000);
             }
         } else if(pe_pdo_is_augmented_idx(&last_srccap, pdo_idx) && time_us_32() > (apdo_last_timestamp + 5000000)) {

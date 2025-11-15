@@ -137,6 +137,7 @@ static void tcpc_received_pdframe_handler(tcpcPhyChannel *phy_ch, tcpcLocalPolic
         }
         // Send pd_frame to policy engine
         tcpc_mailbox_send_to_pe(received_frame);
+        debug_pin_toggle(16);
     }
     // Reset received_frame variable
     memset(received_frame, 0, sizeof(pd_frame));
@@ -170,7 +171,7 @@ static void tcpc_poll_dma(tcpcPhyChannel *phy_ch, tcpcLocalPolicy *tcpc_policy) 
         if(typec_4b5b_decode(&current_frame, *raw_data)) {
             // Valid frame was received
             if(typec_pdframe_valid(&current_frame) && !typec_pdframe_compare(&current_frame, &previously_sent_frame)) {
-                debug_pin_toggle(16);
+                //debug_pin_toggle(16);
                 tcpc_received_pdframe_handler(phy_ch, tcpc_policy, &current_frame, &previously_sent_frame);
             }
 //            if(typec_pdframe_valid(&current_frame)) { printf("V %X %X\n", current_frame.hdr, current_frame.ordered_set); } else { printf("Iv %X %X\n", current_frame.hdr, current_frame.ordered_set); }
@@ -182,6 +183,7 @@ static void tcpc_poll_dma(tcpcPhyChannel *phy_ch, tcpcLocalPolicy *tcpc_policy) 
     if(!current_frame.timestamp_us && last_frame_timestamp + 260 < time_us_32()) {
         mailerLabel parcel_incoming;
         if(xQueueReceive(mailbox_tcpc, (void *)&parcel_incoming, 0) == pdPASS) {
+            debug_pin_toggle(15);
             if(parcel_incoming.payload_type == PowerDeliveryMsg) {
                 // Receive pd_frame data
                 powerDeliveryMsg *pd_msg = (powerDeliveryMsg *) parcel_incoming.payload_ptr;
