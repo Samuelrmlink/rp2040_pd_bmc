@@ -10,7 +10,16 @@ tcpcBmcPhyTxData* tcpc_bmc_phy_tx_prepare(pd_frame *pdf) {
     free(bitstream);
     return tx_data;
 }
+static void tcpc_bmc_phy_wait_for_inactive_tx_sm(PIO pio, uint sm) {
+    while(!pio_sm_is_tx_fifo_empty(pio, sm)) {
+        busy_wait_us(1);
+    }
+    // Delay 60us (just to be sure that the state machine's OSR is empty)
+    sleep_us(60);
+}
 void tcpc_bmc_phy_tx_send(tcpcPhyChannel *phy_ch, tcpcBmcPhyTxData *tx_data) {
+    tcpc_bmc_phy_wait_for_inactive_tx_sm(phy_ch->pio, phy_ch->sm_tx);
+    debug_pin_toggle(15);
     taskENTER_CRITICAL();
     pio_sm_put_blocking(phy_ch->pio, phy_ch->sm_tx, (tx_data->pio_raw_tx)[0]);
     for(uint i = 0; i < tx_data->num_zeros; i++) { pio_sm_exec(phy_ch->pio, phy_ch->sm_tx, pio_encode_out(pio_null, 2)); }
@@ -22,6 +31,9 @@ void tcpc_bmc_phy_tx_send(tcpcPhyChannel *phy_ch, tcpcBmcPhyTxData *tx_data) {
         pio_sm_put_blocking(phy_ch->pio, phy_ch->sm_tx, (tx_data->pio_raw_tx)[i]);
     }
     taskEXIT_CRITICAL();
+    //debug_pin_toggle(15);
+    //spi_init(spi0_hw, 5000000);
+    //spi_
     //printf("ZI %u %u\n", tx_data->num_zeros, tx_data->num_u32);
     free(tx_data->pio_raw_tx);
 }

@@ -74,7 +74,7 @@ void pe_request_from_srccap_fixed(pd_frame *input_frame, pd_frame *output_frame,
         | ((mA_max / 10) & 0x3FF);                  // Max current
     // Generate CRC32
     output_frame->obj[1] = crc32_pdframe_calc(output_frame);
-    printf("ReqFixed\n");
+    //printf("ReqFixed\n");
 }
 void pe_request_from_srccap_augmented_spr_pps(pd_frame *input_frame, pd_frame *output_frame, uint req_pdo, peSinkPowerCriteria power_req, uint msg_id, uint spec_rev) {
     memset(output_frame, 0, sizeof(pd_frame));
@@ -101,8 +101,8 @@ void pe_request_from_srccap_augmented_spr_pps(pd_frame *input_frame, pd_frame *o
         | ((request_mA / 50) & 0x7F);               // Operating current
     // Generate CRC32
     output_frame->obj[1] = crc32_pdframe_calc(output_frame);
-    printf("ReqAugmented %u %u\n", request_mV, request_mA);
-    printf("Req raw: %X %X %X\n", output_frame->hdr, output_frame->obj[0], output_frame->obj[1]);
+    //printf("ReqAugmented %u %u\n", request_mV, request_mA);
+    //printf("Req raw: %X %X %X\n", output_frame->hdr, output_frame->obj[0], output_frame->obj[1]);
 }
 void pe_request_from_srccap_augmented(pd_frame *input_frame, pd_frame *output_frame, uint req_pdo, peSinkPowerCriteria power_req, uint msg_id, uint spec_rev) {
     // Determine which type of request to generate
@@ -150,7 +150,35 @@ void pe_request_from_srccap(pd_frame *input_frame, uint req_pdo, peSinkPowerCrit
     // Debugging - log to serial
     //printf("Req: %X %X %X\n", output_frame->hdr, output_frame->obj[0], output_frame->obj[1]);
 }
-
+void pe_print_pdo_fixed(uint32_t pdo) {
+    printf("\tVoltage: %u\n", ((pdo >> 10) & 0x3FF) * 50);
+    printf("\tCurrent: %u\n", (pdo & 0x3FF) * 10);
+    printf("\tPeak Current: %u\n", (pdo >> 20) & 0x3);
+    printf("\tEPR Capable: %u\n", (pdo >> 23) & 0x1);
+    printf("\tUnchunked Support: %u\n", (pdo >> 24) & 0x1);
+    printf("\tDual-Role Data: %u\n", (pdo >> 25) & 0x1);
+    printf("\tUSB-Comm Capable: %u\n", (pdo >> 26) & 0x1);
+    printf("\tUnconstrained Power: %u\n", (pdo >> 27) & 0x1);
+    printf("\tUSB Suspend Support: %u\n", (pdo >> 28) & 0x1);
+    printf("\tDual-Role Power: %u\n", (pdo >> 29) & 0x1);
+}
+void pe_print_source_capabilities(pd_frame *pdf) {
+    uint num_objs = (pdf->hdr >> 12) & 0x7;
+    for(uint i = 0; i < num_objs; i++) {
+        printf("PDO %u\n", i);
+        uint pdo_base_type = (pdf->obj[i] >> 30) & 0x3;
+        printf("\tType: %s", pdoBaseTypeNames[pdo_base_type]);
+        (pdo_base_type == pdoTypeAugmented) ? printf(" - %s\n", pdoAugmentedTypeNames[(pdf->obj[i] >> 28) & 0x3]) : printf("\n");
+        switch(pdo_base_type) {
+            case(pdoTypeFixed):
+                pe_print_pdo_fixed(pdf->obj[i]);
+            case(pdoTypeBattery):
+            case(pdoTypeVariable):
+            case(pdoTypeAugmented):
+                printf("\t[Unsupported]\n");
+        }
+    }
+}
 void pe_handle_sop_frame(pd_frame *pdf, peSinkPowerCriteria pe_sink_criteria, pd_frame *last_srccap_pdf, uint *hdr_msgid, uint *req_pdo) {
     uint frametype_idx = typec_pdframe_get_sop_msg_type(pdf);
     switch(frametype_idx) {
@@ -166,13 +194,32 @@ void pe_handle_sop_frame(pd_frame *pdf, peSinkPowerCriteria pe_sink_criteria, pd
         case(dataMsgSourceCap):
             *req_pdo = optimal_pdo(pdf, pe_sink_criteria);
             pe_request_from_srccap(pdf, *req_pdo, pe_sink_criteria, *hdr_msgid);
-            memcpy(last_srccap_pdf, pdf, sizeof(pd_frame));
+            if(memcmp(pdf, last_srccap_pdf, sizeof(pd_frame)) != 0) {
+                memcpy(last_srccap_pdf, pdf, sizeof(pd_frame));
+                // Possibly send to CLI..
+            }
             break;
         case(dataMsgRequest):
             printf("Request frame - Hdr: %X RDO: %X CRC: %X\n", pdf->hdr, pdf->obj[0], pdf->obj[1]);
             break;
         default:
-            printf("Unimplemented: %s\n", pdMsgTypeNames[frametype_idx]);
+            const char *str_ptr;
+            pdMsgType msg_type = (frametype_idx >> 6) & 0x3;
+            switch(msg_type) {
+                case(controlMsg):
+                    str_ptr = pdMsgControlTypeNames[frametype_idx & 0x3F];
+                    break;
+                case(dataMsg):
+                    str_ptr = pdMsgDataTypeNames[frametype_idx & 0x3F];
+                    break;
+                case(extMsg):
+                    str_ptr = pdMsgExtTypeNames[frametype_idx & 0x3F];
+                    break;
+                default:
+                    str_ptr = "Unknown type";
+                    break;
+            }
+            printf("Unimplemented: %s\n", str_ptr);
     }
     // Increment msgID
     (*hdr_msgid)++;
@@ -185,9 +232,16 @@ peSinkPowerCriteria pe_sink_criteria = {
     500,        // mA_min
     2000        // mA_max
 };
+peLocalPolicy pe_local_policy = {
+    pdSpecRev3,     // spec_rev
+    true,           // capable_usb_comm
+    false,          // capable_epr
+    false           // unchunked_ext_msg
+};
 
 void policy_engine_task(void *unused_arg) {
     extern peSinkPowerCriteria pe_sink_criteria;
+    extern peLocalPolicy pe_local_policy;
     extern QueueHandle_t mailbox_pe;
     mailerLabel parcel_recv;
     pd_frame last_srccap;

@@ -122,6 +122,7 @@ static void tcpc_received_pdframe_handler(tcpcPhyChannel *phy_ch, tcpcLocalPolic
     // If the local TCPC policy allows - we respond with a 'GoodCRC' message and send a copy to the policy engine
     if(tcpc_check_policy(tcpc_policy, received_frame)) {
         if(tcpc_should_respond_with_goodcrc(tcpc_policy, received_frame)) {
+            //printf("GC\n");
             pd_frame goodcrc_resp_frame;
             // Write GoodCRC response
             memset(&goodcrc_resp_frame, 0, sizeof(pd_frame));
@@ -157,7 +158,7 @@ static void tcpc_poll_dma(tcpcPhyChannel *phy_ch, tcpcLocalPolicy *tcpc_policy) 
             // There should be a new pd_frame or EOP symbol
             // We need to get the PIO SM to push its ISR to the FIFO
             pio_sm_exec(phy_ch->pio, phy_ch->sm_rx, pio_encode_in(pio_y, 1));
-            debug_pin_toggle(15);
+            //debug_pin_toggle(15);
         } else if(!current_frame.timestamp_us) {
             // Allow lower-priority tasks to run
             sleep_us(300);
@@ -215,6 +216,8 @@ tcpcLocalPolicy tcpc_policy = {
     false,          // accept_sopp
     false,          // accept_sopdp
     true,           // goodcrc_sop
+    false,          // goodcrc_sopp
+    false           // goodcrc_sopdp
 };
 
 void tcpc_task(void *arg) {

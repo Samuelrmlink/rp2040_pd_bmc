@@ -115,53 +115,63 @@ typedef enum {
     extMsgVendorDefinedExt      = 0x9e
 } PDMessageType;
 
+typedef enum {
+    controlMsg,
+    dataMsg,
+    extMsg
+} pdMsgType;
+
 // USB-PD Message Type - strings array
-static const char* const pdMsgTypeNames[] = {
-    [(int)controlMsgGoodCrc]            = "GoodCRC",
-    [(int)controlMsgGotoMin]            = "GotoMin",
-    [(int)controlMsgAccept]             = "Accept",
-    [(int)controlMsgReject]             = "Reject",
-    [(int)controlMsgPing]               = "Ping",
-    [(int)controlMsgPsReady]            = "PS_Ready",
-    [(int)controlMsgGetSourceCap]       = "Get_Source_Cap",
-    [(int)controlMsgGetSinkCap]         = "Get_Sink_Cap",
-    [(int)controlMsgDataRoleSwap ]      = "Data_Role_Swap ",
-    [(int)controlMsgPowerRoleSwap ]     = "Power_Role_Swap ",
-    [(int)controlMsgVconnSwap]          = "VCONN_Swap",
-    [(int)controlMsgWait]               = "Wait",
-    [(int)controlMsgSoftReset]          = "Soft_Reset",
-    [(int)controlMsgDataReset]          = "Data_Reset",
-    [(int)controlMsgDataResetComplete]  = "Data_Reset_Complete",
-    [(int)controlMsgNotSupported]       = "Not_Supported",
-    [(int)controlMsgGetSourceCapExt]    = "Get_Source_Cap_Ext",
-    [(int)controlMsgGetStatus]          = "Get_Status",
-    [(int)controlMsgFastRoleSwap]       = "Fast_Role_Swap",
-    [(int)controlMsgGetPpsStatus]       = "Get_PPS_Status",
-    [(int)controlMsgGetCountryCodes]    = "Get_Country_Codes",
-    [(int)controlMsgGetSinkCapExt]      = "Get_Sink_Cap_Ext",
-    [(int)dataMsgSourceCap]             = "Source Capabilities",
-    [(int)dataMsgRequest]               = "Request",
-    [(int)dataMsgBist]                  = "BIST",
-    [(int)dataMsgSinkCap]               = "Sink Capabilities",
-    [(int)dataMsgBatteryStatus]         = "Battery_Status",
-    [(int)dataMsgAlert]                 = "Alert",
-    [(int)dataMsgGetCountryInfo]        = "Get_Country_Info",
-    [(int)dataMsgEnterUsb]              = "Enter_USB",
-    [(int)dataMsgEprRequest]            = "EPR_Request",
-    [(int)dataMsgEprMode]               = "EPR_Mode",
-    [(int)dataMsgSourceInfo]            = "Source_Info",
-    [(int)dataMsgRevision]              = "Revision",
-    [(int)dataMsgVendorDefined]         = "Vendor_Defined",
-    [(int)extMsgSourceCapExt]           = "Source_Cap_Ext",
-    [(int)extMsgStatus]                 = "Status",
-    [(int)extMsgGetBatteryCap]          = "Get_Battery_Cap",
-    [(int)extMsgGetBatteryStatus]       = "Get_Battery_Status",
-    [(int)extMsgBatteryCap]             = "Battery_Cap",
-    [(int)extMsgGetManufacturerInfo]    = "Get_Manufacturer_Info",
-    [(int)extMsgManufacturerInfo]       = "Manufacturer_Info",
-    [(int)extMsgSecurityRequest]        = "Security_Request",
-    [(int)extMsgSecurityResponse]       = "Security_Response",
-    [(int)extMsgFirmwareUpdateRequest]  = "Firmware_Update_Request",
+static const char* const pdMsgControlTypeNames[] = {
+    "GoodCRC",                  // controlMsgGoodCrc
+    "GotoMin",                  // controlMsgGotoMin
+    "Accept",                   // controlMsgAccept
+    "Reject",                   // controlMsgReject
+    "Ping",                     // controlMsgPing
+    "PS_Ready",                 // controlMsgPsReady
+    "Get_Source_Cap",           // controlMsgGetSourceCap
+    "Get_Sink_Cap",             // controlMsgGetSinkCap
+    "Data_Role_Swap ",          // controlMsgDataRoleSwap
+    "Power_Role_Swap ",         // controlMsgPowerRoleSwap
+    "VCONN_Swap",               // controlMsgVconnSwap
+    "Wait",                     // controlMsgWait
+    "Soft_Reset",               // controlMsgSoftReset
+    "Data_Reset",               // controlMsgDataReset
+    "Data_Reset_Complete",      // controlMsgDataResetComplete
+    "Not_Supported",            // controlMsgNotSupported
+    "Get_Source_Cap_Ext",       // controlMsgGetSourceCapExt
+    "Get_Status",               // controlMsgGetStatus
+    "Fast_Role_Swap",           // controlMsgFastRoleSwap
+    "Get_PPS_Status",           // controlMsgGetPpsStatus
+    "Get_Country_Codes",        // controlMsgGetCountryCodes
+    "Get_Sink_Cap_Ext"          // controlMsgGetSinkCapExt
+};
+static const char* const pdMsgDataTypeNames[] = {
+    "Source Capabilities",      // dataMsgSourceCap
+    "Request",                  // dataMsgRequest
+    "BIST",                     // dataMsgBist
+    "Sink Capabilities",        // dataMsgSinkCap
+    "Battery_Status",           // dataMsgBatteryStatus
+    "Alert",                    // dataMsgAlert
+    "Get_Country_Info",         // dataMsgGetCountryInfo
+    "Enter_USB",                // dataMsgEnterUsb
+    "EPR_Request",              // dataMsgEprRequest
+    "EPR_Mode",                 // dataMsgEprMode
+    "Source_Info",              // dataMsgSourceInfo
+    "Revision",                 // dataMsgRevision
+    "Vendor_Defined"            // dataMsgVendorDefined
+};
+static const char* const pdMsgExtTypeNames[] = {
+    "Source_Cap_Ext",           // extMsgSourceCapExt
+    "Status",                   // extMsgStatus
+    "Get_Battery_Cap",          // extMsgGetBatteryCap
+    "Get_Battery_Status",       // extMsgGetBatteryStatus
+    "Battery_Cap",              // extMsgBatteryCap
+    "Get_Manufacturer_Info",    // extMsgGetManufacturerInfo
+    "Manufacturer_Info",        // extMsgManufacturerInfo
+    "Security_Request",         // extMsgSecurityRequest
+    "Security_Response",        // extMsgSecurityResponse
+    "Firmware_Update_Request"   // extMsgFirmwareUpdateRequest
 };
 typedef enum {
     pdoTypeFixed,
@@ -176,12 +186,31 @@ typedef enum {
     pdoTypeAugmentedReserved
 } pdoAugmentedTypes;
 
+static const char* const pdoBaseTypeNames[] = {
+    "Fixed",
+    "Battery",
+    "Variable",
+    "Augmented"
+};
+static const char* const pdoAugmentedTypeNames[] = {
+    "SPR PPS",
+    "EPR AVS",
+    "SPR AVS",
+    "Reserved"
+};
+
 typedef enum {
     pdSpecRev1,
     pdSpecRev2,
     pdSpecRev3,
     pdSpecReserved
 } pdSpecRevisions;
+static const char* const pdSpecRevisionNames[] = {
+    "2.0",
+    "3.0",
+    "3.1",
+    "Reserved" // 3.2 does not use this
+};
 
 uint typec_pdframe_orderedset_get_idx(uint32_t input);
 bool typec_pdframe_valid(pd_frame *pdf);
