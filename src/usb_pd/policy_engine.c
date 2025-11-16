@@ -123,7 +123,7 @@ void pe_request_from_srccap(pd_frame *input_frame, uint req_pdo, peSinkPowerCrit
     extern QueueHandle_t mailbox_pe;
     extern QueueHandle_t mailbox_tcpc;
     // Setup output frame structures
-    pd_frame *output_frame = malloc(sizeof(pd_frame));
+    pd_frame *output_frame = pvPortMalloc(sizeof(pd_frame));
     memset(output_frame, 0, sizeof(pd_frame));
     // Determine which type of request to generate
     switch((input_frame->obj[req_pdo - 1] >> 30) & 0x3) {
@@ -142,13 +142,13 @@ void pe_request_from_srccap(pd_frame *input_frame, uint req_pdo, peSinkPowerCrit
             break;
     }
     // Send to TCPC (Type-C Port Controller) thread
-    powerDeliveryMsg *pd_msg = malloc(sizeof(powerDeliveryMsg));
+    powerDeliveryMsg *pd_msg = pvPortMalloc(sizeof(powerDeliveryMsg));
     memcpy(&pd_msg->pdf, output_frame, sizeof(pd_frame));
-    free(output_frame);
+    vPortFree(output_frame);
+    //size_t heap_after = xPortGetFreeHeapSize();
+    //printf("FreeRTOS heap free: %u bytes (before: %u)\n", heap_after, heap_before);
     mailerLabel parcel_outgoing = { mailbox_pe, PowerDeliveryMsg, pd_msg };
     xQueueSendToBack(mailbox_tcpc, &parcel_outgoing, 0);
-    // Debugging - log to serial
-    //printf("Req: %X %X %X\n", output_frame->hdr, output_frame->obj[0], output_frame->obj[1]);
 }
 void pe_print_pdo_fixed(uint32_t pdo) {
     printf("\tVoltage: %u\n", ((pdo >> 10) & 0x3FF) * 50);
@@ -265,7 +265,7 @@ void policy_engine_task(void *unused_arg) {
                         break;
                     default:
                 }
-                free(pd_msg);
+                vPortFree(pd_msg);
             } else {
                 // TODO: Invalid condition...
                 printf("Policy Engine: Invalid data received.");
@@ -279,6 +279,15 @@ void policy_engine_task(void *unused_arg) {
             sop_msgid &= 0x7;
             // Record timestamp
             apdo_last_timestamp = time_us_32();
+            /*
+            struct mallinfo mi = mallinfo();
+            printf("Total heap size: %d bytes\n", mi.arena);
+            printf("Allocated: %d bytes\n", mi.uordblks);
+            printf("Free: %d bytes\n", mi.fordblks);
+            size_t free_rtos_heap = xPortGetFreeHeapSize();
+            size_t min_ever_free = xPortGetMinimumEverFreeHeapSize();
+            printf("FreeRTOS heap free: %u bytes (min ever: %u)\n", free_rtos_heap, min_ever_free);
+            */
         }
     }
 }

@@ -1,13 +1,13 @@
 #include "main_i.h"
 
 tcpcBmcPhyTxData* tcpc_bmc_phy_tx_prepare(pd_frame *pdf) {
-    tcpcBmcPhyTxData *tx_data = malloc(sizeof(tcpcBmcPhyTxData));
+    tcpcBmcPhyTxData *tx_data = pvPortMalloc(sizeof(tcpcBmcPhyTxData));
     uint32_t *bitstream = typec_pretx_convert(pdf);
     tx_data->num_u32 = bitstream[0];
     tx_data->num_zeros = typec_pretx_num_leading_zeros(bitstream[1]);
     tx_data->pio_raw_tx = typec_tx_convert(&bitstream[1], bitstream[0]);
     //printf("%X %X %X %X %X %X %X %X %X %X %X\n", converted[0], converted[1], converted[2], converted[3], converted[4], converted[5], converted[6], converted[7], converted[8], converted[9], converted[10]);
-    free(bitstream);
+    vPortFree(bitstream);
     return tx_data;
 }
 static void tcpc_bmc_phy_wait_for_inactive_tx_sm(PIO pio, uint sm) {
@@ -33,5 +33,5 @@ void tcpc_bmc_phy_tx_send(tcpcPhyChannel *phy_ch, tcpcBmcPhyTxData *tx_data) {
     }
     taskEXIT_CRITICAL();
     //printf("ZI %u %u\n", tx_data->num_zeros, tx_data->num_u32);
-    free(tx_data->pio_raw_tx);
+    vPortFree(tx_data->pio_raw_tx);
 }

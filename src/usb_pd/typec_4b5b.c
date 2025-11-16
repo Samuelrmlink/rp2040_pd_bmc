@@ -193,7 +193,7 @@ uint32_t* typec_pretx_convert(pd_frame *pdf) {
     // Determine number of u32 objects requires
     uint num_u32 = num_zeros ? total_bits_req / 32 + 1 : total_bits_req / 32;
     // Allocate u32 objects + 1 extra
-    uint32_t *out = malloc(sizeof(uint32_t) * (num_u32 + 1));
+    uint32_t *out = pvPortMalloc(sizeof(uint32_t) * (num_u32 + 1));
     // The first u32 object will store the allocation size
     out[0] = (uint32_t)num_u32;
     // Clear output buffer allocation
@@ -225,7 +225,7 @@ uint32_t* typec_pretx_convert(pd_frame *pdf) {
 uint32_t* typec_tx_convert(uint32_t *in, uint num_in_obj) {
     // We should have twice are many bits at the output
     uint num_out_obj = 2 * num_in_obj;
-    uint32_t *out = malloc(sizeof(uint32_t) * (num_out_obj + 1));
+    uint32_t *out = pvPortMalloc(sizeof(uint32_t) * (num_out_obj + 1));
     memset(out, 0, sizeof(uint32_t) * num_out_obj);
     for(uint i = 0; i < num_out_obj; i += 2) {
         uint input_obj = i / 2;

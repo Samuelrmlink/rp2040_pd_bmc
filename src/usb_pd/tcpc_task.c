@@ -60,8 +60,8 @@ void tcpc_mailbox_send_to_pe(pd_frame *frame) {
     extern QueueHandle_t mailbox_tcpc;
     extern QueueHandle_t mailbox_pe;
     mailerLabel parcel_out;
-    powerDeliveryMsg *pd_msg = malloc(sizeof(powerDeliveryMsg));
-    //pd_msg->pdf = malloc(sizeof(pd_frame));
+    powerDeliveryMsg *pd_msg = pvPortMalloc(sizeof(powerDeliveryMsg));
+    //pd_msg->pdf = pvPortMalloc(sizeof(pd_frame));
     memcpy(&pd_msg->pdf, frame, sizeof(pd_frame));
     parcel_out.sender = mailbox_tcpc;
     parcel_out.payload_type = PowerDeliveryMsg;
@@ -131,7 +131,7 @@ static void tcpc_received_pdframe_handler(tcpcPhyChannel *phy_ch, tcpcLocalPolic
             tcpcBmcPhyTxData *raw_frame = tcpc_bmc_phy_tx_prepare(&goodcrc_resp_frame);
             // Send raw PIO data stream
             tcpc_bmc_phy_tx_send(phy_ch, raw_frame);
-            free(raw_frame);
+            vPortFree(raw_frame);
             // Save previously sent frame
             memcpy(previously_sent_frame, &goodcrc_resp_frame, sizeof(pd_frame));
         }
@@ -191,10 +191,10 @@ static void tcpc_poll_dma(tcpcPhyChannel *phy_ch, tcpcLocalPolicy *tcpc_policy) 
                 tcpcBmcPhyTxData *raw_frame = tcpc_bmc_phy_tx_prepare(&pd_msg->pdf);
                 // Send raw PIO data stream
                 tcpc_bmc_phy_tx_send(phy_ch, raw_frame);
-                free(raw_frame);
+                vPortFree(raw_frame);
                 // Save previously sent frame
                 memcpy(&previously_sent_frame, &pd_msg->pdf, sizeof(pd_frame));
-                free(pd_msg);
+                vPortFree(pd_msg);
             }
         }
     }
@@ -226,7 +226,7 @@ void tcpc_task(void *arg) {
     (void)arg;
     extern tcpcPhyChannel tcpc_phy_chan;
     extern tcpcLocalPolicy tcpc_policy;
-    tcpc_phy_chan.raw_buf_rx = malloc(sizeof(uint32_t) * tcpc_phy_chan.raw_buf_rx_size);
+    tcpc_phy_chan.raw_buf_rx = pvPortMalloc(sizeof(uint32_t) * tcpc_phy_chan.raw_buf_rx_size);
     memset(tcpc_phy_chan.raw_buf_rx, 0, sizeof(uint32_t) * tcpc_phy_chan.raw_buf_rx_size);
     tcpc_phy_chan.dma_rx = tcpc_rx_dma_init(
         &(pio0_hw->rxf[tcpc_phy_chan.sm_rx]),
