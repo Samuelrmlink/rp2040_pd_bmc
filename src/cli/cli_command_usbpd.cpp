@@ -61,7 +61,7 @@ static uint32_t hex_str_to_uint32(const char* str, bool swap_endian) {
             num_nibbles = 0;
         } else {
             if(!char_is_valid_hex(str[i])) {
-                printf("hex_str_to_uint32(): ASCII symbol '%c' cannot be represented as Hex.\n", str[i]);
+                //printf("hex_str_to_uint32(): ASCII symbol '%c' cannot be represented as Hex.\n", str[i]);
                 return 0;
             }
             num_nibbles++;
@@ -69,7 +69,7 @@ static uint32_t hex_str_to_uint32(const char* str, bool swap_endian) {
     }
     // Return if incoming data size is invalid
     if(num_nibbles > 2 * sizeof(uint32_t)) {
-        printf("hex_str_to_uint32(): Invalid data size [ Expected size: %u bytes (%u bits) ]\n", sizeof(uint32_t), 8 * sizeof(uint32_t));
+        //printf("hex_str_to_uint32(): Invalid data size [ Expected size: %u bytes (%u bits) ]\n", sizeof(uint32_t), 8 * sizeof(uint32_t));
         return 0;
     }
     // Prepare output data

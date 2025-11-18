@@ -1,4 +1,5 @@
 #include "cli/cli_commands.h"
+//#include "mailbox_ipc.h"
 #include <FreeRTOS.h>
 #include <task.h>
 #include <algorithm>
@@ -14,6 +15,7 @@ struct Cli {
     std::string prev_line;
     size_t cursor_position;
     bool esc_mode;
+    bool command_exec;
 };
 
 typedef enum {
@@ -33,6 +35,7 @@ typedef enum {
 static void cli_reset(Cli* cli) {
     cli->line.clear();
     cli->cursor_position = 0;
+    cli->command_exec = false;
 }
 
 // trim from start
@@ -72,6 +75,7 @@ static void cli_handle_enter(Cli* cli) {
 
     cli->prev_line = cli->line;
     cli->line = trim(cli->line);
+    cli->command_exec = true;
 
     size_t ws = cli->line.find_first_of(" ");
     if(ws == std::string::npos) {
@@ -200,12 +204,13 @@ static void cli_handle_char(Cli* cli, uint8_t c) {
 }
 
 void cli_write_prompt(Cli* cli) {
+    cli_write_str(cli, "\e[2K\e[0G");
     cli_write_str(cli, ">: ");
+    cli_write_str(cli, cli->line.c_str());
 }
 
 void cli_write_str(Cli* cli, const char* str) {
     fputs(str, stdout);
-    //printf("%s", str);
 }
 
 void cli_write_char(Cli* cli, char c) {
@@ -225,10 +230,11 @@ void cli_printf(Cli* cli, const char* format, ...) {
     va_start(args, format);
     vprintf(format, args);
     va_end(args);
+    if(!cli->command_exec) { cli_write_prompt(cli); }
 }
 
 void cli_clear(Cli* cli, std::string& args) {
-    cli_printf(cli, "%c[2J%c[H", ASCII_ESCAPE, ASCII_ESCAPE);
+    cli_write_str(cli, "\e[2J\e[H");
 }
 
 std::vector<std::string> cli_split_args(std::string& args) {
@@ -246,13 +252,37 @@ std::vector<std::string> cli_split_args(std::string& args) {
     }
     return argv;
 }
+/*
+static void cli_poll_logging(Cli *cli) {
+    extern QueueHandle_t mailbox_cli;
+    mailerLabel parcel_incoming;
+    if(xQueueReceive(mailbox_cli, (void *)&parcel_incoming, 0) == pdPASS) {
+        if(incoming_parcel.payload_type == LoggingMsg) {
+            loggingMsg *log = (loggingMsg *) parcel_incoming.payload_ptr;
+            cli_printf(cli, log->string);
+            vPortFree(log->string);
+            vPortFree(log);
+        } else {
+            cli_printf(cli, "CLI_LOGGING: Invalid Data.\n");
+        }
+    }
+}
 
+void cli_write_log(char *string, QueueHandle_t sender) {
+    mailerLabel parcel_outgoing = { sender, LoggingMsg, NULL };
+    loggingMsg *log = pvPortMalloc(sizeof(loggingMsg));
+    parcel_outgoing.payload_ptr = (loggingMsg *) log;
+    log->string = string;
+    xQueueSendToBack(sender, &parcel_outgoing, 0);
+}
+*/
 extern "C" void cli_work(void) {
     Cli cli = {
         .line = "",
         .prev_line = "",
         .cursor_position = 0,
         .esc_mode = false,
+        .command_exec = false
     };
 
     cli_force_motd(&cli);

@@ -83,7 +83,7 @@ static bool tcpc_check_policy(tcpcLocalPolicy *tcpc_policy, pd_frame *pdf) {
             break;
         case(pdfTypeHardReset):
         case(pdfTypeCableReset):
-            printf("Reset\n");
+            //cli_write_log("Hard Reset\n", mailbox_tcpc);
             break;
         default:
             return false;
@@ -123,6 +123,7 @@ static void tcpc_received_pdframe_handler(tcpcPhyChannel *phy_ch, tcpcLocalPolic
     if(tcpc_check_policy(tcpc_policy, received_frame)) {
         if(tcpc_should_respond_with_goodcrc(tcpc_policy, received_frame)) {
             //printf("GC\n");
+            //cli_write_log("GC\n", mailbox_tcpc);
             pd_frame goodcrc_resp_frame;
             // Write GoodCRC response
             memset(&goodcrc_resp_frame, 0, sizeof(pd_frame));

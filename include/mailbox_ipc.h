@@ -5,6 +5,7 @@
 
 enum PayloadTypes {
     PowerDeliveryMsg,
+    LoggingMsg,
 };
 
 typedef struct {
@@ -16,6 +17,16 @@ typedef struct {
 typedef struct {
     pd_frame pdf;
 } powerDeliveryMsg;
+
+typedef struct {
+    enum {
+        DEBUG_LOG,
+        INFO_LOG,
+        WARNING_LOG,
+        ERROR_LOG
+    } logLevel;
+    char *string;
+} loggingMsg;
 
 void policy_engine_task(void *unused_arg);
 
