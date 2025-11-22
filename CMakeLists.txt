@@ -109,4 +109,4 @@ set(INFO_FLAGS
     -DFW_GIT_BRANCH="${FW_GIT_BRANCH}"
     -DFW_GIT_TAG="${FW_GIT_TAG}"
 )
-set_property(SOURCE "src/cli/cli_command_device_info.cpp" APPEND PROPERTY COMPILE_OPTIONS ${INFO_FLAGS})
+set_property(SOURCE "src/cli/cli_command_device_info.c" APPEND PROPERTY COMPILE_OPTIONS ${INFO_FLAGS})

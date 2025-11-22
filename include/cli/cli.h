@@ -1,28 +1,17 @@
-#pragma once
-#define EOL "\n"
+#ifndef _CLI_H
+#define _CLI_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "cli/cli_commands.h"
+#include <stdio.h>
 
-typedef struct Cli Cli;
+void cli_init(Cli *cli);
+void cli_process_char(Cli *cli, uint8_t c);
 
-void cli_work(void);
+void cli_write_str(Cli *cli, const char *str);
+void cli_write_char(Cli *cli, const char c);
+void cli_write_eol(Cli *cli);
+void cli_write_prompt(Cli *cli);
+void cli_flush(Cli *cli);
+void cli_printf(Cli *cli, const char *fmt, ...);
 
-void cli_write_prompt(Cli* cli);
-void cli_write_str(Cli* cli, const char* str);
-void cli_write_char(Cli* cli, char ch);
-void cli_write_eol(Cli* cli);
-void cli_flush(Cli* cli);
-void cli_printf(Cli* cli, const char* format, ...);
-
-#ifdef __cplusplus
-}
-#endif
-
-#ifdef __cplusplus
-#include <string>
-#include <vector>
-
-std::vector<std::string> cli_split_args(std::string& args);
 #endif
