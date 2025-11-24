@@ -81,6 +81,7 @@ static void cli_insert_char(Cli* cli, char c) {
     if(cli->length >= CLI_MAX_LINE)
         return;
 
+    //printf("cur %u", cli->cursor);
     memmove(cli->line + cli->cursor + 1,
             cli->line + cli->cursor,
             cli->length - cli->cursor + 1);
@@ -135,7 +136,7 @@ void cli_process_char(Cli* cli, uint8_t c) {
                 break;
             default:
                 if(c >= 32 && c <= 126) {
-                    //printf("Insert: %c", c);
+                    //printf("Insert: %c\n", c);
                     cli_insert_char(cli, c);
                 }
                 break;
@@ -164,11 +165,14 @@ void cli_process_char(Cli* cli, uint8_t c) {
                     }
                     break;
                 case 'D': // Left
-                    printf("cursor: %u %u\n", cli->cursor, cli->length);
+                    //printf("cursor: %u %u\n", cli->cursor, cli->length);
                     if(cli->cursor > 0) {
-                        cli_write_str(cli, "\x1B[Dleft");
-                        cli_printf(cli, "TEST");
+                        //cli_write_str(cli, "\x1B[Dleft");
+                        cli_write_char(cli, "\e");
+                        cli_write_char(cli, "[");
+                        cli_write_char(cli, "D");
                         cli->cursor--;
+                        //cli->length--;
                     }
                     break;
                 default:
@@ -202,10 +206,12 @@ void cli_write_eol(Cli* cli) {
 void cli_write_prompt(Cli* cli) {
     cli_write_str(cli, "\r\e[2K\e[0G>: ");
     cli_write_str(cli, cli->line);
+    /*
     if(cli->cursor < cli->length) {
         cli_write_str(cli, "\e[");
-        cli_printf(cli, "%zuD", cli->length - cli->cursor);
+        //cli_printf(cli, "%zuD", cli->length - cli->cursor);
     }
+    */
 }
 void cli_flush(Cli* cli) {
     (void)cli;
