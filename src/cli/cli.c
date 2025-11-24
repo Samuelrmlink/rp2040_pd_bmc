@@ -104,6 +104,43 @@ static void cli_redraw_line(Cli* cli) {
     }
 }
 void cli_process_char(Cli* cli, uint8_t c) {
+    //printf("cli_process_char: %u %u %u\n", c, cli->esc_key_pressed, cli->esc_sequence);
+    // Ensure that we don't process escaped characters
+    if(cli->esc_key_pressed == false) {
+        switch (c) {
+            case 0x1B: // ESC
+                cli->esc_key_pressed = true;
+                cli->esc_sequence = false;
+                break;
+            case '\r':
+            case '\n':
+                cli_handle_enter(cli);
+                break;
+            case 0x08: // Backspace
+            case 0x7F: // DEL
+                cli_handle_backspace(cli);
+                break;
+            case 0x03: // Ctrl+C
+                cli->line[0] = '\0';
+                cli->length = 0;
+                cli->cursor = 0;
+                cli_write_eol(cli);
+                cli_write_prompt(cli);
+                break;
+            case 0x04: // Ctrl+D (EOF)
+                if(cli->length == 0) {
+                    cli_write_str(cli, "^D");
+                    cli_write_eol(cli);
+                }
+                break;
+            default:
+                if(c >= 32 && c <= 126) {
+                    //printf("Insert: %c", c);
+                    cli_insert_char(cli, c);
+                }
+                break;
+        }
+    }
     if(cli->esc_key_pressed) {
         //printf("cli_process_char: %u\n", c);
         if(cli->esc_sequence) {
@@ -120,62 +157,34 @@ void cli_process_char(Cli* cli, uint8_t c) {
                 case 'B': // Down (not implemented - single line history)
                     break;
                 case 'C': // Right
-                    //printf("cursor: %u %u\n", cli->cursor, cli->length);
+                    printf("cursor: %u %u\n", cli->cursor, cli->length);
                     if(cli->cursor < cli->length) {
-                        cli_write_str(cli, "\e[C");
+                        cli_write_str(cli, "\x1B[C");
                         cli->cursor++;
                     }
                     break;
                 case 'D': // Left
-                    //printf("cursor: %u %u\n", cli->cursor, cli->length);
+                    printf("cursor: %u %u\n", cli->cursor, cli->length);
                     if(cli->cursor > 0) {
-                        cli_write_str(cli, "\e[D");
-                        //cli->cursor--;
+                        cli_write_str(cli, "\x1B[Dleft");
+                        cli_printf(cli, "TEST");
+                        cli->cursor--;
                     }
                     break;
+                default:
+                    printf("Invalid Escape [%u]", c);
             }
+            cli->esc_key_pressed = false;
             cli->esc_sequence = false;
         } else if(c == '[') {
             cli->esc_sequence = true;
+            //return;
+        } else if(c == '\e') {
             return;
         } else {
             cli->esc_key_pressed = false;
         }
-        //cli->esc_key_pressed = false;
-        return;
-    }
-    //printf("P\n");
-    switch (c) {
-        case 0x1B: // ESC
-            cli->esc_key_pressed = true;
-            cli->esc_sequence = false;
-            break;
-        case '\r':
-        case '\n':
-            cli_handle_enter(cli);
-            break;
-        case 0x08: // Backspace
-        case 0x7F: // DEL
-            cli_handle_backspace(cli);
-            break;
-        case 0x03: // Ctrl+C
-            cli->line[0] = '\0';
-            cli->length = 0;
-            cli->cursor = 0;
-            cli_write_eol(cli);
-            cli_write_prompt(cli);
-            break;
-        case 0x04: // Ctrl+D (EOF)
-            if(cli->length == 0) {
-                cli_write_str(cli, "^D");
-                cli_write_eol(cli);
-            }
-            break;
-        default:
-            if(c >= 32 && c <= 126) {
-                cli_insert_char(cli, c);
-            }
-            break;
+        //return;
     }
     cli_flush(cli);
 }
