@@ -101,7 +101,10 @@ static void cli_redraw_line(Cli* cli) {
     size_t back = cli->length - cli->cursor;
     if(back > 0) {
         cli_write_str(cli, "\e[");
-        cli_printf(cli, "%zuD", back);
+        char tmp[30];
+        sprintf(tmp, "%zuD", back);
+        cli_write_str(cli, tmp);
+        cli_flush(cli);
     }
 }
 void cli_process_char(Cli* cli, uint8_t c) {
@@ -162,15 +165,20 @@ void cli_process_char(Cli* cli, uint8_t c) {
                     if(cli->cursor < cli->length) {
                         cli_write_str(cli, "\x1B[C");
                         cli->cursor++;
+                        cli_redraw_line(cli);
                     }
                     break;
                 case 'D': // Left
                     //printf("cursor: %u %u\n", cli->cursor, cli->length);
                     if(cli->cursor > 0) {
                         //cli_write_str(cli, "\x1B[Dleft");
+                        /*
                         cli_write_char(cli, "\e");
                         cli_write_char(cli, "[");
                         cli_write_char(cli, "D");
+                        */
+                        cli_write_str(cli, "\e[D");
+                        cli_write_str(cli, "\e[0K");
                         cli->cursor--;
                         //cli->length--;
                     }
