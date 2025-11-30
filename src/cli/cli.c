@@ -92,7 +92,9 @@ static void cli_insert_char(Cli* cli, char c) {
     cli_write_char(cli, c);
     if(cli->cursor < cli->length) {
         cli_write_str(cli, cli->line + cli->cursor);
-        cli_write_str(cli, "\e["); cli_printf(cli, "%zuD", cli->length - cli->cursor);
+        cli_flush(cli);
+        cli_printf(cli, "\e[%uD", cli->length - cli->cursor);
+        //cli_write_str(cli, "\e["); cli_printf(cli, "%zuD", cli->length - cli->cursor);
     }
 }
 static void cli_redraw_line(Cli* cli) {
@@ -139,7 +141,6 @@ void cli_process_char(Cli* cli, uint8_t c) {
                 break;
             default:
                 if(c >= 32 && c <= 126) {
-                    //printf("Insert: %c\n", c);
                     cli_insert_char(cli, c);
                 }
                 break;
@@ -161,7 +162,6 @@ void cli_process_char(Cli* cli, uint8_t c) {
                 case 'B': // Down (not implemented - single line history)
                     break;
                 case 'C': // Right
-                    printf("cursor: %u %u\n", cli->cursor, cli->length);
                     if(cli->cursor < cli->length) {
                         cli_write_str(cli, "\x1B[C");
                         cli->cursor++;
@@ -169,18 +169,9 @@ void cli_process_char(Cli* cli, uint8_t c) {
                     }
                     break;
                 case 'D': // Left
-                    //printf("cursor: %u %u\n", cli->cursor, cli->length);
                     if(cli->cursor > 0) {
-                        //cli_write_str(cli, "\x1B[Dleft");
-                        /*
-                        cli_write_char(cli, "\e");
-                        cli_write_char(cli, "[");
-                        cli_write_char(cli, "D");
-                        */
                         cli_write_str(cli, "\e[D");
-                        cli_write_str(cli, "\e[0K");
                         cli->cursor--;
-                        //cli->length--;
                     }
                     break;
                 default:
@@ -230,8 +221,10 @@ void cli_printf(Cli* cli, const char* fmt, ...) {
     va_start(args, fmt);
     vprintf(fmt, args);
     va_end(args);
+    /*
     if(!cli->command_exec)
         cli_write_prompt(cli);
+    */
 }
 void cli_help(Cli* cli, const char* args) {
     (void)args;
