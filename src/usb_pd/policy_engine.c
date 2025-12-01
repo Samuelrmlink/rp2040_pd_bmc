@@ -55,10 +55,12 @@ bool pe_pdo_is_augmented_idx(pd_frame *pdf, uint pdo_idx) {
 }
 void pe_request_from_srccap_fixed(pd_frame *input_frame, pd_frame *output_frame, uint req_pdo, peSinkPowerCriteria power_req, uint msg_id, uint spec_rev) {
     memset(output_frame, 0, sizeof(pd_frame));
+    // Get PDO voltage
+    uint pdo_mV = ((input_frame->obj[req_pdo - 1] >> 10) & 0x3FF) * 50;
     // Get PDO maximum current
-    uint mA_max = (input_frame->obj[req_pdo - 1] & 0x3FF) * 10;
-    // Replace maximum current value if requested current is lower
-    mA_max = (power_req.mA_max < mA_max) ? power_req.mA_max : mA_max;
+    uint pdo_mA_max = (input_frame->obj[req_pdo - 1] & 0x3FF) * 10;
+    // Determine how much current to request (stay within PDO capabilities)
+    uint req_mA = (power_req.mA_max < pdo_mA_max) ? power_req.mA_max : pdo_mA_max;
     // Setup 'Ordered Set' and Message Header (hard-coded values are currently used)
     output_frame->ordered_set = bmcFrameType[typec_pdframe_orderedset_get_idx(input_frame->ordered_set)];
     // Generate Message Header
@@ -70,11 +72,12 @@ void pe_request_from_srccap_fixed(pd_frame *input_frame, pd_frame *output_frame,
     output_frame->obj[0] = (req_pdo & 0xF) << 28    // Object position
         | 1u << 25                                  // USB communication capable bit (tell upstream device that we support USB)
         | 1u << 24                                  // No USB suspend bit (request continuing PD contract through USB suspend)
-        | ((mA_max / 10) & 0x3FF) << 10             // Operating current
-        | ((mA_max / 10) & 0x3FF);                  // Max current
+        | ((req_mA / 10) & 0x3FF) << 10             // Operating current
+        | ((req_mA / 10) & 0x3FF);                  // Max current
     // Generate CRC32
     output_frame->obj[1] = crc32_pdframe_calc(output_frame);
     //cli_log(DEBUG_LOG, "ReqFixed\n");
+    cli_log(DEBUG_LOG, "Request [%u, %umV, %umA] (Fixed)\n", req_pdo, pdo_mV, req_mA);
 }
 void pe_request_from_srccap_augmented_spr_pps(pd_frame *input_frame, pd_frame *output_frame, uint req_pdo, peSinkPowerCriteria power_req, uint msg_id, uint spec_rev) {
     memset(output_frame, 0, sizeof(pd_frame));
@@ -103,6 +106,7 @@ void pe_request_from_srccap_augmented_spr_pps(pd_frame *input_frame, pd_frame *o
     output_frame->obj[1] = crc32_pdframe_calc(output_frame);
     //cli_log(DEBUG_LOG, "ReqAugmented %u %u\n", request_mV, request_mA);
     //cli_log(DEBUG_LOG, "Req raw: %X %X %X\n", output_frame->hdr, output_frame->obj[0], output_frame->obj[1]);
+    cli_log(DEBUG_LOG, "Request [%u, %umV, %umA] (SPR PPS)\n", req_pdo, request_mV, request_mA);
 }
 void pe_request_from_srccap_augmented(pd_frame *input_frame, pd_frame *output_frame, uint req_pdo, peSinkPowerCriteria power_req, uint msg_id, uint spec_rev) {
     // Determine which type of request to generate

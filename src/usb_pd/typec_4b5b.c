@@ -95,7 +95,7 @@ static bool typec_4b5b_symbols_decode(uint *input_offset, uint *after_scrap_offs
         }
         if(*output_offset >= MAX_BYTES_IN_PDFRAME_STRUCT) {
             // Overflow protection
-            cli_log(ERROR_LOG, "\nOVERFLOW\n");
+            cli_log(ERROR_LOG, "OVERFLOW\n");
             pdf->timestamp_us = 0;
             return true;
         }

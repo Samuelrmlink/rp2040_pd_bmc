@@ -314,17 +314,20 @@ extern void cli_work(void) {
                     else if(parcel.sender == mailbox_pe) {      source_str = "PE: "; }
                     // Handle logging levels - TODO: Gate off lower logging levels
                     const char *level_str = "";
+                    const char *escape_seq = "";
                     switch(log->logLevel) {
-                        case DEBUG_LOG:     level_str = "[DEBUG] "; break;
+                        case DEBUG_LOG:     level_str = "[DEBUG] "; escape_seq = "\e[34m"; break;
                         case INFO_LOG:      level_str = "[INFO] "; break;
-                        case WARNING_LOG:   level_str = "[WARNING] "; break;
-                        case ERROR_LOG:     level_str = "[ERROR] "; break;
+                        case WARNING_LOG:   level_str = "[WARNING] "; escape_seq = "\e[33m"; break; // Color: Yellow
+                        case ERROR_LOG:     level_str = "[ERROR] "; escape_seq = "\e[31m"; break;   // Color: Red
                     }
                     // Write to console
                     cli_write_str(&cli, "\e[2K\e[0G");
+                    if(strlen(escape_seq)) { cli_write_str(&cli, escape_seq); } // Write escape sequence
                     cli_write_str(&cli, level_str);
                     cli_write_str(&cli, source_str);
                     cli_write_str(&cli, log->string);
+                    if(strlen(escape_seq)) { cli_write_str(&cli, "\e[0m"); }    // Write escape sequence (Reset text color)
                     cli_redraw_line(&cli);
                     vPortFree(log->string);
                     vPortFree(log);
