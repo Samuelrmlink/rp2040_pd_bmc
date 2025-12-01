@@ -155,35 +155,37 @@ void pe_request_from_srccap(pd_frame *input_frame, uint req_pdo, peSinkPowerCrit
     mailerLabel parcel_outgoing = { mailbox_pe, PowerDeliveryMsg, pd_msg };
     xQueueSendToBack(mailbox_tcpc, &parcel_outgoing, 0);
 }
+/*
 void pe_print_pdo_fixed(uint32_t pdo) {
-    printf("\tVoltage: %u\n", ((pdo >> 10) & 0x3FF) * 50);
-    printf("\tCurrent: %u\n", (pdo & 0x3FF) * 10);
-    printf("\tPeak Current: %u\n", (pdo >> 20) & 0x3);
-    printf("\tEPR Capable: %u\n", (pdo >> 23) & 0x1);
-    printf("\tUnchunked Support: %u\n", (pdo >> 24) & 0x1);
-    printf("\tDual-Role Data: %u\n", (pdo >> 25) & 0x1);
-    printf("\tUSB-Comm Capable: %u\n", (pdo >> 26) & 0x1);
-    printf("\tUnconstrained Power: %u\n", (pdo >> 27) & 0x1);
-    printf("\tUSB Suspend Support: %u\n", (pdo >> 28) & 0x1);
-    printf("\tDual-Role Power: %u\n", (pdo >> 29) & 0x1);
+    cli_log(INFO_LOG, "\tVoltage: %u\n", ((pdo >> 10) & 0x3FF) * 50);
+    cli_log(INFO_LOG, "\tCurrent: %u\n", (pdo & 0x3FF) * 10);
+    cli_log(INFO_LOG, "\tPeak Current: %u\n", (pdo >> 20) & 0x3);
+    cli_log(INFO_LOG, "\tEPR Capable: %u\n", (pdo >> 23) & 0x1);
+    cli_log(INFO_LOG, "\tUnchunked Support: %u\n", (pdo >> 24) & 0x1);
+    cli_log(INFO_LOG, "\tDual-Role Data: %u\n", (pdo >> 25) & 0x1);
+    cli_log(INFO_LOG, "\tUSB-Comm Capable: %u\n", (pdo >> 26) & 0x1);
+    cli_log(INFO_LOG, "\tUnconstrained Power: %u\n", (pdo >> 27) & 0x1);
+    cli_log(INFO_LOG, "\tUSB Suspend Support: %u\n", (pdo >> 28) & 0x1);
+    cli_log(INFO_LOG, "\tDual-Role Power: %u\n", (pdo >> 29) & 0x1);
 }
 void pe_print_source_capabilities(pd_frame *pdf) {
     uint num_objs = (pdf->hdr >> 12) & 0x7;
     for(uint i = 0; i < num_objs; i++) {
-        printf("PDO %u\n", i);
+        cli_log(INFO_LOG, "PDO %u\n", i);
         uint pdo_base_type = (pdf->obj[i] >> 30) & 0x3;
-        printf("\tType: %s", pdoBaseTypeNames[pdo_base_type]);
-        (pdo_base_type == pdoTypeAugmented) ? printf(" - %s\n", pdoAugmentedTypeNames[(pdf->obj[i] >> 28) & 0x3]) : printf("\n");
+        cli_log(INFO_LOG, "\tType: %s", pdoBaseTypeNames[pdo_base_type]);
+        (pdo_base_type == pdoTypeAugmented) ? cli_log(INFO_LOG, " - %s\n", pdoAugmentedTypeNames[(pdf->obj[i] >> 28) & 0x3]) : cli_log(INFO_LOG, "\n");
         switch(pdo_base_type) {
             case(pdoTypeFixed):
                 pe_print_pdo_fixed(pdf->obj[i]);
             case(pdoTypeBattery):
             case(pdoTypeVariable):
             case(pdoTypeAugmented):
-                printf("\t[Unsupported]\n");
+                cli_log(WARNING_LOG, "\t[Unsupported]\n");
         }
     }
 }
+*/
 void pe_handle_sop_frame(pd_frame *pdf, peSinkPowerCriteria pe_sink_criteria, pd_frame *last_srccap_pdf, uint *hdr_msgid, uint *req_pdo) {
     uint frametype_idx = typec_pdframe_get_sop_msg_type(pdf);
     switch(frametype_idx) {

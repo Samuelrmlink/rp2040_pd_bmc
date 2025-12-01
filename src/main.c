@@ -40,7 +40,7 @@ int main() {
     // Initialize IO
     stdio_init_all();
     BaseType_t status_task_usb = xTaskCreate(thread_usb, "USB_THREAD", 1024, NULL, 1, &tskhdl_usb_cli);
-    mailbox_cli = xQueueCreate(4, sizeof(mailerLabel));
+    mailbox_cli = xQueueCreate(40, sizeof(mailerLabel));
     assert(status_task_usb == pdPASS);
 
     // Initialize TCPC (Type-C Port Controller) Task
