@@ -3,6 +3,9 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include "cli/cli.h"
+#include "pico/stdlib.h"
+#include "hardware/timer.h"
+#include "mailbox_ipc.h"
 
 // Trim leading and trailing whitespace
 static char* str_trim(char *s) {
@@ -106,8 +109,8 @@ static void cli_redraw_line(Cli* cli) {
         char tmp[30];
         sprintf(tmp, "%zuD", back);
         cli_write_str(cli, tmp);
-        cli_flush(cli);
     }
+    cli_flush(cli);
 }
 void cli_process_char(Cli* cli, uint8_t c) {
     //printf("cli_process_char: %u %u %u\n", c, cli->esc_key_pressed, cli->esc_sequence);
@@ -256,14 +259,88 @@ void cli_init(Cli* cli) {
     cli_write_prompt(cli);
     cli_flush(cli);
 }
+void cli_log(uint log_level, const char *fmt, ...) {
+    char *buf = pvPortMalloc(LOG_BUF_SIZE);
+    if(!buf) { return; } // Exit if malloc fails
+    // Parse input args
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(buf, LOG_BUF_SIZE, fmt, args);
+    va_end(args);
+    // Create logging message
+    loggingMsg *log_msg = pvPortMalloc(sizeof(loggingMsg));
+    if(!log_msg) { vPortFree(buf); return; }
+    log_msg->logLevel = log_level;
+    log_msg->string = buf;
+    // Create IPC parcel
+    mailerLabel parcel;
+    parcel.payload_type = LoggingMsg;
+    parcel.payload_ptr = log_msg;
+    // Attach sender to the outgoing IPC parcel (each FreeRTOS task has its own mailbox QueueHandle_t)
+    TaskHandle_t current_task = xTaskGetCurrentTaskHandle();
+    if(current_task == tskhdl_usb_cli) { parcel.sender = mailbox_cli; }
+    else if(current_task == tskhdl_pd_rxf) { parcel.sender = mailbox_tcpc; }
+    else if(current_task == tskhdl_pd_pe) { parcel.sender = mailbox_pe; }
+    else { parcel.sender = NULL; }
+    // Send to CLI mailbox
+    if(xQueueSend(mailbox_cli, &parcel, 0) != pdPASS) {
+        // Queue full - drop outgoing data
+        vPortFree(log_msg->string);
+        vPortFree(log_msg);
+    }
+}
 
 extern void cli_work(void) {
     Cli cli;
     cli_init(&cli);
+    uint32_t timestamp_last = 0;
 
     while (1) {
-        int c = getchar();
-        if(c != EOF)
+        // Check for user input (UART and/or CDC ACM)
+        int c = getchar_timeout_us(0);
+        //cli_printf(&cli, "%d ", c);
+        if(c != -2) {
             cli_process_char(&cli, (uint8_t)c);
+        } else {
+            // Check mailbox
+            mailerLabel parcel;
+            if(xQueueReceive(mailbox_cli, &parcel, 0) == pdPASS) {
+                if(parcel.payload_type == LoggingMsg) {
+                    loggingMsg *log = (loggingMsg*) parcel.payload_ptr;
+                    // Identify LOGGING task
+                    const char *source_str = "Unknown";
+                    if(parcel.sender == mailbox_cli) {          source_str = "CLI: "; }
+                    else if(parcel.sender == mailbox_tcpc) {    source_str = "TCPC: "; }
+                    else if(parcel.sender == mailbox_pe) {      source_str = "PE: "; }
+                    // Handle logging levels - TODO: Gate off lower logging levels
+                    const char *level_str = "";
+                    switch(log->logLevel) {
+                        case DEBUG_LOG:     level_str = "[DEBUG] "; break;
+                        case INFO_LOG:      level_str = "[INFO] "; break;
+                        case WARNING_LOG:   level_str = "[WARNING] "; break;
+                        case ERROR_LOG:     level_str = "[ERROR] "; break;
+                    }
+                    // Write to console
+                    cli_write_str(&cli, "\e[2K\e[0G");
+                    cli_write_str(&cli, level_str);
+                    cli_write_str(&cli, source_str);
+                    cli_write_str(&cli, log->string);
+                    cli_redraw_line(&cli);
+                    vPortFree(log->string);
+                    vPortFree(log);
+                } else {
+                    // Handle unexpected parcel type
+                }
+            }
+            /*
+            if(time_us_32() > timestamp_last + 1000000) {
+                timestamp_last = time_us_32();
+                cli_write_str(&cli, "\e[2K\e[0G");
+                cli_flush(&cli);
+                cli_printf(&cli, "Test %u\n", time_us_32() / 1000);
+                cli_redraw_line(&cli);
+            }
+            */
+        }
     }
 }

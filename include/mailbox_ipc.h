@@ -3,6 +3,18 @@
 
 #include "main_i.h"
 
+// Task Handles (Thread Handles)
+extern TaskHandle_t tskhdl_usb_cli; // Task handle: USB CDC-ACM w/CLI
+extern TaskHandle_t tskhdl_pd_rxf;  // Task handle: RX frame receiver
+extern TaskHandle_t tskhdl_pd_pe;
+
+// Mailboxes (IPC mechanism)
+extern QueueHandle_t mailbox_tcpc;
+extern QueueHandle_t mailbox_pe;
+extern QueueHandle_t mailbox_cli;
+
+
+
 enum PayloadTypes {
     PowerDeliveryMsg,
     LoggingMsg,
@@ -27,6 +39,8 @@ typedef struct {
     } logLevel;
     char *string;
 } loggingMsg;
+
+// Universal logging function (callable from any FreeRTOS task)
 
 void policy_engine_task(void *unused_arg);
 

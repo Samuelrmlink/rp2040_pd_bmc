@@ -20,8 +20,8 @@
 
 
 // Task Handles (Thread Handles)
-TaskHandle_t tskhdl_usb_cli = NULL; // Task handle: USB CDC-ACM w/CLI
-TaskHandle_t tskhdl_pd_rxf = NULL;	// Task handle: RX frame receiver
+TaskHandle_t tskhdl_usb_cli = NULL;    // Task handle: USB CDC-ACM w/CLI
+TaskHandle_t tskhdl_pd_rxf = NULL;     // Task handle: RX frame receiver
 TaskHandle_t tskhdl_pd_pe = NULL;
 
 // Mailboxes (IPC mechanism)

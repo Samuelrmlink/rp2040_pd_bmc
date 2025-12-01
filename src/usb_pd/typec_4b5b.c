@@ -95,7 +95,7 @@ static bool typec_4b5b_symbols_decode(uint *input_offset, uint *after_scrap_offs
         }
         if(*output_offset >= MAX_BYTES_IN_PDFRAME_STRUCT) {
             // Overflow protection
-            printf("\nOVERFLOW\n");
+            cli_log(ERROR_LOG, "\nOVERFLOW\n");
             pdf->timestamp_us = 0;
             return true;
         }
@@ -271,9 +271,9 @@ void typec_operation_test() {
     uint32_t test_data[] = { 0x5, 0x55555000, 0x55555555, 0xC718C555, 0xFD5FBD24, 0x6BAAA4DE };
     uint num_u32 = test_data[0];
     uint32_t *test_ptr = &test_data[1];
-    //printf("%u | %X %X", num_u32, test_ptr[0], test_ptr[1]);
+    //cli_log(DEBUG_LOG, "%u | %X %X", num_u32, test_ptr[0], test_ptr[1]);
     uint32_t *test_ptr2 = typec_tx_convert(test_ptr, num_u32);
     for(uint i = 0; i < num_u32 * 2; i++) {
-        printf("%X ", test_ptr2[i]);
+        cli_log(DEBUG_LOG, "%X ", test_ptr2[i]);
     }
 }

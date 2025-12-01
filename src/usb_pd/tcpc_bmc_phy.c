@@ -6,7 +6,7 @@ tcpcBmcPhyTxData* tcpc_bmc_phy_tx_prepare(pd_frame *pdf) {
     tx_data->num_u32 = bitstream[0];
     tx_data->num_zeros = typec_pretx_num_leading_zeros(bitstream[1]);
     tx_data->pio_raw_tx = typec_tx_convert(&bitstream[1], bitstream[0]);
-    //printf("%X %X %X %X %X %X %X %X %X %X %X\n", converted[0], converted[1], converted[2], converted[3], converted[4], converted[5], converted[6], converted[7], converted[8], converted[9], converted[10]);
+    //cli_log(ERROR_LOG, "%X %X %X %X %X %X %X %X %X %X %X\n", converted[0], converted[1], converted[2], converted[3], converted[4], converted[5], converted[6], converted[7], converted[8], converted[9], converted[10]);
     vPortFree(bitstream);
     return tx_data;
 }
@@ -32,6 +32,6 @@ void tcpc_bmc_phy_tx_send(tcpcPhyChannel *phy_ch, tcpcBmcPhyTxData *tx_data) {
         pio_sm_put_blocking(phy_ch->pio, phy_ch->sm_tx, (tx_data->pio_raw_tx)[i]);
     }
     taskEXIT_CRITICAL();
-    //printf("ZI %u %u\n", tx_data->num_zeros, tx_data->num_u32);
+    //cli_log(ERROR_LOG, "ZI %u %u\n", tx_data->num_zeros, tx_data->num_u32);
     vPortFree(tx_data->pio_raw_tx);
 }

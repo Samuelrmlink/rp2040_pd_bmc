@@ -122,7 +122,7 @@ static void tcpc_received_pdframe_handler(tcpcPhyChannel *phy_ch, tcpcLocalPolic
     // If the local TCPC policy allows - we respond with a 'GoodCRC' message and send a copy to the policy engine
     if(tcpc_check_policy(tcpc_policy, received_frame)) {
         if(tcpc_should_respond_with_goodcrc(tcpc_policy, received_frame)) {
-            //printf("GC\n");
+            //cli_log(DEBUG_LOG, "GC\n");
             //cli_write_log("GC\n", mailbox_tcpc);
             pd_frame goodcrc_resp_frame;
             // Write GoodCRC response
@@ -175,7 +175,7 @@ static void tcpc_poll_dma(tcpcPhyChannel *phy_ch, tcpcLocalPolicy *tcpc_policy) 
                 //debug_pin_toggle(16);
                 tcpc_received_pdframe_handler(phy_ch, tcpc_policy, &current_frame, &previously_sent_frame);
             }
-//            if(typec_pdframe_valid(&current_frame)) { printf("V %X %X\n", current_frame.hdr, current_frame.ordered_set); } else { printf("Iv %X %X\n", current_frame.hdr, current_frame.ordered_set); }
+//            if(typec_pdframe_valid(&current_frame)) { cli_log(DEBUG_LOG, "V %X %X\n", current_frame.hdr, current_frame.ordered_set); } else { cli_log(DEBUG_LOG, "Iv %X %X\n", current_frame.hdr, current_frame.ordered_set); }
             memset(&current_frame, 0, sizeof(pd_frame));
         }
         (*process_count)++;
