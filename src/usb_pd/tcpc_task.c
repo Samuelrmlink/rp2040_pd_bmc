@@ -61,7 +61,7 @@ void tcpc_mailbox_send_to_pe(pd_frame *frame) {
     extern QueueHandle_t mailbox_pe;
     mailerLabel parcel_out;
     powerDeliveryMsg *pd_msg = pvPortMalloc(sizeof(powerDeliveryMsg));
-    //pd_msg->pdf = pvPortMalloc(sizeof(pd_frame));
+    ASSERT_MALLOC(pd_msg);
     memcpy(&pd_msg->pdf, frame, sizeof(pd_frame));
     parcel_out.sender = mailbox_tcpc;
     parcel_out.payload_type = PowerDeliveryMsg;
@@ -228,6 +228,7 @@ void tcpc_task(void *arg) {
     extern tcpcPhyChannel tcpc_phy_chan;
     extern tcpcLocalPolicy tcpc_policy;
     tcpc_phy_chan.raw_buf_rx = pvPortMalloc(sizeof(uint32_t) * tcpc_phy_chan.raw_buf_rx_size);
+    ASSERT_MALLOC(tcpc_phy_chan.raw_buf_rx);
     memset(tcpc_phy_chan.raw_buf_rx, 0, sizeof(uint32_t) * tcpc_phy_chan.raw_buf_rx_size);
     tcpc_phy_chan.dma_rx = tcpc_rx_dma_init(
         &(pio0_hw->rxf[tcpc_phy_chan.sm_rx]),

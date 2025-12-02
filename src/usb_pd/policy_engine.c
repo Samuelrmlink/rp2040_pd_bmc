@@ -129,6 +129,7 @@ void pe_request_from_srccap(pd_frame *input_frame, uint req_pdo, peSinkPowerCrit
     extern QueueHandle_t mailbox_tcpc;
     // Setup output frame structures
     pd_frame *output_frame = pvPortMalloc(sizeof(pd_frame));
+    ASSERT_MALLOC(output_frame);
     memset(output_frame, 0, sizeof(pd_frame));
     // Determine which type of request to generate
     switch((input_frame->obj[req_pdo - 1] >> 30) & 0x3) {
@@ -148,6 +149,8 @@ void pe_request_from_srccap(pd_frame *input_frame, uint req_pdo, peSinkPowerCrit
     }
     // Send to TCPC (Type-C Port Controller) thread
     powerDeliveryMsg *pd_msg = pvPortMalloc(sizeof(powerDeliveryMsg));
+    pd_msg = NULL;
+    ASSERT_MALLOC(pd_msg);
     memcpy(&pd_msg->pdf, output_frame, sizeof(pd_frame));
     vPortFree(output_frame);
     //size_t heap_after = xPortGetFreeHeapSize();

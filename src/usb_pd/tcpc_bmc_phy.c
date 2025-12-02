@@ -2,6 +2,7 @@
 
 tcpcBmcPhyTxData* tcpc_bmc_phy_tx_prepare(pd_frame *pdf) {
     tcpcBmcPhyTxData *tx_data = pvPortMalloc(sizeof(tcpcBmcPhyTxData));
+    ASSERT_MALLOC(tx_data);
     uint32_t *bitstream = typec_pretx_convert(pdf);
     tx_data->num_u32 = bitstream[0];
     tx_data->num_zeros = typec_pretx_num_leading_zeros(bitstream[1]);

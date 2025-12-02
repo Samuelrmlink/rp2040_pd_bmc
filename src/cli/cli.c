@@ -261,6 +261,7 @@ void cli_init(Cli* cli) {
 }
 void cli_log(uint log_level, const char *fmt, ...) {
     char *buf = pvPortMalloc(LOG_BUF_SIZE);
+    ASSERT_MALLOC(buf);
     if(!buf) { return; } // Exit if malloc fails
     // Parse input args
     va_list args;
@@ -269,6 +270,7 @@ void cli_log(uint log_level, const char *fmt, ...) {
     va_end(args);
     // Create logging message
     loggingMsg *log_msg = pvPortMalloc(sizeof(loggingMsg));
+    ASSERT_MALLOC(log_msg);
     if(!log_msg) { vPortFree(buf); return; }
     log_msg->logLevel = log_level;
     log_msg->string = buf;
