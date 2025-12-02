@@ -149,7 +149,6 @@ void pe_request_from_srccap(pd_frame *input_frame, uint req_pdo, peSinkPowerCrit
     }
     // Send to TCPC (Type-C Port Controller) thread
     powerDeliveryMsg *pd_msg = pvPortMalloc(sizeof(powerDeliveryMsg));
-    pd_msg = NULL;
     ASSERT_MALLOC(pd_msg);
     memcpy(&pd_msg->pdf, output_frame, sizeof(pd_frame));
     vPortFree(output_frame);
