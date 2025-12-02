@@ -195,6 +195,7 @@ static void tcpc_poll_dma(tcpcPhyChannel *phy_ch, tcpcLocalPolicy *tcpc_policy) 
                 vPortFree(raw_frame);
                 // Save previously sent frame
                 memcpy(&previously_sent_frame, &pd_msg->pdf, sizeof(pd_frame));
+                //vPortFree(pd_msg->pdf);
                 vPortFree(pd_msg);
             }
         }

@@ -337,15 +337,16 @@ extern void cli_work(void) {
                     // Handle unexpected parcel type
                 }
             }
-            /*
             if(time_us_32() > timestamp_last + 1000000) {
                 timestamp_last = time_us_32();
                 cli_write_str(&cli, "\e[2K\e[0G");
                 cli_flush(&cli);
-                cli_printf(&cli, "Test %u\n", time_us_32() / 1000);
+                //cli_printf(&cli, "Test %u\n", time_us_32() / 1000);
+                size_t free_heap     = xPortGetFreeHeapSize();
+                size_t min_ever_free = xPortGetMinimumEverFreeHeapSize();
+                cli_log(DEBUG_LOG, "FreeRTOS heap - free: %u bytes, minimum ever: %u bytes\n", free_heap, min_ever_free);
                 cli_redraw_line(&cli);
             }
-            */
         }
     }
 }
