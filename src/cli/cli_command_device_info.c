@@ -1,4 +1,5 @@
 #include <pico/unique_id.h>
+#include "cli/cli.h"
 #include "cli/cli_commands.h"
 
 void cli_device_info(Cli* cli, const char* args) {

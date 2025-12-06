@@ -16,5 +16,6 @@ void cli_write_prompt(Cli *cli);
 void cli_flush(Cli *cli);
 void cli_printf(Cli *cli, const char *fmt, ...);
 void cli_log(uint log_level, const char *fmt, ...);
+void cli_work(void);
 
 #endif

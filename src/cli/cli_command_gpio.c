@@ -1,9 +1,12 @@
-#include "cli/cli_commands.h"
+#include <pico/stdlib.h>
+#include <pico/time.h>
 #include <hardware/gpio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include "cli/cli.h"
+#include "cli/cli_commands.h"
 
 #define MAX_GPIO_ARGS 4  // Subcommand + up to 2 args + null terminator
 

@@ -116,9 +116,5 @@ static const uint8_t const bmc5bTo4b[] = {
 };
 
 bool typec_4b5b_decode(pd_frame *pdf, uint32_t raw_data);
-uint typec_pretx_num_leading_zeros(uint32_t obj);
-uint32_t* typec_pretx_convert(pd_frame *pdf);
-uint32_t* typec_tx_convert(uint32_t *in, uint num_in_obj);
-void typec_operation_test();
 
 #endif
