@@ -77,6 +77,8 @@ typedef enum {
     controlMsgGetPpsStatus      = 0x14,
     controlMsgGetCountryCodes   = 0x15,
     controlMsgGetSinkCapExt     = 0x16,
+    controlMsgGetSourceInfo     = 0x17,
+    controlMsgGetRevision       = 0x18,
 
     // Data messages (no extended bit && data objects)
     dataMsgSourceCap            = 0x41,
@@ -123,6 +125,7 @@ typedef enum {
 
 // USB-PD Message Type - strings array
 static const char* const pdMsgControlTypeNames[] = {
+    "",                         // Reserved - 0x00
     "GoodCRC",                  // controlMsgGoodCrc
     "GotoMin",                  // controlMsgGotoMin
     "Accept",                   // controlMsgAccept
@@ -144,9 +147,12 @@ static const char* const pdMsgControlTypeNames[] = {
     "Fast_Role_Swap",           // controlMsgFastRoleSwap
     "Get_PPS_Status",           // controlMsgGetPpsStatus
     "Get_Country_Codes",        // controlMsgGetCountryCodes
-    "Get_Sink_Cap_Ext"          // controlMsgGetSinkCapExt
+    "Get_Sink_Cap_Ext",         // controlMsgGetSinkCapExt
+    "Get_Source_Info",          // controlMsgGetSourceInfo
+    "Get_Revision",             // controlMsgGetRevision
 };
 static const char* const pdMsgDataTypeNames[] = {
+    "",                         // Reserved - 0x40
     "Source Capabilities",      // dataMsgSourceCap
     "Request",                  // dataMsgRequest
     "BIST",                     // dataMsgBist
@@ -162,6 +168,7 @@ static const char* const pdMsgDataTypeNames[] = {
     "Vendor_Defined"            // dataMsgVendorDefined
 };
 static const char* const pdMsgExtTypeNames[] = {
+    "",                         // Reserved - 0x90
     "Source_Cap_Ext",           // extMsgSourceCapExt
     "Status",                   // extMsgStatus
     "Get_Battery_Cap",          // extMsgGetBatteryCap
@@ -172,6 +179,26 @@ static const char* const pdMsgExtTypeNames[] = {
     "Security_Request",         // extMsgSecurityRequest
     "Security_Response",        // extMsgSecurityResponse
     "Firmware_Update_Request"   // extMsgFirmwareUpdateRequest
+    "Firmware_Update_Response", // extMsgFirmwareUpdateResponse
+    "PPS_Status",               // extMsgPpsStatus
+    "Country_Info",             // extMsgCountryInfo
+    "Country_Codes",            // extMsgCountryCodes
+    "Sink_Capabilities_Extended"// extMsgSinkCapExt 
+    "Extended_Control",         // extMsgExtControl
+    "EPR_Source_Capabilities",  // extMsgEprSourceCap
+    "EPR_Sink_Capabilities",    // extMsgEprSinkCap
+    "",                         // Reserved - 0x93
+    "",                         // Reserved - 0x94
+    "",                         // Reserved - 0x95
+    "",                         // Reserved - 0x96
+    "",                         // Reserved - 0x97
+    "",                         // Reserved - 0x98
+    "",                         // Reserved - 0x99
+    "",                         // Reserved - 0x9a
+    "",                         // Reserved - 0x9b
+    "",                         // Reserved - 0x9c
+    "",                         // Reserved - 0x9d
+    "Vendor_Defined_Extended"   // extMsgVendorDefinedExt
 };
 typedef enum {
     pdoTypeFixed,
