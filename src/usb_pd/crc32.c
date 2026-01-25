@@ -40,14 +40,10 @@ uint32_t crc32_pdframe_calc(pd_frame *pdf) {
 }
 // Returns true if *pd_frame is valid
 bool crc32_pdframe_valid(pd_frame *pdf) {
-    uint8_t crc_obj_offset;
-    // Find the object offset of the CRC
-    for(int i = 0; i < 11; i++) {
-        if(!(pdf->obj[i + 1])) {
-            crc_obj_offset = i;
-            break;
-        }
-    }
+    // Determine CRC offset
+    uint crc_offset = 12 + (pdf->hdr >> 12 & 0x7) * 4 + typec_pdframe_extended_unchunked_bytes(pdf);
+    uint32_t *crc32_ptr = &(pdf->raw_bytes[crc_offset]);
+    crc32_ptr += (uintptr_t) crc32_ptr % 4; // Enforce alignment
     // Return whether CRC matches
-    return pdf->obj[crc_obj_offset] == crc32_pdframe_calc(pdf);
+    return *crc32_ptr == crc32_pdframe_calc(pdf);
 }
