@@ -19,8 +19,8 @@ typedef union {
         uint8_t kcode4;             // raw_bytes[7]
         } __attribute__((packed));
     } __attribute__((packed));
-    uint16_t __padding1;            // raw_bytes[8..9]
-    uint16_t hdr;                   // raw_bytes[10..11]
+    uint16_t hdr;                   // raw_bytes[8..9]
+    uint16_t ext_hdr;               // raw_bytes[10..11]
     union {
         // 11 32-bit objects + 1 32-bit CRC
         uint32_t obj[12];           // raw_bytes[12..55]

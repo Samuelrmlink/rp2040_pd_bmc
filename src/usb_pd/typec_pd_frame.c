@@ -52,9 +52,12 @@ bool typec_pdframe_valid(pd_frame *pdf) {
 }
 // Returns the number of unchunked extended bytes (chunked extended frames, or non-extended frames will return 0)
 uint typec_pdframe_extended_unchunked_bytes(pd_frame *pdf) {
-    if((pdf->hdr >> 15) && !(pdf->raw_bytes[12] >> 7)) {
-        return (pdf->raw_bytes[12] | (pdf->raw_bytes[12] & 0x1) << 8);
+    // Check if frame is unchunked extended
+    if((pdf->hdr >> 15) && !(pdf->ext_hdr >> 15)) {
+        // Frame is unchunked extended - return the number of bytes that need to be reserved for this frame.
+        return pdf->ext_hdr & 0x1FF;
     } else {
+        // Frame is chunked extended or non-extended
         return 0;
     }
 }
@@ -100,7 +103,7 @@ bool typec_pdframe_compare(pd_frame *pdf_a, pd_frame *pdf_b) {
     // This is done with the 'Ordered Set' idx value intentionally
     if(ordset_a != ordset_b) { return false; }
     // Compare the rest of the frame
-    if(memcmp(&((pdf_a->raw_bytes)[10]), &((pdf_b->raw_bytes)[10]), sizeof(uint8_t) * 50) != 0) { return false; }
+    if(memcmp(&((pdf_a->raw_bytes)[8]), &((pdf_b->raw_bytes)[8]), sizeof(uint8_t) * 52) != 0) { return false; }
     // Return if we're still here
     return true;
 }

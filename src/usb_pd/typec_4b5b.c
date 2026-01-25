@@ -82,16 +82,23 @@ static bool typec_4b5b_symbols_decode(uint *input_offset, uint *after_scrap_offs
     while(*input_offset + *after_scrap_offset <= 27) {
         decoded_4b = typec_4b5b_pull_5b(input_offset, after_scrap_offset, scrap_bits, input);
         // Ensure that hexadecimal data discovered near the start of frame ends up as header
-        if(*output_offset < 10 && !(decoded_4b & 0x10)) {
-            *output_offset = 10;
+        if(*output_offset < 8 && !(decoded_4b & 0x10)) {
+            *output_offset = 8;
             // Check whether this is a Hard/Cable Reset - those types don't have an EOP symbol
             uint ordset_idx = typec_pdframe_orderedset_get_idx(pdf->ordered_set);
             if(ordset_idx == pdfTypeHardReset || ordset_idx == pdfTypeCableReset) { return true; }
         }
+        // Check whether frame is extended
+        if(*output_offset < 12 && *output_offset > 9 && !(pdf->hdr >> 15)) {
+            // Frame is not extended - skip past ext_hdr field
+            *output_offset = 12;
+        }
+        // Check whether EOP symbol has been received
         if(decoded_4b == sym4bKcodeEop) {
             // End of panel symbol
             return true;
         }
+        // Check whether we are past the maximum pd_frame size (this shouldn't happen)
         if(*output_offset >= MAX_BYTES_IN_PDFRAME_STRUCT) {
             // Overflow protection
             cli_log(ERROR_LOG, "OVERFLOW\n");
@@ -99,7 +106,9 @@ static bool typec_4b5b_symbols_decode(uint *input_offset, uint *after_scrap_offs
             return true;
         }
         assert(*output_offset < MAX_BYTES_IN_PDFRAME_STRUCT);
+        // Write into the pd_frame struct
         pdf->raw_bytes[*output_offset] |= decoded_4b << (4 * (upper_symbol & 1u));
+        // Increment counter & offset handling for the next run
         if(upper_symbol || decoded_4b & 0x10) {
             upper_symbol = false;
             *output_offset += 1;
@@ -107,6 +116,7 @@ static bool typec_4b5b_symbols_decode(uint *input_offset, uint *after_scrap_offs
             upper_symbol = true;
         }
     }
+    // Stash any leftover bits before returning
     if(*input_offset > 27) {
         *scrap_bits = input >> *input_offset;
         *after_scrap_offset = 32 - *input_offset;
