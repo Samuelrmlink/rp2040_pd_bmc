@@ -43,7 +43,10 @@ bool crc32_pdframe_valid(pd_frame *pdf) {
     // Determine CRC offset
     uint crc_offset = 12 + (pdf->hdr >> 12 & 0x7) * 4 + typec_pdframe_extended_unchunked_bytes(pdf);
     uint32_t *crc32_ptr = &(pdf->raw_bytes[crc_offset]);
-    crc32_ptr += (uintptr_t) crc32_ptr % 4; // Enforce alignment
+    //crc32_ptr += (uintptr_t) crc32_ptr % 4; // Enforce alignment
     // Return whether CRC matches
+    if(*crc32_ptr != crc32_pdframe_calc(pdf)) {
+        printf("CRC fail: %X %X Frame: %X %X %X %X %X %X %X %X %X %X\n", *crc32_ptr, crc32_pdframe_calc(pdf), pdf->hdr, pdf->ext_hdr, pdf->obj[0], pdf->obj[1], pdf->obj[2], pdf->obj[3], pdf->obj[4], pdf->obj[5], pdf->obj[6], pdf->obj[7]);
+    }
     return *crc32_ptr == crc32_pdframe_calc(pdf);
 }

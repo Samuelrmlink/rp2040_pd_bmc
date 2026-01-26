@@ -219,7 +219,7 @@ tcpcLocalPolicy tcpc_policy = {
     true,           // accept_sop
     false,          // accept_sopp
     false,          // accept_sopdp
-    true,           // goodcrc_sop
+    false,          // goodcrc_sop
     false,          // goodcrc_sopp
     false           // goodcrc_sopdp
 };

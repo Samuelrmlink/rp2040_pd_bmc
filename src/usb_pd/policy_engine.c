@@ -188,7 +188,7 @@ void pe_print_source_capabilities(pd_frame *pdf) {
     }
 }
 */
-void pe_handle_sop_frame(pd_frame *pdf, peSinkPowerCriteria pe_sink_criteria, pd_frame *last_srccap_pdf, uint *hdr_msgid, uint *req_pdo) {
+void pe_handle_sop_frame(pd_frame *pdf, peLocalPolicy pe_local_policy, peSinkPowerCriteria pe_sink_criteria, pd_frame *last_srccap_pdf, uint *hdr_msgid, uint *req_pdo) {
     uint frametype_idx = typec_pdframe_get_sop_msg_type(pdf);
     switch(frametype_idx) {
         case(controlMsgGoodCrc):
@@ -201,15 +201,22 @@ void pe_handle_sop_frame(pd_frame *pdf, peSinkPowerCriteria pe_sink_criteria, pd
             cli_log(DEBUG_LOG, "PS Ready\n");
             break;
         case(dataMsgSourceCap):
-            *req_pdo = optimal_pdo(pdf, pe_sink_criteria);
-            pe_request_from_srccap(pdf, *req_pdo, pe_sink_criteria, *hdr_msgid);
-            if(memcmp(pdf, last_srccap_pdf, sizeof(pd_frame)) != 0) {
-                memcpy(last_srccap_pdf, pdf, sizeof(pd_frame));
-                // Possibly send to CLI..
+            // Check that we are not in passive mode
+            if(!pe_local_policy.passive_mode) {
+                // Not in passive mode - generate/send a response to the port-partner
+                *req_pdo = optimal_pdo(pdf, pe_sink_criteria);
+                pe_request_from_srccap(pdf, *req_pdo, pe_sink_criteria, *hdr_msgid);
+                if(memcmp(pdf, last_srccap_pdf, sizeof(pd_frame)) != 0) {
+                    memcpy(last_srccap_pdf, pdf, sizeof(pd_frame));
+                    // Possibly send to CLI..
+                }
+            } else {
+                // We are in passive mode - log this frame.
+                cli_log(DEBUG_LOG, "Source Cap: %X %X %X\n", pdf->hdr, pdf->obj[0], pdf->obj[1]);
             }
             break;
         case(dataMsgRequest):
-            //cli_log(DEBUG_LOG, "Request frame - Hdr: %X RDO: %X CRC: %X\n", pdf->hdr, pdf->obj[0], pdf->obj[1]);
+            cli_log(DEBUG_LOG, "Request frame - Hdr: %X RDO: %X CRC: %X\n", pdf->hdr, pdf->obj[0], pdf->obj[1]);
             break;
         default:
             const char *str_ptr;
@@ -228,7 +235,7 @@ void pe_handle_sop_frame(pd_frame *pdf, peSinkPowerCriteria pe_sink_criteria, pd
                     str_ptr = "Unknown type";
                     break;
             }
-            cli_log(WARNING_LOG, "Unimplemented: %s\n", str_ptr);
+            cli_log(WARNING_LOG, "Unimplemented: %s %X %X %X %X -- %u\n", str_ptr, pdf->hdr, pdf->ext_hdr, pdf->obj[0], pdf->obj[1], frametype_idx);
     }
     // Increment msgID
     (*hdr_msgid)++;
@@ -245,7 +252,8 @@ peLocalPolicy pe_local_policy = {
     pdSpecRev3,     // spec_rev
     true,           // capable_usb_comm
     false,          // capable_epr
-    false           // unchunked_ext_msg
+    false,          // unchunked_ext_msg
+    true,           // passive_mode
 };
 
 void policy_engine_task(void *unused_arg) {
@@ -266,7 +274,7 @@ void policy_engine_task(void *unused_arg) {
                 switch(typec_pdframe_orderedset_get_idx(pdf->ordered_set)) {
                     case(pdfTypeSop):
                         //cli_log(DEBUG_LOG, "PE %s HDR: %X Obj: %X\n", sopFrameTypeNames[typec_pdframe_orderedset_get_idx(pdf->ordered_set)], pdf->hdr, (pdf->obj)[0]);
-                        pe_handle_sop_frame(pdf, pe_sink_criteria, &last_srccap, &sop_msgid, &pdo_idx);
+                        pe_handle_sop_frame(pdf, pe_local_policy, pe_sink_criteria, &last_srccap, &sop_msgid, &pdo_idx);
                         break;
                     case(pdfTypeSopP):
                     case(pdfTypeSopDp):
