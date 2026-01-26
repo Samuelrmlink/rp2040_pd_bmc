@@ -165,6 +165,8 @@ static const char* const pdMsgDataTypeNames[] = {
     "EPR_Mode",                 // dataMsgEprMode
     "Source_Info",              // dataMsgSourceInfo
     "Revision",                 // dataMsgRevision
+    "",                         // Reserved - 0x4D
+    "",                         // Reserved - 0x4E
     "Vendor_Defined"            // dataMsgVendorDefined
 };
 static const char* const pdMsgExtTypeNames[] = {
