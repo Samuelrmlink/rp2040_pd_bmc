@@ -61,6 +61,17 @@ uint typec_pdframe_extended_unchunked_bytes(pd_frame *pdf) {
         return 0;
     }
 }
+// Returns the size of [ext_hdr + ext_data payload]
+// Will return 0 if the pd_frame is not extended unchunked
+uint typec_pdframe_unchunked_size(pd_frame *pdf) {
+    uint unchunked_data_bytes = typec_pdframe_extended_unchunked_bytes(pdf);
+    // Check for unchunked bytes
+    if(unchunked_data_bytes) {
+        // Increment by 2 to account for ext_hdr
+        unchunked_data_bytes += 2;
+    }
+    return unchunked_data_bytes;
+}
 void typec_pdframe_generate_goodcrc(pd_frame *input_frame, pd_frame *output_frame) {
     // Ensure we start with a clean slate
     memset(output_frame, 0, sizeof(pd_frame));
@@ -103,7 +114,7 @@ bool typec_pdframe_compare(pd_frame *pdf_a, pd_frame *pdf_b) {
     // This is done with the 'Ordered Set' idx value intentionally
     if(ordset_a != ordset_b) { return false; }
     // Compare the rest of the frame
-    if(memcmp(&((pdf_a->raw_bytes)[8]), &((pdf_b->raw_bytes)[8]), sizeof(uint8_t) * 52) != 0) { return false; }
+    if(memcmp(&((pdf_a->raw_bytes)[10]), &((pdf_b->raw_bytes)[10]), sizeof(uint8_t) * 50) != 0) { return false; }
     // Return if we're still here
     return true;
 }

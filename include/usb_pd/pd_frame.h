@@ -19,12 +19,15 @@ typedef union {
         uint8_t kcode4;             // raw_bytes[7]
         } __attribute__((packed));
     } __attribute__((packed));
-    uint16_t hdr;                   // raw_bytes[8..9]
-    uint16_t ext_hdr;               // raw_bytes[10..11]
+    uint16_t __padding1;            // raw_bytes[8..9]
+    uint16_t hdr;                   // raw_bytes[10..11]
     union {
         // 11 32-bit objects + 1 32-bit CRC
         uint32_t obj[12];           // raw_bytes[12..55]
-        uint8_t data[48];           // raw_bytes[12..55]
+        union {                     // raw_bytes[12..55]
+            uint16_t ext_hdr;
+            uint8_t ext_data[46];
+        } __attribute__((packed));
     } __attribute__((packed));
     } __attribute__((packed));
 } __attribute__((packed)) pd_frame;
@@ -125,82 +128,82 @@ typedef enum {
 
 // USB-PD Message Type - strings array
 static const char* const pdMsgControlTypeNames[] = {
-    "",                         // Reserved - 0x00
-    "GoodCRC",                  // controlMsgGoodCrc
-    "GotoMin",                  // controlMsgGotoMin
-    "Accept",                   // controlMsgAccept
-    "Reject",                   // controlMsgReject
-    "Ping",                     // controlMsgPing
-    "PS_Ready",                 // controlMsgPsReady
-    "Get_Source_Cap",           // controlMsgGetSourceCap
-    "Get_Sink_Cap",             // controlMsgGetSinkCap
-    "Data_Role_Swap ",          // controlMsgDataRoleSwap
-    "Power_Role_Swap ",         // controlMsgPowerRoleSwap
-    "VCONN_Swap",               // controlMsgVconnSwap
-    "Wait",                     // controlMsgWait
-    "Soft_Reset",               // controlMsgSoftReset
-    "Data_Reset",               // controlMsgDataReset
-    "Data_Reset_Complete",      // controlMsgDataResetComplete
-    "Not_Supported",            // controlMsgNotSupported
-    "Get_Source_Cap_Ext",       // controlMsgGetSourceCapExt
-    "Get_Status",               // controlMsgGetStatus
-    "Fast_Role_Swap",           // controlMsgFastRoleSwap
-    "Get_PPS_Status",           // controlMsgGetPpsStatus
-    "Get_Country_Codes",        // controlMsgGetCountryCodes
-    "Get_Sink_Cap_Ext",         // controlMsgGetSinkCapExt
-    "Get_Source_Info",          // controlMsgGetSourceInfo
-    "Get_Revision",             // controlMsgGetRevision
+    "",                             // Reserved                         - 0x00
+    "GoodCRC",                      // controlMsgGoodCrc                - 0x01
+    "GotoMin",                      // controlMsgGotoMin                - 0x02
+    "Accept",                       // controlMsgAccept                 - 0x03
+    "Reject",                       // controlMsgReject                 - 0x04
+    "Ping",                         // controlMsgPing                   - 0x05
+    "PS_Ready",                     // controlMsgPsReady                - 0x06
+    "Get_Source_Cap",               // controlMsgGetSourceCap           - 0x07
+    "Get_Sink_Cap",                 // controlMsgGetSinkCap             - 0x08
+    "Data_Role_Swap ",              // controlMsgDataRoleSwap           - 0x09
+    "Power_Role_Swap ",             // controlMsgPowerRoleSwap          - 0x0A
+    "VCONN_Swap",                   // controlMsgVconnSwap              - 0x0B
+    "Wait",                         // controlMsgWait                   - 0x0C
+    "Soft_Reset",                   // controlMsgSoftReset              - 0x0D
+    "Data_Reset",                   // controlMsgDataReset              - 0x0E
+    "Data_Reset_Complete",          // controlMsgDataResetComplete      - 0x0F
+    "Not_Supported",                // controlMsgNotSupported           - 0x10
+    "Get_Source_Cap_Ext",           // controlMsgGetSourceCapExt        - 0x11
+    "Get_Status",                   // controlMsgGetStatus              - 0x12
+    "Fast_Role_Swap",               // controlMsgFastRoleSwap           - 0x13
+    "Get_PPS_Status",               // controlMsgGetPpsStatus           - 0x14
+    "Get_Country_Codes",            // controlMsgGetCountryCodes        - 0x15
+    "Get_Sink_Cap_Ext",             // controlMsgGetSinkCapExt          - 0x16
+    "Get_Source_Info",              // controlMsgGetSourceInfo          - 0x17
+    "Get_Revision",                 // controlMsgGetRevision            - 0x18
 };
 static const char* const pdMsgDataTypeNames[] = {
-    "",                         // Reserved - 0x40
-    "Source Capabilities",      // dataMsgSourceCap
-    "Request",                  // dataMsgRequest
-    "BIST",                     // dataMsgBist
-    "Sink Capabilities",        // dataMsgSinkCap
-    "Battery_Status",           // dataMsgBatteryStatus
-    "Alert",                    // dataMsgAlert
-    "Get_Country_Info",         // dataMsgGetCountryInfo
-    "Enter_USB",                // dataMsgEnterUsb
-    "EPR_Request",              // dataMsgEprRequest
-    "EPR_Mode",                 // dataMsgEprMode
-    "Source_Info",              // dataMsgSourceInfo
-    "Revision",                 // dataMsgRevision
-    "",                         // Reserved - 0x4D
-    "",                         // Reserved - 0x4E
-    "Vendor_Defined"            // dataMsgVendorDefined
+    "",                             // Reserved                         - 0x40
+    "Source Capabilities",          // dataMsgSourceCap                 - 0x41
+    "Request",                      // dataMsgRequest                   - 0x42
+    "BIST",                         // dataMsgBist                      - 0x43
+    "Sink Capabilities",            // dataMsgSinkCap                   - 0x44
+    "Battery_Status",               // dataMsgBatteryStatus             - 0x45
+    "Alert",                        // dataMsgAlert                     - 0x46
+    "Get_Country_Info",             // dataMsgGetCountryInfo            - 0x47
+    "Enter_USB",                    // dataMsgEnterUsb                  - 0x48
+    "EPR_Request",                  // dataMsgEprRequest                - 0x49
+    "EPR_Mode",                     // dataMsgEprMode                   - 0x4A
+    "Source_Info",                  // dataMsgSourceInfo                - 0x4B
+    "Revision",                     // dataMsgRevision                  - 0x4C
+    "",                             // Reserved                         - 0x4D
+    "",                             // Reserved                         - 0x4E
+    "Vendor_Defined"                // dataMsgVendorDefined             - 0x4F
 };
 static const char* const pdMsgExtTypeNames[] = {
-    "",                         // Reserved - 0x90
-    "Source_Cap_Ext",           // extMsgSourceCapExt
-    "Status",                   // extMsgStatus
-    "Get_Battery_Cap",          // extMsgGetBatteryCap
-    "Get_Battery_Status",       // extMsgGetBatteryStatus
-    "Battery_Cap",              // extMsgBatteryCap
-    "Get_Manufacturer_Info",    // extMsgGetManufacturerInfo
-    "Manufacturer_Info",        // extMsgManufacturerInfo
-    "Security_Request",         // extMsgSecurityRequest
-    "Security_Response",        // extMsgSecurityResponse
-    "Firmware_Update_Request"   // extMsgFirmwareUpdateRequest
-    "Firmware_Update_Response", // extMsgFirmwareUpdateResponse
-    "PPS_Status",               // extMsgPpsStatus
-    "Country_Info",             // extMsgCountryInfo
-    "Country_Codes",            // extMsgCountryCodes
-    "Sink_Capabilities_Extended"// extMsgSinkCapExt 
-    "Extended_Control",         // extMsgExtControl
-    "EPR_Source_Capabilities",  // extMsgEprSourceCap
-    "EPR_Sink_Capabilities",    // extMsgEprSinkCap
-    "",                         // Reserved - 0x93
-    "",                         // Reserved - 0x94
-    "",                         // Reserved - 0x95
-    "",                         // Reserved - 0x96
-    "",                         // Reserved - 0x97
-    "",                         // Reserved - 0x98
-    "",                         // Reserved - 0x99
-    "",                         // Reserved - 0x9a
-    "",                         // Reserved - 0x9b
-    "",                         // Reserved - 0x9c
-    "",                         // Reserved - 0x9d
-    "Vendor_Defined_Extended"   // extMsgVendorDefinedExt
+    "",                             // Reserved                         - 0x80
+    "Source_Cap_Ext",               // extMsgSourceCapExt               - 0x81
+    "Status",                       // extMsgStatus                     - 0x82
+    "Get_Battery_Cap",              // extMsgGetBatteryCap              - 0x83
+    "Get_Battery_Status",           // extMsgGetBatteryStatus           - 0x84
+    "Battery_Cap",                  // extMsgBatteryCap                 - 0x85
+    "Get_Manufacturer_Info",        // extMsgGetManufacturerInfo        - 0x86
+    "Manufacturer_Info",            // extMsgManufacturerInfo           - 0x87
+    "Security_Request",             // extMsgSecurityRequest            - 0x88
+    "Security_Response",            // extMsgSecurityResponse           - 0x89
+    "Firmware_Update_Request",      // extMsgFirmwareUpdateRequest      - 0x8A
+    "Firmware_Update_Response",     // extMsgFirmwareUpdateResponse     - 0x8B
+    "PPS_Status",                   // extMsgPpsStatus                  - 0x8C
+    "Country_Info",                 // extMsgCountryInfo                - 0x8D
+    "Country_Codes",                // extMsgCountryCodes               - 0x8E
+    "Sink_Capabilities_Extended",   // extMsgSinkCapExt                 - 0x8F
+    "Extended_Control",             // extMsgExtControl                 - 0x90
+    "EPR_Source_Capabilities",      // extMsgEprSourceCap               - 0x91
+    "EPR_Sink_Capabilities",        // extMsgEprSinkCap                 - 0x92
+    "",                             // Reserved                         - 0x93
+    "",                             // Reserved                         - 0x94
+    "",                             // Reserved                         - 0x95
+    "",                             // Reserved                         - 0x96
+    "",                             // Reserved                         - 0x97
+    "",                             // Reserved                         - 0x98
+    "",                             // Reserved                         - 0x99
+    "",                             // Reserved                         - 0x9A
+    "",                             // Reserved                         - 0x9B
+    "",                             // Reserved                         - 0x9C
+    "",                             // Reserved                         - 0x9D
+    "Vendor_Defined_Extended"       // extMsgVendorDefinedExt           - 0x9E
 };
 typedef enum {
     pdoTypeFixed,

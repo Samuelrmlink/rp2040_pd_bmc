@@ -82,18 +82,13 @@ static bool typec_4b5b_symbols_decode(uint *input_offset, uint *after_scrap_offs
     while(*input_offset + *after_scrap_offset <= 27) {
         decoded_4b = typec_4b5b_pull_5b(input_offset, after_scrap_offset, scrap_bits, input);
         // Ensure that hexadecimal data discovered near the start of frame ends up as header
-        if(*output_offset < 8 && !(decoded_4b & 0x10)) {
-            *output_offset = 8;
+        if(*output_offset < 10 && !(decoded_4b & 0x10)) {
+            *output_offset = 10;
             // Check whether this is a Hard/Cable Reset - those types don't have an EOP symbol
             uint ordset_idx = typec_pdframe_orderedset_get_idx(pdf->ordered_set);
             if(ordset_idx == pdfTypeHardReset || ordset_idx == pdfTypeCableReset) { return true; }
         }
-        // Check whether frame is extended
-        if(*output_offset < 12 && *output_offset > 9 && !(pdf->hdr >> 15)) {
-            // Frame is not extended - skip past ext_hdr field
-            *output_offset = 12;
-        }
-        // Check whether EOP symbol has been received
+       // Check whether EOP symbol has been received
         if(decoded_4b == sym4bKcodeEop) {
             // End of panel symbol
             return true;

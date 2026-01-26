@@ -61,8 +61,8 @@ static uint32_t* tx_convert(pd_frame *pdf, tcpcBmcPhyTxData *tx_data) {
     }
     // Add the Payload (non K-Code symbols)
     for(uint i = 0; i < num_payload_bytes; i++) {
-        // Skip ext_hdr if the 'extended' bit is not set in the hdr
-        if(input_byte_offset == 10 && !(pdf->hdr >> 15)) { input_byte_offset = 12; }
+        // Skip the __padding1 field in the pd_frame structure
+        if(input_byte_offset == 8) { input_byte_offset = 10; }
         // Write both the upper and lower symbols (With the exception of K-Code symbols - each byte is represented by 2 symbols)
         typec_pretx_buf_write(bmc4bTo5b[(pdf->raw_bytes)[input_byte_offset] & 0xF], (uint)NUM_BITS_SYMBOL, out, &out_bit_pos);
         typec_pretx_buf_write(bmc4bTo5b[((pdf->raw_bytes)[input_byte_offset] >> 4) & 0xF], (uint)NUM_BITS_SYMBOL, out, &out_bit_pos);

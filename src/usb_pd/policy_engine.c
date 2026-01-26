@@ -223,13 +223,13 @@ void pe_handle_sop_frame(pd_frame *pdf, peLocalPolicy pe_local_policy, peSinkPow
             pdMsgType msg_type = (frametype_idx >> 6) & 0x3;
             switch(msg_type) {
                 case(controlMsg):
-                    str_ptr = pdMsgControlTypeNames[frametype_idx & 0x3F];
+                    str_ptr = pdMsgControlTypeNames[frametype_idx & 0x1F];
                     break;
                 case(dataMsg):
-                    str_ptr = pdMsgDataTypeNames[frametype_idx & 0x3F];
+                    str_ptr = pdMsgDataTypeNames[frametype_idx & 0x1F];
                     break;
                 case(extMsg):
-                    str_ptr = pdMsgExtTypeNames[frametype_idx & 0x3F];
+                    str_ptr = pdMsgExtTypeNames[frametype_idx & 0x1F];
                     break;
                 default:
                     str_ptr = "Unknown type";
