@@ -253,7 +253,7 @@ peLocalPolicy pe_local_policy = {
     true,           // capable_usb_comm
     false,          // capable_epr
     false,          // unchunked_ext_msg
-    true,           // passive_mode
+    false,          // passive_mode
 };
 
 void policy_engine_task(void *unused_arg) {
