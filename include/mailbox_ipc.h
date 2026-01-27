@@ -35,7 +35,7 @@ typedef struct {
         DEBUG_LOG,
         INFO_LOG,
         WARNING_LOG,
-        ERROR_LOG
+        ERROR_LOG,
     } logLevel;
     char *string;
 } loggingMsg;

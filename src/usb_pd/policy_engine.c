@@ -188,6 +188,42 @@ void pe_print_source_capabilities(pd_frame *pdf) {
     }
 }
 */
+const char* pe_pdf_get_desc_string(uint frametype_idx) {
+    const char *str_ptr;
+    pdMsgType msg_type = (frametype_idx >> 6) & 0x3;
+    switch(msg_type) {
+        case(controlMsg):
+            str_ptr = pdMsgControlTypeNames[frametype_idx & 0x1F];
+            break;
+        case(dataMsg):
+            str_ptr = pdMsgDataTypeNames[frametype_idx & 0x1F];
+            break;
+        case(extMsg):
+            str_ptr = pdMsgExtTypeNames[frametype_idx & 0x1F];
+            break;
+        default:
+            str_ptr = "Unknown type";
+            break;
+    }
+    return str_ptr;
+}
+void pe_print_pdf(pd_frame *pdf) {
+    uint frm_idx = typec_pdframe_get_sop_msg_type(pdf);
+    cli_log(DEBUG_LOG, "[MsgId: %u] %s\n", pdf->hdr >> 9 & 0x7, pe_pdf_get_desc_string(frm_idx));
+    cli_log(DEBUG_LOG, "  [Hdr] 0x%04X\n", pdf->hdr);
+    if(pdf->hdr >> 15) {
+        cli_log(DEBUG_LOG, "  [ExtHdr] 0x%04X\n", pdf->ext_hdr);
+        cli_log(DEBUG_LOG, "    [%u] 0x");
+        for(uint i = 0; i < (pdf->ext_hdr & 0x1FF); i++) {
+            cli_log(DEBUG_LOG, "%X", pdf->ext_data[i]);
+        }
+        cli_log(DEBUG_LOG, "\n");
+    } else {
+        for(uint i = 0; i < (pdf->hdr >> 12 & 0x7); i++) {
+            cli_log(DEBUG_LOG, "    [%u] 0x%08X\n", i, pdf->obj[i]);
+        }
+    }
+}
 void pe_handle_sop_frame(pd_frame *pdf, peLocalPolicy pe_local_policy, peSinkPowerCriteria pe_sink_criteria, pd_frame *last_srccap_pdf, uint *hdr_msgid, uint *req_pdo) {
     uint frametype_idx = typec_pdframe_get_sop_msg_type(pdf);
     switch(frametype_idx) {
@@ -209,33 +245,21 @@ void pe_handle_sop_frame(pd_frame *pdf, peLocalPolicy pe_local_policy, peSinkPow
                 if(memcmp(pdf, last_srccap_pdf, sizeof(pd_frame)) != 0) {
                     memcpy(last_srccap_pdf, pdf, sizeof(pd_frame));
                     // Possibly send to CLI..
+                    pe_print_pdf(pdf);
                 }
             } else {
                 // We are in passive mode - log this frame.
-                cli_log(DEBUG_LOG, "Source Cap: %X %X %X\n", pdf->hdr, pdf->obj[0], pdf->obj[1]);
+                //cli_log(DEBUG_LOG, "Source Cap: %X %X %X\n", pdf->hdr, pdf->obj[0], pdf->obj[1]);
+                pe_print_pdf(pdf);
             }
             break;
         case(dataMsgRequest):
-            cli_log(DEBUG_LOG, "Request frame - Hdr: %X RDO: %X CRC: %X\n", pdf->hdr, pdf->obj[0], pdf->obj[1]);
+            //cli_log(DEBUG_LOG, "Request frame - Hdr: %X RDO: %X CRC: %X\n", pdf->hdr, pdf->obj[0], pdf->obj[1]);
+            pe_print_pdf(pdf);
             break;
         default:
-            const char *str_ptr;
-            pdMsgType msg_type = (frametype_idx >> 6) & 0x3;
-            switch(msg_type) {
-                case(controlMsg):
-                    str_ptr = pdMsgControlTypeNames[frametype_idx & 0x1F];
-                    break;
-                case(dataMsg):
-                    str_ptr = pdMsgDataTypeNames[frametype_idx & 0x1F];
-                    break;
-                case(extMsg):
-                    str_ptr = pdMsgExtTypeNames[frametype_idx & 0x1F];
-                    break;
-                default:
-                    str_ptr = "Unknown type";
-                    break;
-            }
-            cli_log(WARNING_LOG, "Unimplemented: %s %X %X %X %X -- %u\n", str_ptr, pdf->hdr, pdf->ext_hdr, pdf->obj[0], pdf->obj[1], frametype_idx);
+            cli_log(WARNING_LOG, "Unimplemented: %s\n", pe_pdf_get_desc_string(frametype_idx));
+            pe_print_pdf(pdf);
     }
     // Increment msgID
     (*hdr_msgid)++;
