@@ -78,6 +78,13 @@ set(FW_PLATFORM "${PICO_PLATFORM}")
 
 # Build Date
 string(TIMESTAMP FW_BUILD_DATE "%Y-%m-%d")
+# Git Repo
+execute_process(
+    COMMAND git remote get-url origin
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE FW_GIT_REPO
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
 # Commit
 execute_process(
     COMMAND git rev-parse --short HEAD
@@ -104,8 +111,10 @@ if("${FW_GIT_TAG}" STREQUAL "")
 endif()
 
 set(INFO_FLAGS
+    -DPICO_BOARD="${PICO_BOARD}"
     -DFW_PLATFORM="${FW_PLATFORM}"
     -DFW_BUILD_DATE="${FW_BUILD_DATE}"
+    -DFW_GIT_REPO="${FW_GIT_REPO}"
     -DFW_GIT_COMMIT="${FW_GIT_COMMIT}"
     -DFW_GIT_BRANCH="${FW_GIT_BRANCH}"
     -DFW_GIT_TAG="${FW_GIT_TAG}"
