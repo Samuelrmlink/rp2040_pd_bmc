@@ -207,8 +207,8 @@ tcpcPhyChannel tcpc_phy_chan = {
     0,              // sm_tx
     1,              // sm_rx
     PIO0_IRQ_0,     // irq
-    6,              // pin_rx
-    9,              // pin_tx_high
+    CC1_RX,         // pin_rx
+    CC1_TX_H,       // pin_tx_high
     10,             // pin_tx_low
     0,              // dma_rx
     0,              // *raw_buf_rx

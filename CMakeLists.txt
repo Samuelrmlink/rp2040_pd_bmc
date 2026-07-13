@@ -4,9 +4,9 @@ if(WIN32)
 else()
     set(USERHOME $ENV{HOME})
 endif()
-set(sdkVersion 2.1.1)
-set(toolchainVersion 13_2_Rel1)
-set(picotoolVersion 2.1.1)
+set(sdkVersion 2.2.0)
+set(toolchainVersion 14_2_Rel1)
+set(picotoolVersion 2.2.0-a4)
 set(picoVscode ${USERHOME}/.pico-sdk/cmake/pico-vscode.cmake)
 if (EXISTS ${picoVscode})
     include(${picoVscode})
@@ -14,13 +14,14 @@ endif()
 # ====================================================================================
 
 cmake_minimum_required(VERSION 3.13)
-set(PICO_BOARD pico2 CACHE STRING "Board type")
+set(PICO_BOARD samhedrick_pico_pdinterrogator_rev_d_rp2350 CACHE STRING "Board type")
 
 # Library Base Paths
 set(CONFIG_BASE_PATH ${CMAKE_SOURCE_DIR}/config)
 set(CMAKE_INCLUDES_PATH ${CONFIG_BASE_PATH}/cmake)
 set(LIBRARY_BASE_PATH ${CMAKE_SOURCE_DIR}/lib)
 set(PROJECT_INCLUDES_PATH ${CMAKE_SOURCE_DIR}/include)
+set(PICO_BOARD_HEADER_DIRS  ${CMAKE_SOURCE_DIR}/boards)
 
 if(NOT DEFINED FREERTOS_KERNEL_PATH)
     set(FREERTOS_KERNEL_PATH ${LIBRARY_BASE_PATH}/FreeRTOS-Kernel)

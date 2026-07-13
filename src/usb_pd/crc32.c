@@ -35,7 +35,7 @@ bool crc32_pdframe_valid(pd_frame *pdf) {
             12                                              // Base LSB offset of obj[0] (alternatively ext_hdr) field
             + (pdf->hdr >> 12 & 0x7) * 4                    // Data Objects Size (chunked extended messages are also accounted for here)
             + typec_pdframe_unchunked_size(pdf);            // Extended Unchunked Size [ext_hdr + extended data payload]
-    uint32_t *crc32_ptr = &(pdf->raw_bytes[crc_offset]);
+    uint32_t *crc32_ptr = (uint32_t*) &(pdf->raw_bytes[crc_offset]);
     // Return whether CRC matches
     if(*crc32_ptr != crc32_pdframe_calc(pdf)) {
         printf("CRC fail: %X %X Frame: %X %X %X %X %X %X %X %X %X %X\n", *crc32_ptr, crc32_pdframe_calc(pdf), pdf->hdr, pdf->ext_hdr, pdf->obj[0], pdf->obj[1], pdf->obj[2], pdf->obj[3], pdf->obj[4], pdf->obj[5], pdf->obj[6], pdf->obj[7]);

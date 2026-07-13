@@ -7,6 +7,8 @@
 #include "hardware/timer.h"
 #include "mailbox_ipc.h"
 
+// #define HEAP_DEBUG 1
+
 // Trim leading and trailing whitespace
 static char* str_trim(char *s) {
     // Locate starting character (trim leading whitespace)
@@ -337,6 +339,7 @@ extern void cli_work(void) {
                     // Handle unexpected parcel type
                 }
             }
+#ifdef HEAP_DEBUG
             if(time_us_32() > timestamp_last + 1000000) {
                 timestamp_last = time_us_32();
                 cli_write_str(&cli, "\e[2K\e[0G");
@@ -347,6 +350,7 @@ extern void cli_work(void) {
                 cli_log(DEBUG_LOG, "FreeRTOS heap - free: %u bytes, minimum ever: %u bytes\n", free_heap, min_ever_free);
                 cli_redraw_line(&cli);
             }
+#endif
         }
     }
 }

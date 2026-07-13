@@ -247,6 +247,7 @@ static const char* const pdSpecRevisionNames[] = {
 uint typec_pdframe_orderedset_get_idx(uint32_t input);
 bool typec_pdframe_valid(pd_frame *pdf);
 uint typec_pdframe_extended_unchunked_bytes(pd_frame *pdf);
+uint typec_pdframe_unchunked_size(pd_frame *pdf);
 void typec_pdframe_generate_goodcrc(pd_frame *input_frame, pd_frame *output_frame);
 PDMessageType typec_pdframe_get_sop_msg_type(pd_frame *msg);
 uint typec_pdframe_get_msgid(pd_frame *pdf);
