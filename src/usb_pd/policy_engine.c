@@ -66,7 +66,7 @@ void pe_request_from_srccap_fixed(pd_frame *input_frame, pd_frame *output_frame,
     // Generate Message Header
     output_frame->hdr = (1u << 12)  // # of Data Objects
         | (msg_id & 0x7) << 9       // MsgID
-        | (spec_rev & 0x3) << 6     // PD Spec Rev.
+        | (spec_rev & 0x2) << 6     // PD Spec Rev.
         | (uint)dataMsgRequest;     // Request [Power Contract]
     // Generate RDO (Request Data Object)
     output_frame->obj[0] = (req_pdo & 0xF) << 28    // Object position
@@ -94,7 +94,7 @@ void pe_request_from_srccap_augmented_spr_pps(pd_frame *input_frame, pd_frame *o
     // Generate Message Header
     output_frame->hdr = (1u << 12)  // # of Data Objects
         | (msg_id & 0x7) << 9       // MsgID
-        | (spec_rev & 0x3) << 6     // PD Spec Rev.
+        | (spec_rev & 0x2) << 6     // PD Spec Rev.
         | (uint)dataMsgRequest;     // Request [Power Contract]
     // Generate RDO (Request Data Object)
     output_frame->obj[0] = (req_pdo & 0xF) << 28    // Object position
@@ -124,7 +124,7 @@ void pe_request_from_srccap_augmented(pd_frame *input_frame, pd_frame *output_fr
             break;
     }
 }
-void pe_request_from_srccap(pd_frame *input_frame, uint req_pdo, peSinkPowerCriteria power_req, uint msg_id) {
+void pe_request_from_srccap(pd_frame *input_frame, uint req_pdo, peSinkPowerCriteria power_req, uint *msg_id) {
     extern QueueHandle_t mailbox_pe;
     extern QueueHandle_t mailbox_tcpc;
     // Setup output frame structures
@@ -134,11 +134,11 @@ void pe_request_from_srccap(pd_frame *input_frame, uint req_pdo, peSinkPowerCrit
     // Determine which type of request to generate
     switch((input_frame->obj[req_pdo - 1] >> 30) & 0x3) {
         case(pdoTypeFixed):
-            pe_request_from_srccap_fixed(input_frame, output_frame, req_pdo, power_req, msg_id, (uint)pdSpecRev3);
+            pe_request_from_srccap_fixed(input_frame, output_frame, req_pdo, power_req, *msg_id, (uint)pdSpecRev3);
             //cli_log(DEBUG_LOG, "PE %X %X\n", output_frame->ordered_set, output_frame->hdr);
             break;
         case(pdoTypeAugmented):
-            pe_request_from_srccap_augmented(input_frame, output_frame, req_pdo, power_req, msg_id, (uint)pdSpecRev3);
+            pe_request_from_srccap_augmented(input_frame, output_frame, req_pdo, power_req, *msg_id, (uint)pdSpecRev3);
             break;
         case(pdoTypeBattery):
         case(pdoTypeVariable):
@@ -156,6 +156,9 @@ void pe_request_from_srccap(pd_frame *input_frame, uint req_pdo, peSinkPowerCrit
     //cli_log(DEBUG_LOG, "FreeRTOS heap free: %u bytes (before: %u)\n", heap_after, heap_before);
     mailerLabel parcel_outgoing = { mailbox_pe, PowerDeliveryMsg, pd_msg };
     xQueueSendToBack(mailbox_tcpc, &parcel_outgoing, 0);
+    // Increment MsgID
+    (*msg_id)++;
+    *msg_id &= 0x7;
 }
 /*
 void pe_print_pdo_fixed(uint32_t pdo) {
@@ -241,7 +244,7 @@ void pe_handle_sop_frame(pd_frame *pdf, peLocalPolicy pe_local_policy, peSinkPow
             if(!pe_local_policy.passive_mode) {
                 // Not in passive mode - generate/send a response to the port-partner
                 *req_pdo = optimal_pdo(pdf, pe_sink_criteria);
-                pe_request_from_srccap(pdf, *req_pdo, pe_sink_criteria, *hdr_msgid);
+                pe_request_from_srccap(pdf, *req_pdo, pe_sink_criteria, hdr_msgid);
                 if(memcmp(pdf, last_srccap_pdf, sizeof(pd_frame)) != 0) {
                     memcpy(last_srccap_pdf, pdf, sizeof(pd_frame));
                     // Possibly send to CLI..
@@ -261,9 +264,6 @@ void pe_handle_sop_frame(pd_frame *pdf, peLocalPolicy pe_local_policy, peSinkPow
             cli_log(WARNING_LOG, "Unimplemented: %s\n", pe_pdf_get_desc_string(frametype_idx));
             pe_print_pdf(pdf);
     }
-    // Increment msgID
-    (*hdr_msgid)++;
-    *hdr_msgid &= 0x7;
 }
 
 peSinkPowerCriteria pe_sink_criteria = {
@@ -299,6 +299,7 @@ void policy_engine_task(void *unused_arg) {
                     case(pdfTypeSop):
                         //cli_log(DEBUG_LOG, "PE %s HDR: %X Obj: %X\n", sopFrameTypeNames[typec_pdframe_orderedset_get_idx(pdf->ordered_set)], pdf->hdr, (pdf->obj)[0]);
                         pe_handle_sop_frame(pdf, pe_local_policy, pe_sink_criteria, &last_srccap, &sop_msgid, &pdo_idx);
+                        apdo_last_timestamp = time_us_32(); // Hack - we want to reset apdo timer to avoid back-to-back request transmission
                         break;
                     case(pdfTypeSopP):
                     case(pdfTypeSopDp):
@@ -314,10 +315,7 @@ void policy_engine_task(void *unused_arg) {
             }
         } else if(pe_pdo_is_augmented_idx(&last_srccap, pdo_idx) && time_us_32() > (apdo_last_timestamp + 5000000)) {
             //cli_log(DEBUG_LOG, "APDO RT\n");
-            pe_request_from_srccap(&last_srccap, pdo_idx, pe_sink_criteria, sop_msgid);
-            // Increment msgID
-            sop_msgid++;
-            sop_msgid &= 0x7;
+            pe_request_from_srccap(&last_srccap, pdo_idx, pe_sink_criteria, &sop_msgid);
             // Record timestamp
             apdo_last_timestamp = time_us_32();
             /*
