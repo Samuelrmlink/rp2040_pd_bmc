@@ -15,6 +15,7 @@ endif()
 
 cmake_minimum_required(VERSION 3.13)
 set(PICO_BOARD samhedrick_pico_pdinterrogator_rev_d_rp2350 CACHE STRING "Board type")
+#set(PICO_BOARD samhedrick_pico_pdinterrogator_rev_d_rp2040 CACHE STRING "Board type")
 
 # Library Base Paths
 set(CONFIG_BASE_PATH ${CMAKE_SOURCE_DIR}/config)
